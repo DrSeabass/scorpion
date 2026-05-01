@@ -599,6 +599,133 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME beam_search
+    HELP "Eager beam search"
+    SOURCES
+        search_algorithms/beam_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_beam
+    HELP "Eager beam search (plugin)"
+    SOURCES
+        search_algorithms/plugin_beam
+    DEPENDS
+        beam_search
+)
+
+create_fast_downward_library(
+    NAME lazy_beam_search
+    HELP "Lazy beam search"
+    SOURCES
+        search_algorithms/lazy_beam_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_lazy_beam
+    HELP "Lazy beam search (plugin)"
+    SOURCES
+        search_algorithms/plugin_lazy_beam
+    DEPENDS
+        lazy_beam_search
+)
+
+create_fast_downward_library(
+    NAME triangle_search
+    HELP "Triangle search"
+    SOURCES
+        search_algorithms/triangle_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_triangle
+    HELP "Triangle search (plugin)"
+    SOURCES
+        search_algorithms/plugin_triangle
+    DEPENDS
+        triangle_search
+)
+
+create_fast_downward_library(
+    NAME lazy_triangle_search
+    HELP "Lazy triangle search"
+    SOURCES
+        search_algorithms/lazy_triangle_search
+    DEPENDS
+        best_first_open_list
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_lazy_triangle
+    HELP "Lazy triangle search (plugin)"
+    SOURCES
+        search_algorithms/plugin_lazy_triangle
+    DEPENDS
+        lazy_triangle_search
+)
+
+create_fast_downward_library(
+    NAME rectangle_search
+    HELP "Rectangle search"
+    SOURCES
+        search_algorithms/rectangle_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_rectangle
+    HELP "Rectangle search (plugin)"
+    SOURCES
+        search_algorithms/plugin_rectangle
+    DEPENDS
+        rectangle_search
+)
+
+create_fast_downward_library(
+    NAME graph_discrepancy_search
+    HELP "Graph discrepancy search"
+    SOURCES
+        search_algorithms/graph_discrepancy_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_gds
+    HELP "Graph discrepancy search (plugin)"
+    SOURCES
+        search_algorithms/plugin_gds
+    DEPENDS
+        graph_discrepancy_search
+)
+
+create_fast_downward_library(
     NAME enforced_hill_climbing_search
     HELP "Lazy enforced hill-climbing search"
     SOURCES

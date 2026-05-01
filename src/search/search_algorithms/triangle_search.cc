@@ -1,0 +1,262 @@
+#include "triangle_search.h"
+
+#include "../evaluation_context.h"
+#include "../evaluation_result.h"
+#include "../evaluator.h"
+#include "../plan_manager.h"
+#include "../pruning_method.h"
+
+#include "../task_utils/successor_generator.h"
+#include "../task_utils/task_properties.h"
+
+#include "../utils/logging.h"
+
+#include <algorithm>
+#include <cassert>
+
+using namespace std;
+
+namespace triangle_search {
+
+TriangleSearch::TriangleSearch(
+    const shared_ptr<Evaluator> &eval,
+    int slope,
+    bool reopen_closed,
+    bool anytime,
+    const shared_ptr<PruningMethod> &pruning,
+    OperatorCost cost_type, int bound, double max_time,
+    const string &description, utils::Verbosity verbosity)
+    : SearchAlgorithm(cost_type, bound, max_time, description, verbosity),
+      slope(slope),
+      reopen_closed_nodes(reopen_closed),
+      anytime_search(anytime),
+      eval(eval),
+      pruning_method(pruning) {
+    if (slope <= 0) {
+        cerr << "TriangleSearch: slope must be positive." << endl;
+        utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
+    }
+}
+
+void TriangleSearch::initialize() {
+    log << "Conducting triangle search with slope " << slope
+        << ", (real) bound = " << bound << endl;
+
+    assert(eval);
+
+    set<Evaluator *> evals;
+    eval->get_path_dependent_evaluators(evals);
+    path_dependent_evaluators.assign(evals.begin(), evals.end());
+
+    State initial_state = state_registry.get_initial_state();
+    for (Evaluator *evaluator : path_dependent_evaluators) {
+        evaluator->notify_initial_state(initial_state);
+    }
+
+    EvaluationContext eval_context(initial_state, 0, true, &statistics);
+    statistics.inc_evaluated_states();
+
+    bool is_dead_end = false;
+    int h = eval_context.get_evaluator_value_or_infinity(eval.get());
+    if (h == EvaluationResult::INFTY && eval->dead_ends_are_reliable()) {
+        is_dead_end = true;
+    }
+
+    extend_open_lists(1);
+
+    if (is_dead_end) {
+        log << "Initial state is a dead end." << endl;
+    } else {
+        if (search_progress.check_progress(eval_context)) {
+            statistics.print_checkpoint_line(0);
+        }
+        start_evaluator_statistics(eval_context);
+
+        SearchNode node = search_space.get_node(initial_state);
+        node.open_initial();
+        insert_into_open_list(0, {initial_state.get_id(), h, 0});
+    }
+
+    print_initial_evaluator_values(eval_context);
+    pruning_method->initialize(task);
+}
+
+void TriangleSearch::print_statistics() const {
+    statistics.print_detailed_statistics();
+    search_space.print_statistics();
+    pruning_method->print_statistics();
+}
+
+void TriangleSearch::start_evaluator_statistics(EvaluationContext &eval_context) {
+    int value = eval_context.get_evaluator_value_or_infinity(eval.get());
+    if (value != EvaluationResult::INFTY) {
+        statistics.report_f_value_progress(value);
+    }
+}
+
+bool TriangleSearch::has_non_empty_lists() const {
+    for (const auto &open_list : open_lists) {
+        if (!open_list.empty())
+            return true;
+    }
+    return false;
+}
+
+void TriangleSearch::extend_open_lists(int num_lists) {
+    for (int i = 0; i < num_lists; ++i) {
+        open_lists.emplace_back();
+    }
+}
+
+void TriangleSearch::trim_empty_lists() {
+    while (!open_lists.empty() && open_lists.front().empty()) {
+        open_lists.pop_front();
+    }
+    while (!open_lists.empty() && open_lists.back().empty()) {
+        open_lists.pop_back();
+    }
+}
+
+void TriangleSearch::update_incumbent(const State &goal_state) {
+    Plan candidate_plan =
+        search_space.trace_path(task_proxy, successor_generator, goal_state);
+    int candidate_cost = calculate_plan_cost(candidate_plan, task_proxy);
+
+    if (!found_solution() || candidate_cost < bound) {
+        set_plan(candidate_plan);
+        bound = candidate_cost;
+        log << "TriangleSearch: improved incumbent with cost " << candidate_cost << endl;
+        if (anytime_search) {
+            plan_manager.save_plan(candidate_plan, task_proxy, true);
+        }
+    }
+}
+
+bool TriangleSearch::evaluate_and_prepare_node(
+    const State &state, SearchNode &node, int g, int &h_out) {
+    EvaluationContext eval_context(state, g, false, &statistics);
+    statistics.inc_evaluated_states();
+
+    int h = eval_context.get_evaluator_value_or_infinity(eval.get());
+    if (h == EvaluationResult::INFTY && eval->dead_ends_are_reliable()) {
+        node.mark_as_dead_end();
+        statistics.inc_dead_ends();
+        return false;
+    }
+
+    if (search_progress.check_progress(eval_context)) {
+        statistics.print_checkpoint_line(node.get_g());
+    }
+
+    h_out = h;
+    return true;
+}
+
+void TriangleSearch::insert_into_open_list(int list_index, const OpenEntry &entry) {
+    assert(list_index >= 0 && list_index < static_cast<int>(open_lists.size()));
+    open_lists[list_index].push(entry);
+}
+
+SearchStatus TriangleSearch::step() {
+    if (!has_non_empty_lists()) {
+        if (found_solution()) {
+            log << "All open lists are empty -- best solution found." << endl;
+            return SOLVED;
+        }
+        log << "All open lists are empty -- no solution!" << endl;
+        return FAILED;
+    }
+
+    extend_open_lists(slope);
+
+    const int num_lists = static_cast<int>(open_lists.size());
+    for (int i = 0; i < num_lists - 1; ++i) {
+        if (open_lists[i].empty())
+            continue;
+
+        OpenEntry current = open_lists[i].top();
+        open_lists[i].pop();
+
+        State state = state_registry.lookup_state(current.id);
+        SearchNode node = search_space.get_node(state);
+
+        if (current.g > node.get_g())
+            continue;
+
+        if (node.is_dead_end() || node.is_closed())
+            continue;
+
+        if (task_properties::is_goal_state(task_proxy, state)) {
+            update_incumbent(state);
+            if (!anytime_search)
+                return SOLVED;
+            continue;
+        }
+
+        node.close();
+        statistics.inc_expanded();
+
+        vector<OperatorID> applicable_ops;
+        successor_generator.generate_applicable_ops(state, applicable_ops);
+        pruning_method->prune_operators(state, applicable_ops);
+
+        for (OperatorID op_id : applicable_ops) {
+            OperatorProxy op = task_proxy.get_operators()[op_id];
+            // Scorpion SearchNode lacks get_real_g(); get_g() equals real_g for NORMAL cost type.
+            if (node.get_g() + op.get_cost() >= bound)
+                continue;
+
+            State succ_state = state_registry.get_successor_state(state, op);
+            statistics.inc_generated();
+
+            for (Evaluator *evaluator : path_dependent_evaluators) {
+                evaluator->notify_state_transition(state, op_id, succ_state);
+            }
+
+            SearchNode succ_node = search_space.get_node(succ_state);
+            if (succ_node.is_dead_end())
+                continue;
+
+            if (!reopen_closed_nodes && !succ_node.is_new())
+                continue;
+
+            int succ_g = node.get_g() + get_adjusted_cost(op);
+            int succ_h = EvaluationResult::INFTY;
+
+            if (succ_node.is_new()) {
+                succ_node.open_new_node(node, op, get_adjusted_cost(op));
+                if (!evaluate_and_prepare_node(succ_state, succ_node, succ_g, succ_h))
+                    continue;
+            } else if (succ_node.is_closed()) {
+                if (succ_g >= succ_node.get_g())
+                    continue;
+                if (!reopen_closed_nodes)
+                    continue;
+                statistics.inc_reopened();
+                succ_node.reopen_closed_node(node, op, get_adjusted_cost(op));
+                if (!evaluate_and_prepare_node(succ_state, succ_node, succ_g, succ_h))
+                    continue;
+            } else {
+                if (succ_g < succ_node.get_g())
+                    succ_node.update_open_node_parent(node, op, get_adjusted_cost(op));
+                if (!evaluate_and_prepare_node(succ_state, succ_node, succ_node.get_g(), succ_h))
+                    continue;
+            }
+
+            if (task_properties::is_goal_state(task_proxy, succ_state)) {
+                update_incumbent(succ_state);
+                if (!anytime_search)
+                    return SOLVED;
+                continue;
+            }
+
+            open_lists.resize(max(static_cast<size_t>(i + 2), open_lists.size()));
+            insert_into_open_list(i + 1, {succ_state.get_id(), succ_h, succ_node.get_g()});
+        }
+    }
+
+    trim_empty_lists();
+    return IN_PROGRESS;
+}
+
+}
