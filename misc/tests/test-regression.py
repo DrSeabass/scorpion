@@ -14,6 +14,11 @@ import os
 import sys
 from pathlib import Path
 
+# Add tests dir to path so track modules can import regression_lib.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from regression_heuristic import check_heuristics, update_heuristics  # noqa: E402
+
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 TESTS_DIR = Path(__file__).resolve().parent
 BASELINE_DIR = TESTS_DIR / "regression-baselines"
@@ -47,7 +52,7 @@ def _get_benchmarks_path(cli_override):
 # Tracks are added here as they are implemented in Phase 3:
 # ---------------------------------------------------------------------------
 TRACKS = [
-    # ("heuristics",  check_heuristics,  update_heuristics),
+    ("heuristics",  check_heuristics,  update_heuristics),
     # ("optimal",     check_optimal,     update_optimal),
     # ("satisficing", check_satisficing, update_satisficing),
     # ("anytime",     check_anytime,     update_anytime),
@@ -74,7 +79,7 @@ def main():
         type=int,
         default=DEFAULT_WORKERS,
         metavar="N",
-        help=f"Parallel Lab workers (default: {DEFAULT_WORKERS})",
+        help=f"Parallel workers (default: {DEFAULT_WORKERS})",
     )
     parser.add_argument(
         "--benchmarks",
