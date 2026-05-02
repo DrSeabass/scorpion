@@ -4,7 +4,11 @@ Check or update scorpion search regression baselines.
 
   --check   Run registered tracks and compare against committed baselines.
   --update  Regenerate committed baselines from current results.
+  --full    Full mode: p01-p05, all configs, 60 s limit (default: light mode).
   --track   Run only the named track(s); default is all registered tracks.
+
+Light mode (default): p01 only, 1-2 configs/track, 10 s limit; target < 5 min.
+Full mode (--full):   p01-p05, all configs, 60 s limit; intended as CI gate.
 
 Set AUTOSCALE_BENCHMARKS to the autoscale-benchmarks root directory,
 or pass --benchmarks PATH to override.
@@ -90,6 +94,11 @@ def main():
         metavar="PATH",
         help="Autoscale benchmarks root (overrides AUTOSCALE_BENCHMARKS)",
     )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Full mode: p01-p05, all configs, 60 s (default: light mode)",
+    )
     track_names = [name for name, _, _ in TRACKS]
     parser.add_argument(
         "--track",
@@ -110,11 +119,14 @@ def main():
     if args.update:
         BASELINE_DIR.mkdir(parents=True, exist_ok=True)
 
+    light = not args.full
+
     print(f"Repository root: {REPO_ROOT}")
     print(f"Benchmarks:      {benchmarks}")
     print(f"Baselines:       {BASELINE_DIR}")
     print(f"Workers:         {args.workers}")
-    print(f"Mode:            {'CHECK' if args.check else 'UPDATE'}")
+    print(f"Mode:            {'CHECK' if args.check else 'UPDATE'} "
+          f"({'light' if light else 'full'})")
     print()
 
     selected = (
@@ -126,14 +138,14 @@ def main():
     for track_name, check_fn, update_fn in selected:
         print(f"--- {track_name} ---")
         if args.check:
-            failures = check_fn(benchmarks, BASELINE_DIR, args.workers)
+            failures = check_fn(benchmarks, BASELINE_DIR, args.workers, light=light)
             status = "PASS" if not failures else f"FAIL ({len(failures)} regression(s))"
             print(f"  {status}")
             for msg in failures:
                 print(f"    * {msg}")
             all_failures.extend(failures)
         else:
-            update_fn(benchmarks, BASELINE_DIR, args.workers)
+            update_fn(benchmarks, BASELINE_DIR, args.workers, light=light)
             print("  updated")
 
     print("=" * 60)

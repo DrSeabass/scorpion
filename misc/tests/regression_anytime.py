@@ -30,7 +30,8 @@ from regression_lib import (
 )
 
 TRACK_NAME = "anytime"
-TIME_LIMIT = 60  # seconds per instance
+TIME_LIMIT = 60       # seconds per instance (full mode)
+LIGHT_TIME_LIMIT = 10 # seconds per instance (light mode)
 
 CONFIGS = {
     "iterated_wa_ff": [
@@ -55,24 +56,34 @@ CONFIGS = {
         "],repeat_last=true,continue_on_fail=true)))"],
 }
 
+# Light: one config, p01 only, 10 s.
+LIGHT_CONFIGS = {
+    "iterated_wa_ff": CONFIGS["iterated_wa_ff"],
+}
+
 # The full incumbent cost sequence must reproduce exactly.
 EXACT_KEYS = ["incumbent_costs"]
 
 
-def _run(benchmarks: Path, workers: int) -> dict:
+def _run(benchmarks: Path, workers: int, light: bool) -> dict:
     agile_strips = benchmarks / "21.11-agile-strips"
-    instances = discover_instances(agile_strips)
-    print(f"  Instances: {len(instances)} | configs: {len(CONFIGS)} | "
-          f"time limit: {TIME_LIMIT}s | workers: {workers}")
-    return run_experiment(instances, CONFIGS, TIME_LIMIT, workers)
+    configs = LIGHT_CONFIGS if light else CONFIGS
+    time_limit = LIGHT_TIME_LIMIT if light else TIME_LIMIT
+    max_inst = 1 if light else 5
+    instances = discover_instances(agile_strips, max_instance=max_inst)
+    print(f"  Instances: {len(instances)} | configs: {len(configs)} | "
+          f"time limit: {time_limit}s | workers: {workers}")
+    return run_experiment(instances, configs, time_limit, workers)
 
 
-def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int) -> list[str]:
+def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
+                  *, light: bool = True) -> list[str]:
     print("Running anytime search experiments...")
-    current = _run(benchmarks, workers)
-    baseline = load_baseline(baseline_dir, TRACK_NAME)
+    current = _run(benchmarks, workers, light)
+    track = f"{TRACK_NAME}-light" if light else TRACK_NAME
+    baseline = load_baseline(baseline_dir, track)
     if not baseline:
-        return [f"No baseline found at {baseline_dir}/{TRACK_NAME}.json; "
+        return [f"No baseline found at {baseline_dir}/{track}.json; "
                 "run generate_baseline.py first"]
     # wall_time: iterated search does not emit "Search time:".
     # time_limit=None: disables the coverage-stability threshold — anytime
@@ -81,7 +92,9 @@ def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int) -> list[st
                            runtime_key="wall_time", time_limit=None)
 
 
-def update_anytime(benchmarks: Path, baseline_dir: Path, workers: int) -> None:
+def update_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
+                   *, light: bool = True) -> None:
     print("Running anytime search experiments (baseline generation)...")
-    results = _run(benchmarks, workers)
-    save_baseline(baseline_dir, TRACK_NAME, results)
+    results = _run(benchmarks, workers, light)
+    track = f"{TRACK_NAME}-light" if light else TRACK_NAME
+    save_baseline(baseline_dir, track, results)

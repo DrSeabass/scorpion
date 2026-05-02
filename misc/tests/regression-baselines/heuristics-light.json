@@ -1,0 +1,1189 @@
+{
+  "astar_cegar|agricola|p01.pddl": {
+    "coverage": 0,
+    "returncode": 23,
+    "wall_time": 9.838133587998527
+  },
+  "astar_cegar|airport|p01.pddl": {
+    "cost": 101.0,
+    "coverage": 1,
+    "evaluations": 311,
+    "expansions": 112,
+    "generated": 310,
+    "incumbent_costs": [
+      101.0
+    ],
+    "initial_h_value": 101,
+    "returncode": 0,
+    "search_time": 0.008993,
+    "total_time": 0.054937,
+    "wall_time": 1.244660002999808
+  },
+  "astar_cegar|barman|p01.pddl": {
+    "cost": 11.0,
+    "coverage": 1,
+    "evaluations": 1186,
+    "expansions": 398,
+    "generated": 2075,
+    "incumbent_costs": [
+      11.0
+    ],
+    "initial_h_value": 10,
+    "returncode": 0,
+    "search_time": 0.00099,
+    "total_time": 0.03,
+    "wall_time": 0.20861527499982913
+  },
+  "astar_cegar|blocksworld|p01.pddl": {
+    "cost": 12.0,
+    "coverage": 1,
+    "evaluations": 635,
+    "expansions": 495,
+    "generated": 1380,
+    "incumbent_costs": [
+      12.0
+    ],
+    "initial_h_value": 6,
+    "returncode": 0,
+    "search_time": 0.002,
+    "total_time": 0.009001,
+    "wall_time": 0.16039870500026154
+  },
+  "astar_cegar|childsnack|p01.pddl": {
+    "cost": 7.0,
+    "coverage": 1,
+    "evaluations": 696,
+    "expansions": 393,
+    "generated": 3032,
+    "incumbent_costs": [
+      7.0
+    ],
+    "initial_h_value": 5,
+    "returncode": 0,
+    "search_time": 0.000998,
+    "total_time": 0.008001,
+    "wall_time": 0.17887137599973357
+  },
+  "astar_cegar|data-network|p01.pddl": {
+    "coverage": 0,
+    "initial_h_value": 60,
+    "returncode": 23,
+    "wall_time": 9.276228194001305
+  },
+  "astar_cegar|depots|p01.pddl": {
+    "cost": 11.0,
+    "coverage": 1,
+    "evaluations": 381,
+    "expansions": 59,
+    "generated": 661,
+    "incumbent_costs": [
+      11.0
+    ],
+    "initial_h_value": 10,
+    "returncode": 0,
+    "search_time": 0.001001,
+    "total_time": 0.012143,
+    "wall_time": 0.20733688399923267
+  },
+  "astar_cegar|driverlog|p01.pddl": {
+    "cost": 18.0,
+    "coverage": 1,
+    "evaluations": 2341,
+    "expansions": 691,
+    "generated": 4442,
+    "incumbent_costs": [
+      18.0
+    ],
+    "initial_h_value": 15,
+    "returncode": 0,
+    "search_time": 0.002,
+    "total_time": 0.009989,
+    "wall_time": 0.19421443099963653
+  },
+  "astar_cegar|elevators|p01.pddl": {
+    "cost": 38.0,
+    "coverage": 1,
+    "evaluations": 2704,
+    "expansions": 213,
+    "generated": 3771,
+    "incumbent_costs": [
+      38.0
+    ],
+    "initial_h_value": 35,
+    "returncode": 0,
+    "search_time": 0.002,
+    "total_time": 0.017,
+    "wall_time": 0.18304625599921565
+  },
+  "astar_cegar|floortile|p01.pddl": {
+    "cost": 24.0,
+    "coverage": 1,
+    "evaluations": 14742,
+    "expansions": 4748,
+    "generated": 28754,
+    "incumbent_costs": [
+      24.0
+    ],
+    "initial_h_value": 17,
+    "returncode": 0,
+    "search_time": 0.017695,
+    "total_time": 0.026719,
+    "wall_time": 0.18643808600063494
+  },
+  "astar_cegar|freecell|p01.pddl": {
+    "coverage": 0,
+    "initial_h_value": 10,
+    "returncode": 23,
+    "wall_time": 9.43693223199989
+  },
+  "astar_cegar|ged|p01.pddl": {
+    "cost": 1.0,
+    "coverage": 1,
+    "evaluations": 7,
+    "expansions": 2,
+    "generated": 6,
+    "incumbent_costs": [
+      1.0
+    ],
+    "initial_h_value": 1,
+    "returncode": 0,
+    "search_time": 0.0,
+    "total_time": 0.004993,
+    "wall_time": 0.2276280610003596
+  },
+  "astar_cegar|grid|p01.pddl": {
+    "cost": 15.0,
+    "coverage": 1,
+    "evaluations": 2611,
+    "expansions": 1028,
+    "generated": 4952,
+    "incumbent_costs": [
+      15.0
+    ],
+    "initial_h_value": 12,
+    "returncode": 0,
+    "search_time": 0.003001,
+    "total_time": 0.019,
+    "wall_time": 0.2308404529994732
+  },
+  "astar_cegar|gripper|p01.pddl": {
+    "cost": 23.0,
+    "coverage": 1,
+    "evaluations": 11171,
+    "expansions": 9951,
+    "generated": 40992,
+    "incumbent_costs": [
+      23.0
+    ],
+    "initial_h_value": 17,
+    "returncode": 0,
+    "search_time": 0.015,
+    "total_time": 0.024,
+    "wall_time": 0.18552270800137194
+  },
+  "astar_cegar|hiking|p01.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 880,
+    "expansions": 166,
+    "generated": 3855,
+    "incumbent_costs": [
+      5.0
+    ],
+    "initial_h_value": 4,
+    "returncode": 0,
+    "search_time": 0.001998,
+    "total_time": 0.008,
+    "wall_time": 0.21478120400024636
+  },
+  "astar_cegar|logistics|p01.pddl": {
+    "cost": 11.0,
+    "coverage": 1,
+    "evaluations": 105,
+    "expansions": 23,
+    "generated": 132,
+    "incumbent_costs": [
+      11.0
+    ],
+    "initial_h_value": 11,
+    "returncode": 0,
+    "search_time": 0.001,
+    "total_time": 0.005864,
+    "wall_time": 0.1686391500006721
+  },
+  "astar_cegar|miconic|p01.pddl": {
+    "cost": 22.0,
+    "coverage": 1,
+    "evaluations": 8528,
+    "expansions": 2529,
+    "generated": 17674,
+    "incumbent_costs": [
+      22.0
+    ],
+    "initial_h_value": 21,
+    "returncode": 0,
+    "search_time": 0.007996,
+    "total_time": 0.018,
+    "wall_time": 0.18607732900090923
+  },
+  "astar_cegar|mprime|p01.pddl": {
+    "cost": 9.0,
+    "coverage": 1,
+    "evaluations": 3712,
+    "expansions": 186,
+    "generated": 6610,
+    "incumbent_costs": [
+      9.0
+    ],
+    "initial_h_value": 8,
+    "returncode": 0,
+    "search_time": 0.00301,
+    "total_time": 0.021009,
+    "wall_time": 0.2765929959987261
+  },
+  "astar_cegar|nomystery|p01.pddl": {
+    "cost": 11.0,
+    "coverage": 1,
+    "evaluations": 258,
+    "expansions": 77,
+    "generated": 319,
+    "incumbent_costs": [
+      11.0
+    ],
+    "initial_h_value": 10,
+    "returncode": 0,
+    "search_time": 0.000993,
+    "total_time": 0.013855,
+    "wall_time": 0.2713859860014054
+  },
+  "astar_cegar|openstacks|p01.pddl": {
+    "cost": 6.0,
+    "coverage": 1,
+    "evaluations": 686172,
+    "expansions": 326901,
+    "generated": 2071692,
+    "incumbent_costs": [
+      6.0
+    ],
+    "initial_h_value": 4,
+    "returncode": 0,
+    "search_time": 1.710864,
+    "total_time": 2.447483,
+    "wall_time": 2.67866377899918
+  },
+  "astar_cegar|organic-synthesis-split|p01.pddl": {
+    "cost": 252.0,
+    "coverage": 1,
+    "evaluations": 115,
+    "expansions": 95,
+    "generated": 189,
+    "incumbent_costs": [
+      252.0
+    ],
+    "initial_h_value": 126,
+    "returncode": 0,
+    "search_time": 0.001003,
+    "total_time": 0.011995,
+    "wall_time": 6.306122142999811
+  },
+  "astar_cegar|parcprinter|p01.pddl": {
+    "cost": 143411.0,
+    "coverage": 1,
+    "evaluations": 14,
+    "expansions": 9,
+    "generated": 14,
+    "incumbent_costs": [
+      143411.0
+    ],
+    "initial_h_value": 143411,
+    "returncode": 0,
+    "search_time": 0.001021,
+    "total_time": 0.005021,
+    "wall_time": 0.16342049000013503
+  },
+  "astar_cegar|parking|p01.pddl": {
+    "cost": 2.0,
+    "coverage": 1,
+    "evaluations": 10,
+    "expansions": 3,
+    "generated": 10,
+    "incumbent_costs": [
+      2.0
+    ],
+    "initial_h_value": 2,
+    "returncode": 0,
+    "search_time": 0.0,
+    "total_time": 0.00699,
+    "wall_time": 0.1655912559999706
+  },
+  "astar_cegar|pathways|p01.pddl": {
+    "cost": 6.0,
+    "coverage": 1,
+    "evaluations": 11,
+    "expansions": 7,
+    "generated": 14,
+    "incumbent_costs": [
+      6.0
+    ],
+    "initial_h_value": 6,
+    "returncode": 0,
+    "search_time": 0.0,
+    "total_time": 0.003997,
+    "wall_time": 0.15844956500041008
+  },
+  "astar_cegar|pegsol|p01.pddl": {
+    "cost": 2.0,
+    "coverage": 1,
+    "evaluations": 10,
+    "expansions": 6,
+    "generated": 10,
+    "incumbent_costs": [
+      2.0
+    ],
+    "initial_h_value": 2,
+    "returncode": 0,
+    "search_time": 0.0,
+    "total_time": 0.008997,
+    "wall_time": 0.1732455609999306
+  },
+  "astar_cegar|pipesworld-notankage|p01.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 25,
+    "expansions": 6,
+    "generated": 29,
+    "incumbent_costs": [
+      5.0
+    ],
+    "initial_h_value": 5,
+    "returncode": 0,
+    "search_time": 0.0,
+    "total_time": 0.005985,
+    "wall_time": 0.16320560600070166
+  },
+  "astar_cegar|pipesworld-tankage|p01.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 34,
+    "expansions": 9,
+    "generated": 42,
+    "incumbent_costs": [
+      5.0
+    ],
+    "initial_h_value": 5,
+    "returncode": 0,
+    "search_time": 0.000999,
+    "total_time": 0.007001,
+    "wall_time": 0.18300591099978192
+  },
+  "astar_cegar|rovers|p01.pddl": {
+    "cost": 18.0,
+    "coverage": 1,
+    "evaluations": 4825,
+    "expansions": 2375,
+    "generated": 15533,
+    "incumbent_costs": [
+      18.0
+    ],
+    "initial_h_value": 14,
+    "returncode": 0,
+    "search_time": 0.005959,
+    "total_time": 0.012959,
+    "wall_time": 0.1682414240003709
+  },
+  "astar_cegar|satellite|p01.pddl": {
+    "cost": 21.0,
+    "coverage": 1,
+    "evaluations": 68780,
+    "expansions": 45180,
+    "generated": 1190228,
+    "incumbent_costs": [
+      21.0
+    ],
+    "initial_h_value": 14,
+    "returncode": 0,
+    "search_time": 0.180878,
+    "total_time": 0.201825,
+    "wall_time": 0.37898195999878226
+  },
+  "astar_cegar|scanalyzer|p01.pddl": {
+    "cost": 6.0,
+    "coverage": 1,
+    "evaluations": 5,
+    "expansions": 3,
+    "generated": 4,
+    "incumbent_costs": [
+      6.0
+    ],
+    "initial_h_value": 6,
+    "returncode": 0,
+    "search_time": 0.0,
+    "total_time": 0.004,
+    "wall_time": 0.1321638810004515
+  },
+  "astar_cegar|snake|p01.pddl": {
+    "cost": 15.0,
+    "coverage": 1,
+    "evaluations": 4360,
+    "expansions": 2643,
+    "generated": 5390,
+    "incumbent_costs": [
+      15.0
+    ],
+    "initial_h_value": 8,
+    "returncode": 0,
+    "search_time": 0.01199,
+    "total_time": 0.215864,
+    "wall_time": 1.3504926440000418
+  },
+  "astar_cegar|sokoban|p01.pddl": {
+    "cost": 26.0,
+    "coverage": 1,
+    "evaluations": 1716607,
+    "expansions": 1660978,
+    "generated": 4435877,
+    "incumbent_costs": [
+      26.0
+    ],
+    "initial_h_value": 10,
+    "returncode": 0,
+    "search_time": 5.845381,
+    "total_time": 6.453357,
+    "wall_time": 6.6335708829992655
+  },
+  "astar_cegar|storage|p01.pddl": {
+    "cost": 9.0,
+    "coverage": 1,
+    "evaluations": 201,
+    "expansions": 123,
+    "generated": 482,
+    "incumbent_costs": [
+      9.0
+    ],
+    "initial_h_value": 5,
+    "returncode": 0,
+    "search_time": 0.000999,
+    "total_time": 0.005,
+    "wall_time": 0.1516006620004191
+  },
+  "astar_cegar|termes|p01.pddl": {
+    "cost": 36.0,
+    "coverage": 1,
+    "evaluations": 144851,
+    "expansions": 110546,
+    "generated": 409485,
+    "incumbent_costs": [
+      36.0
+    ],
+    "initial_h_value": 26,
+    "returncode": 0,
+    "search_time": 0.288988,
+    "total_time": 1.484903,
+    "wall_time": 1.681856217001041
+  },
+  "astar_cegar|tetris|p01.pddl": {
+    "cost": 2.0,
+    "coverage": 1,
+    "evaluations": 9,
+    "expansions": 3,
+    "generated": 9,
+    "incumbent_costs": [
+      2.0
+    ],
+    "initial_h_value": 2,
+    "returncode": 0,
+    "search_time": 0.0,
+    "total_time": 0.110952,
+    "wall_time": 0.9976268999998865
+  },
+  "astar_cegar|thoughtful|p01.pddl": {
+    "cost": 25.0,
+    "coverage": 1,
+    "evaluations": 937899,
+    "expansions": 482085,
+    "generated": 2700907,
+    "incumbent_costs": [
+      25.0
+    ],
+    "initial_h_value": 11,
+    "returncode": 0,
+    "search_time": 2.84082,
+    "total_time": 3.56671,
+    "wall_time": 3.8851950370008126
+  },
+  "astar_cegar|tidybot|p01.pddl": {
+    "cost": 29.0,
+    "coverage": 1,
+    "evaluations": 24403,
+    "expansions": 15712,
+    "generated": 47259,
+    "incumbent_costs": [
+      29.0
+    ],
+    "initial_h_value": 17,
+    "returncode": 0,
+    "search_time": 0.073984,
+    "total_time": 0.937552,
+    "wall_time": 4.322121594999771
+  },
+  "astar_cegar|tpp|p01.pddl": {
+    "cost": 11.0,
+    "coverage": 1,
+    "evaluations": 106,
+    "expansions": 32,
+    "generated": 129,
+    "incumbent_costs": [
+      11.0
+    ],
+    "initial_h_value": 11,
+    "returncode": 0,
+    "search_time": 0.001,
+    "total_time": 0.00701,
+    "wall_time": 0.18117202699977497
+  },
+  "astar_cegar|transport|p01.pddl": {
+    "cost": 482.0,
+    "coverage": 1,
+    "evaluations": 793,
+    "expansions": 293,
+    "generated": 1623,
+    "incumbent_costs": [
+      482.0
+    ],
+    "initial_h_value": 398,
+    "returncode": 0,
+    "search_time": 0.003,
+    "total_time": 0.035916,
+    "wall_time": 0.18153046000043105
+  },
+  "astar_cegar|visitall|p01.pddl": {
+    "cost": 22.0,
+    "coverage": 1,
+    "evaluations": 318908,
+    "expansions": 230973,
+    "generated": 760140,
+    "incumbent_costs": [
+      22.0
+    ],
+    "initial_h_value": 12,
+    "returncode": 0,
+    "search_time": 0.553984,
+    "total_time": 0.570925,
+    "wall_time": 0.7134950480012776
+  },
+  "astar_cegar|woodworking|p01.pddl": {
+    "cost": 85.0,
+    "coverage": 1,
+    "evaluations": 20,
+    "expansions": 7,
+    "generated": 23,
+    "incumbent_costs": [
+      85.0
+    ],
+    "initial_h_value": 85,
+    "returncode": 0,
+    "search_time": 0.001,
+    "total_time": 0.010998,
+    "wall_time": 0.1748825750000833
+  },
+  "astar_cegar|zenotravel|p01.pddl": {
+    "cost": 14.0,
+    "coverage": 1,
+    "evaluations": 454,
+    "expansions": 168,
+    "generated": 1096,
+    "incumbent_costs": [
+      14.0
+    ],
+    "initial_h_value": 11,
+    "returncode": 0,
+    "search_time": 0.002,
+    "total_time": 0.007999,
+    "wall_time": 0.16207644600035565
+  },
+  "astar_lmcut|agricola|p01.pddl": {
+    "coverage": 0,
+    "initial_h_value": 202,
+    "returncode": 23,
+    "wall_time": 9.093425373999708
+  },
+  "astar_lmcut|airport|p01.pddl": {
+    "cost": 101.0,
+    "coverage": 1,
+    "evaluations": 298,
+    "expansions": 102,
+    "generated": 297,
+    "incumbent_costs": [
+      101.0
+    ],
+    "initial_h_value": 101,
+    "returncode": 0,
+    "search_time": 0.443348,
+    "total_time": 0.464387,
+    "wall_time": 1.9224331850000453
+  },
+  "astar_lmcut|barman|p01.pddl": {
+    "cost": 11.0,
+    "coverage": 1,
+    "evaluations": 507,
+    "expansions": 176,
+    "generated": 866,
+    "incumbent_costs": [
+      11.0
+    ],
+    "initial_h_value": 6,
+    "returncode": 0,
+    "search_time": 0.015106,
+    "total_time": 0.020067,
+    "wall_time": 0.24905273499825853
+  },
+  "astar_lmcut|blocksworld|p01.pddl": {
+    "cost": 12.0,
+    "coverage": 1,
+    "evaluations": 114,
+    "expansions": 61,
+    "generated": 186,
+    "incumbent_costs": [
+      12.0
+    ],
+    "initial_h_value": 7,
+    "returncode": 0,
+    "search_time": 0.002185,
+    "total_time": 0.004563,
+    "wall_time": 0.24736504599968612
+  },
+  "astar_lmcut|childsnack|p01.pddl": {
+    "cost": 7.0,
+    "coverage": 1,
+    "evaluations": 422,
+    "expansions": 120,
+    "generated": 1013,
+    "incumbent_costs": [
+      7.0
+    ],
+    "initial_h_value": 5,
+    "returncode": 0,
+    "search_time": 0.001636,
+    "total_time": 0.004635,
+    "wall_time": 0.19218148199979623
+  },
+  "astar_lmcut|data-network|p01.pddl": {
+    "coverage": 0,
+    "initial_h_value": 38,
+    "returncode": 23,
+    "wall_time": 9.347560423000687
+  },
+  "astar_lmcut|depots|p01.pddl": {
+    "cost": 11.0,
+    "coverage": 1,
+    "evaluations": 168,
+    "expansions": 19,
+    "generated": 216,
+    "incumbent_costs": [
+      11.0
+    ],
+    "initial_h_value": 10,
+    "returncode": 0,
+    "search_time": 0.006768,
+    "total_time": 0.010842,
+    "wall_time": 0.2443627379998361
+  },
+  "astar_lmcut|driverlog|p01.pddl": {
+    "cost": 18.0,
+    "coverage": 1,
+    "evaluations": 226,
+    "expansions": 57,
+    "generated": 373,
+    "incumbent_costs": [
+      18.0
+    ],
+    "initial_h_value": 15,
+    "returncode": 0,
+    "search_time": 0.006024,
+    "total_time": 0.009025,
+    "wall_time": 0.21407256299971777
+  },
+  "astar_lmcut|elevators|p01.pddl": {
+    "cost": 38.0,
+    "coverage": 1,
+    "evaluations": 2195,
+    "expansions": 233,
+    "generated": 3988,
+    "incumbent_costs": [
+      38.0
+    ],
+    "initial_h_value": 31,
+    "returncode": 0,
+    "search_time": 0.08659,
+    "total_time": 0.091597,
+    "wall_time": 0.32949399299832294
+  },
+  "astar_lmcut|floortile|p01.pddl": {
+    "cost": 24.0,
+    "coverage": 1,
+    "evaluations": 973,
+    "expansions": 166,
+    "generated": 1356,
+    "incumbent_costs": [
+      24.0
+    ],
+    "initial_h_value": 17,
+    "returncode": 0,
+    "search_time": 0.01225,
+    "total_time": 0.01525,
+    "wall_time": 0.2253400440004043
+  },
+  "astar_lmcut|freecell|p01.pddl": {
+    "coverage": 0,
+    "initial_h_value": 33,
+    "returncode": 23,
+    "wall_time": 9.496669026000745
+  },
+  "astar_lmcut|ged|p01.pddl": {
+    "cost": 1.0,
+    "coverage": 1,
+    "evaluations": 7,
+    "expansions": 2,
+    "generated": 6,
+    "incumbent_costs": [
+      1.0
+    ],
+    "initial_h_value": 1,
+    "returncode": 0,
+    "search_time": 0.000478,
+    "total_time": 0.005452,
+    "wall_time": 0.27842166899972653
+  },
+  "astar_lmcut|grid|p01.pddl": {
+    "cost": 15.0,
+    "coverage": 1,
+    "evaluations": 2792,
+    "expansions": 1132,
+    "generated": 5302,
+    "incumbent_costs": [
+      15.0
+    ],
+    "initial_h_value": 10,
+    "returncode": 0,
+    "search_time": 0.178757,
+    "total_time": 0.185025,
+    "wall_time": 0.4261907569998584
+  },
+  "astar_lmcut|gripper|p01.pddl": {
+    "cost": 23.0,
+    "coverage": 1,
+    "evaluations": 11102,
+    "expansions": 10537,
+    "generated": 43808,
+    "incumbent_costs": [
+      23.0
+    ],
+    "initial_h_value": 17,
+    "returncode": 0,
+    "search_time": 0.097996,
+    "total_time": 0.099997,
+    "wall_time": 0.3058834619987465
+  },
+  "astar_lmcut|hiking|p01.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 179,
+    "expansions": 6,
+    "generated": 195,
+    "incumbent_costs": [
+      5.0
+    ],
+    "initial_h_value": 4,
+    "returncode": 0,
+    "search_time": 0.002002,
+    "total_time": 0.005002,
+    "wall_time": 0.23340128199924948
+  },
+  "astar_lmcut|logistics|p01.pddl": {
+    "cost": 11.0,
+    "coverage": 1,
+    "evaluations": 69,
+    "expansions": 14,
+    "generated": 84,
+    "incumbent_costs": [
+      11.0
+    ],
+    "initial_h_value": 11,
+    "returncode": 0,
+    "search_time": 0.001033,
+    "total_time": 0.003036,
+    "wall_time": 0.17081829299968376
+  },
+  "astar_lmcut|miconic|p01.pddl": {
+    "cost": 22.0,
+    "coverage": 1,
+    "evaluations": 292,
+    "expansions": 63,
+    "generated": 434,
+    "incumbent_costs": [
+      22.0
+    ],
+    "initial_h_value": 21,
+    "returncode": 0,
+    "search_time": 0.003801,
+    "total_time": 0.007893,
+    "wall_time": 0.157660863998899
+  },
+  "astar_lmcut|mprime|p01.pddl": {
+    "cost": 9.0,
+    "coverage": 1,
+    "evaluations": 9735,
+    "expansions": 929,
+    "generated": 31068,
+    "incumbent_costs": [
+      9.0
+    ],
+    "initial_h_value": 6,
+    "returncode": 0,
+    "search_time": 1.488263,
+    "total_time": 1.497262,
+    "wall_time": 1.7589099920005538
+  },
+  "astar_lmcut|nomystery|p01.pddl": {
+    "cost": 11.0,
+    "coverage": 1,
+    "evaluations": 177,
+    "expansions": 46,
+    "generated": 203,
+    "incumbent_costs": [
+      11.0
+    ],
+    "initial_h_value": 8,
+    "returncode": 0,
+    "search_time": 0.013999,
+    "total_time": 0.022999,
+    "wall_time": 0.26138175899905036
+  },
+  "astar_lmcut|openstacks|p01.pddl": {
+    "cost": 6.0,
+    "coverage": 1,
+    "evaluations": 695408,
+    "expansions": 316593,
+    "generated": 2269327,
+    "incumbent_costs": [
+      6.0
+    ],
+    "initial_h_value": 1,
+    "returncode": 0,
+    "search_time": 8.228181,
+    "total_time": 8.235184,
+    "wall_time": 8.477095579999514
+  },
+  "astar_lmcut|organic-synthesis-split|p01.pddl": {
+    "cost": 252.0,
+    "coverage": 1,
+    "evaluations": 62,
+    "expansions": 34,
+    "generated": 91,
+    "incumbent_costs": [
+      252.0
+    ],
+    "initial_h_value": 141,
+    "returncode": 0,
+    "search_time": 0.002853,
+    "total_time": 0.006777,
+    "wall_time": 7.503837804000796
+  },
+  "astar_lmcut|parcprinter|p01.pddl": {
+    "cost": 143411.0,
+    "coverage": 1,
+    "evaluations": 14,
+    "expansions": 9,
+    "generated": 14,
+    "incumbent_costs": [
+      143411.0
+    ],
+    "initial_h_value": 143411,
+    "returncode": 0,
+    "search_time": 0.001005,
+    "total_time": 0.003006,
+    "wall_time": 0.2048598919991491
+  },
+  "astar_lmcut|parking|p01.pddl": {
+    "cost": 2.0,
+    "coverage": 1,
+    "evaluations": 10,
+    "expansions": 3,
+    "generated": 10,
+    "incumbent_costs": [
+      2.0
+    ],
+    "initial_h_value": 2,
+    "returncode": 0,
+    "search_time": 0.00089,
+    "total_time": 0.007633,
+    "wall_time": 0.2925810110009479
+  },
+  "astar_lmcut|pathways|p01.pddl": {
+    "cost": 6.0,
+    "coverage": 1,
+    "evaluations": 11,
+    "expansions": 7,
+    "generated": 14,
+    "incumbent_costs": [
+      6.0
+    ],
+    "initial_h_value": 6,
+    "returncode": 0,
+    "search_time": 0.001001,
+    "total_time": 0.003998,
+    "wall_time": 0.18971380799848703
+  },
+  "astar_lmcut|pegsol|p01.pddl": {
+    "cost": 2.0,
+    "coverage": 1,
+    "evaluations": 10,
+    "expansions": 6,
+    "generated": 10,
+    "incumbent_costs": [
+      2.0
+    ],
+    "initial_h_value": 2,
+    "returncode": 0,
+    "search_time": 0.00049,
+    "total_time": 0.004411,
+    "wall_time": 0.19538879599895154
+  },
+  "astar_lmcut|pipesworld-notankage|p01.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 25,
+    "expansions": 6,
+    "generated": 29,
+    "incumbent_costs": [
+      5.0
+    ],
+    "initial_h_value": 5,
+    "returncode": 0,
+    "search_time": 0.001356,
+    "total_time": 0.00686,
+    "wall_time": 0.2096039110001584
+  },
+  "astar_lmcut|pipesworld-tankage|p01.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 33,
+    "expansions": 9,
+    "generated": 44,
+    "incumbent_costs": [
+      5.0
+    ],
+    "initial_h_value": 4,
+    "returncode": 0,
+    "search_time": 0.002136,
+    "total_time": 0.007307,
+    "wall_time": 0.26744911300011154
+  },
+  "astar_lmcut|rovers|p01.pddl": {
+    "cost": 18.0,
+    "coverage": 1,
+    "evaluations": 2790,
+    "expansions": 1426,
+    "generated": 9181,
+    "incumbent_costs": [
+      18.0
+    ],
+    "initial_h_value": 13,
+    "returncode": 0,
+    "search_time": 0.029924,
+    "total_time": 0.034097,
+    "wall_time": 0.301435819001199
+  },
+  "astar_lmcut|satellite|p01.pddl": {
+    "cost": 21.0,
+    "coverage": 1,
+    "evaluations": 333,
+    "expansions": 22,
+    "generated": 571,
+    "incumbent_costs": [
+      21.0
+    ],
+    "initial_h_value": 21,
+    "returncode": 0,
+    "search_time": 0.015947,
+    "total_time": 0.020922,
+    "wall_time": 0.2904161450005631
+  },
+  "astar_lmcut|scanalyzer|p01.pddl": {
+    "cost": 6.0,
+    "coverage": 1,
+    "evaluations": 5,
+    "expansions": 3,
+    "generated": 4,
+    "incumbent_costs": [
+      6.0
+    ],
+    "initial_h_value": 6,
+    "returncode": 0,
+    "search_time": 0.000268,
+    "total_time": 0.002988,
+    "wall_time": 0.17630647899932228
+  },
+  "astar_lmcut|snake|p01.pddl": {
+    "cost": 15.0,
+    "coverage": 1,
+    "evaluations": 670,
+    "expansions": 348,
+    "generated": 840,
+    "incumbent_costs": [
+      15.0
+    ],
+    "initial_h_value": 6,
+    "returncode": 0,
+    "search_time": 1.383989,
+    "total_time": 1.438979,
+    "wall_time": 2.7534042799998133
+  },
+  "astar_lmcut|sokoban|p01.pddl": {
+    "cost": 26.0,
+    "coverage": 1,
+    "evaluations": 6359,
+    "expansions": 5233,
+    "generated": 13962,
+    "incumbent_costs": [
+      26.0
+    ],
+    "initial_h_value": 17,
+    "returncode": 0,
+    "search_time": 0.394143,
+    "total_time": 0.399143,
+    "wall_time": 0.6320295969999279
+  },
+  "astar_lmcut|storage|p01.pddl": {
+    "cost": 9.0,
+    "coverage": 1,
+    "evaluations": 145,
+    "expansions": 55,
+    "generated": 261,
+    "incumbent_costs": [
+      9.0
+    ],
+    "initial_h_value": 5,
+    "returncode": 0,
+    "search_time": 0.002007,
+    "total_time": 0.005007,
+    "wall_time": 0.17976701900079206
+  },
+  "astar_lmcut|termes|p01.pddl": {
+    "coverage": 0,
+    "initial_h_value": 7,
+    "returncode": 23,
+    "wall_time": 9.243853924999712
+  },
+  "astar_lmcut|tetris|p01.pddl": {
+    "cost": 2.0,
+    "coverage": 1,
+    "evaluations": 9,
+    "expansions": 3,
+    "generated": 9,
+    "incumbent_costs": [
+      2.0
+    ],
+    "initial_h_value": 2,
+    "returncode": 0,
+    "search_time": 0.001999,
+    "total_time": 0.033973,
+    "wall_time": 1.0317610139991302
+  },
+  "astar_lmcut|thoughtful|p01.pddl": {
+    "cost": 25.0,
+    "coverage": 1,
+    "evaluations": 32850,
+    "expansions": 13353,
+    "generated": 67768,
+    "incumbent_costs": [
+      25.0
+    ],
+    "initial_h_value": 14,
+    "returncode": 0,
+    "search_time": 5.747715,
+    "total_time": 5.756716,
+    "wall_time": 6.156000427001345
+  },
+  "astar_lmcut|tidybot|p01.pddl": {
+    "coverage": 0,
+    "initial_h_value": 22,
+    "returncode": 23,
+    "wall_time": 10.04720754400114
+  },
+  "astar_lmcut|tpp|p01.pddl": {
+    "cost": 11.0,
+    "coverage": 1,
+    "evaluations": 1604,
+    "expansions": 498,
+    "generated": 2910,
+    "incumbent_costs": [
+      11.0
+    ],
+    "initial_h_value": 8,
+    "returncode": 0,
+    "search_time": 0.02201,
+    "total_time": 0.02601,
+    "wall_time": 0.20235811399834347
+  },
+  "astar_lmcut|transport|p01.pddl": {
+    "cost": 482.0,
+    "coverage": 1,
+    "evaluations": 91,
+    "expansions": 31,
+    "generated": 142,
+    "incumbent_costs": [
+      482.0
+    ],
+    "initial_h_value": 270,
+    "returncode": 0,
+    "search_time": 0.005009,
+    "total_time": 0.00801,
+    "wall_time": 0.18295070699969074
+  },
+  "astar_lmcut|visitall|p01.pddl": {
+    "cost": 22.0,
+    "coverage": 1,
+    "evaluations": 784,
+    "expansions": 418,
+    "generated": 1413,
+    "incumbent_costs": [
+      22.0
+    ],
+    "initial_h_value": 15,
+    "returncode": 0,
+    "search_time": 0.023,
+    "total_time": 0.026002,
+    "wall_time": 0.2019453880002402
+  },
+  "astar_lmcut|woodworking|p01.pddl": {
+    "cost": 85.0,
+    "coverage": 1,
+    "evaluations": 20,
+    "expansions": 7,
+    "generated": 23,
+    "incumbent_costs": [
+      85.0
+    ],
+    "initial_h_value": 85,
+    "returncode": 0,
+    "search_time": 0.00099,
+    "total_time": 0.004,
+    "wall_time": 0.1931750989988359
+  },
+  "astar_lmcut|zenotravel|p01.pddl": {
+    "cost": 14.0,
+    "coverage": 1,
+    "evaluations": 294,
+    "expansions": 100,
+    "generated": 672,
+    "incumbent_costs": [
+      14.0
+    ],
+    "initial_h_value": 10,
+    "returncode": 0,
+    "search_time": 0.007006,
+    "total_time": 0.009005,
+    "wall_time": 0.16391710300013074
+  }
+}

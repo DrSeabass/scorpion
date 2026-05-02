@@ -28,7 +28,8 @@ from regression_lib import (
 )
 
 TRACK_NAME = "optimal"
-TIME_LIMIT = 60  # seconds per instance
+TIME_LIMIT = 60       # seconds per instance (full mode)
+LIGHT_TIME_LIMIT = 10 # seconds per instance (light mode)
 
 CONFIGS = {
     "astar_blind": [
@@ -53,29 +54,43 @@ CONFIGS = {
         "--search", "astar(cegar([landmarks(), goals()]))"],
 }
 
+# Light: one classical admissible + one scorpion-specific config, p01 only, 10 s.
+LIGHT_CONFIGS = {
+    "astar_lmcut":  CONFIGS["astar_lmcut"],
+    "astar_cegar":  CONFIGS["astar_cegar"],
+}
+
 # Metrics that must match exactly between baseline and current run.
 EXACT_KEYS = ["cost", "expansions", "evaluations", "generated"]
 
 
-def _run(benchmarks: Path, workers: int) -> dict:
+def _run(benchmarks: Path, workers: int, light: bool) -> dict:
     optimal_strips = benchmarks / "21.11-optimal-strips"
-    instances = discover_instances(optimal_strips)
-    print(f"  Instances: {len(instances)} | configs: {len(CONFIGS)} | "
-          f"time limit: {TIME_LIMIT}s | workers: {workers}")
-    return run_experiment(instances, CONFIGS, TIME_LIMIT, workers)
+    configs = LIGHT_CONFIGS if light else CONFIGS
+    time_limit = LIGHT_TIME_LIMIT if light else TIME_LIMIT
+    max_inst = 1 if light else 5
+    instances = discover_instances(optimal_strips, max_instance=max_inst)
+    print(f"  Instances: {len(instances)} | configs: {len(configs)} | "
+          f"time limit: {time_limit}s | workers: {workers}")
+    return run_experiment(instances, configs, time_limit, workers)
 
 
-def check_optimal(benchmarks: Path, baseline_dir: Path, workers: int) -> list[str]:
+def check_optimal(benchmarks: Path, baseline_dir: Path, workers: int,
+                  *, light: bool = True) -> list[str]:
     print("Running optimal search experiments...")
-    current = _run(benchmarks, workers)
-    baseline = load_baseline(baseline_dir, TRACK_NAME)
+    current = _run(benchmarks, workers, light)
+    track = f"{TRACK_NAME}-light" if light else TRACK_NAME
+    time_limit = LIGHT_TIME_LIMIT if light else TIME_LIMIT
+    baseline = load_baseline(baseline_dir, track)
     if not baseline:
-        return [f"No baseline found at {baseline_dir}/{TRACK_NAME}.json; "
+        return [f"No baseline found at {baseline_dir}/{track}.json; "
                 "run generate_baseline.py first"]
-    return compare_results(current, baseline, EXACT_KEYS, time_limit=TIME_LIMIT)
+    return compare_results(current, baseline, EXACT_KEYS, time_limit=time_limit)
 
 
-def update_optimal(benchmarks: Path, baseline_dir: Path, workers: int) -> None:
+def update_optimal(benchmarks: Path, baseline_dir: Path, workers: int,
+                   *, light: bool = True) -> None:
     print("Running optimal search experiments (baseline generation)...")
-    results = _run(benchmarks, workers)
-    save_baseline(baseline_dir, TRACK_NAME, results)
+    results = _run(benchmarks, workers, light)
+    track = f"{TRACK_NAME}-light" if light else TRACK_NAME
+    save_baseline(baseline_dir, track, results)

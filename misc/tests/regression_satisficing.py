@@ -30,7 +30,8 @@ from regression_lib import (
 )
 
 TRACK_NAME = "satisficing"
-TIME_LIMIT = 60  # seconds per instance
+TIME_LIMIT = 60       # seconds per instance (full mode)
+LIGHT_TIME_LIMIT = 10 # seconds per instance (light mode)
 
 CONFIGS = {
     "eager_greedy_ff": [
@@ -50,30 +51,44 @@ CONFIGS = {
         "cost_type=one,reopen_closed=false)))"],
 }
 
+# Light: most common greedy config + landmark-based config, p01 only, 10 s.
+LIGHT_CONFIGS = {
+    "eager_greedy_ff": CONFIGS["eager_greedy_ff"],
+    "lama-first":      CONFIGS["lama-first"],
+}
+
 # Satisficing cost is not bounded from below, but configs are deterministic
 # (fixed RNG seed 2011), so cost and node counts must reproduce exactly.
 EXACT_KEYS = ["cost", "expansions", "evaluations", "generated"]
 
 
-def _run(benchmarks: Path, workers: int) -> dict:
+def _run(benchmarks: Path, workers: int, light: bool) -> dict:
     agile_strips = benchmarks / "21.11-agile-strips"
-    instances = discover_instances(agile_strips)
-    print(f"  Instances: {len(instances)} | configs: {len(CONFIGS)} | "
-          f"time limit: {TIME_LIMIT}s | workers: {workers}")
-    return run_experiment(instances, CONFIGS, TIME_LIMIT, workers)
+    configs = LIGHT_CONFIGS if light else CONFIGS
+    time_limit = LIGHT_TIME_LIMIT if light else TIME_LIMIT
+    max_inst = 1 if light else 5
+    instances = discover_instances(agile_strips, max_instance=max_inst)
+    print(f"  Instances: {len(instances)} | configs: {len(configs)} | "
+          f"time limit: {time_limit}s | workers: {workers}")
+    return run_experiment(instances, configs, time_limit, workers)
 
 
-def check_satisficing(benchmarks: Path, baseline_dir: Path, workers: int) -> list[str]:
+def check_satisficing(benchmarks: Path, baseline_dir: Path, workers: int,
+                      *, light: bool = True) -> list[str]:
     print("Running satisficing search experiments...")
-    current = _run(benchmarks, workers)
-    baseline = load_baseline(baseline_dir, TRACK_NAME)
+    current = _run(benchmarks, workers, light)
+    track = f"{TRACK_NAME}-light" if light else TRACK_NAME
+    time_limit = LIGHT_TIME_LIMIT if light else TIME_LIMIT
+    baseline = load_baseline(baseline_dir, track)
     if not baseline:
-        return [f"No baseline found at {baseline_dir}/{TRACK_NAME}.json; "
+        return [f"No baseline found at {baseline_dir}/{track}.json; "
                 "run generate_baseline.py first"]
-    return compare_results(current, baseline, EXACT_KEYS, time_limit=TIME_LIMIT)
+    return compare_results(current, baseline, EXACT_KEYS, time_limit=time_limit)
 
 
-def update_satisficing(benchmarks: Path, baseline_dir: Path, workers: int) -> None:
+def update_satisficing(benchmarks: Path, baseline_dir: Path, workers: int,
+                       *, light: bool = True) -> None:
     print("Running satisficing search experiments (baseline generation)...")
-    results = _run(benchmarks, workers)
-    save_baseline(baseline_dir, TRACK_NAME, results)
+    results = _run(benchmarks, workers, light)
+    track = f"{TRACK_NAME}-light" if light else TRACK_NAME
+    save_baseline(baseline_dir, track, results)

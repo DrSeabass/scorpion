@@ -1,0 +1,593 @@
+{
+  "iterated_wa_ff|agricola|p01.pddl": {
+    "cost": 1115.0,
+    "coverage": 1,
+    "evaluations": 139,
+    "expansions": 125,
+    "generated": 540,
+    "incumbent_costs": [
+      1115.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.849859930000093
+  },
+  "iterated_wa_ff|airport|p01.pddl": {
+    "cost": 101.0,
+    "coverage": 1,
+    "evaluations": 662,
+    "expansions": 329,
+    "generated": 1163,
+    "incumbent_costs": [
+      101.0
+    ],
+    "returncode": 0,
+    "search_time": 4.564441,
+    "total_time": 4.584373,
+    "wall_time": 5.814440595999258
+  },
+  "iterated_wa_ff|barman|p01.pddl": {
+    "cost": 91.0,
+    "coverage": 1,
+    "evaluations": 451,
+    "expansions": 450,
+    "generated": 6045,
+    "incumbent_costs": [
+      91.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.2945650390011
+  },
+  "iterated_wa_ff|blocksworld|p01.pddl": {
+    "cost": 28.0,
+    "coverage": 1,
+    "evaluations": 153,
+    "expansions": 152,
+    "generated": 769,
+    "incumbent_costs": [
+      62.0,
+      46.0,
+      32.0,
+      28.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.151704701000199
+  },
+  "iterated_wa_ff|childsnack|p01.pddl": {
+    "cost": 21.0,
+    "coverage": 1,
+    "evaluations": 31221,
+    "expansions": 24683,
+    "generated": 507011,
+    "incumbent_costs": [
+      21.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.175497903999712
+  },
+  "iterated_wa_ff|data-network|p01.pddl": {
+    "cost": 66.0,
+    "coverage": 1,
+    "evaluations": 3247,
+    "expansions": 3246,
+    "generated": 82160,
+    "incumbent_costs": [
+      66.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.852103874000022
+  },
+  "iterated_wa_ff|depots|p01.pddl": {
+    "cost": 12.0,
+    "coverage": 1,
+    "evaluations": 32,
+    "expansions": 31,
+    "generated": 719,
+    "incumbent_costs": [
+      12.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.285529291000785
+  },
+  "iterated_wa_ff|driverlog|p01.pddl": {
+    "cost": 66.0,
+    "coverage": 1,
+    "evaluations": 2305,
+    "expansions": 2304,
+    "generated": 58857,
+    "incumbent_costs": [
+      83.0,
+      79.0,
+      69.0,
+      66.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.306718673000432
+  },
+  "iterated_wa_ff|elevators|p01.pddl": {
+    "cost": 74.0,
+    "coverage": 1,
+    "evaluations": 206,
+    "expansions": 205,
+    "generated": 5249,
+    "incumbent_costs": [
+      126.0,
+      115.0,
+      102.0,
+      90.0,
+      79.0,
+      78.0,
+      74.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.189951927999573
+  },
+  "iterated_wa_ff|floortile|p01.pddl": {
+    "cost": 17.0,
+    "coverage": 1,
+    "evaluations": 30,
+    "expansions": 24,
+    "generated": 170,
+    "incumbent_costs": [
+      17.0
+    ],
+    "returncode": 0,
+    "search_time": 0.022971,
+    "total_time": 0.026967,
+    "wall_time": 0.19120383600056812
+  },
+  "iterated_wa_ff|freecell|p01.pddl": {
+    "cost": 16.0,
+    "coverage": 1,
+    "evaluations": 22,
+    "expansions": 21,
+    "generated": 125,
+    "incumbent_costs": [
+      17.0,
+      16.0
+    ],
+    "returncode": 0,
+    "search_time": 6.91135,
+    "total_time": 6.923349,
+    "wall_time": 7.17256407000059
+  },
+  "iterated_wa_ff|ged|p01.pddl": {
+    "cost": 3.0,
+    "coverage": 1,
+    "evaluations": 168,
+    "expansions": 167,
+    "generated": 472,
+    "incumbent_costs": [
+      3.0
+    ],
+    "returncode": 0,
+    "search_time": 0.628623,
+    "total_time": 0.636358,
+    "wall_time": 0.8788490480001201
+  },
+  "iterated_wa_ff|grid|p01.pddl": {
+    "cost": 27.0,
+    "coverage": 1,
+    "evaluations": 81,
+    "expansions": 80,
+    "generated": 355,
+    "incumbent_costs": [
+      34.0,
+      28.0,
+      27.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.229732555000737
+  },
+  "iterated_wa_ff|gripper|p01.pddl": {
+    "cost": 71.0,
+    "coverage": 1,
+    "evaluations": 269,
+    "expansions": 268,
+    "generated": 1829,
+    "incumbent_costs": [
+      77.0,
+      71.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.163101593998363
+  },
+  "iterated_wa_ff|hiking|p01.pddl": {
+    "cost": 69.0,
+    "coverage": 1,
+    "evaluations": 211432,
+    "expansions": 211295,
+    "generated": 3220016,
+    "incumbent_costs": [
+      71.0,
+      69.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.498733172000357
+  },
+  "iterated_wa_ff|logistics|p01.pddl": {
+    "cost": 32.0,
+    "coverage": 1,
+    "evaluations": 98,
+    "expansions": 97,
+    "generated": 14502,
+    "incumbent_costs": [
+      32.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.348270798000158
+  },
+  "iterated_wa_ff|miconic|p01.pddl": {
+    "cost": 50.0,
+    "coverage": 1,
+    "evaluations": 218,
+    "expansions": 217,
+    "generated": 2695,
+    "incumbent_costs": [
+      62.0,
+      61.0,
+      58.0,
+      56.0,
+      50.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.174201239000467
+  },
+  "iterated_wa_ff|mprime|p01.pddl": {
+    "cost": 34.0,
+    "coverage": 1,
+    "evaluations": 164,
+    "expansions": 163,
+    "generated": 11200,
+    "incumbent_costs": [
+      37.0,
+      36.0,
+      35.0,
+      34.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.656525391999821
+  },
+  "iterated_wa_ff|nomystery|p01.pddl": {
+    "cost": 36.0,
+    "coverage": 1,
+    "evaluations": 1425,
+    "expansions": 1071,
+    "generated": 6656,
+    "incumbent_costs": [
+      42.0,
+      41.0,
+      38.0,
+      36.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.271259633000227
+  },
+  "iterated_wa_ff|openstacks|p01.pddl": {
+    "cost": 2.0,
+    "coverage": 1,
+    "evaluations": 102,
+    "expansions": 101,
+    "generated": 280,
+    "incumbent_costs": [
+      2.0
+    ],
+    "returncode": 0,
+    "search_time": 0.004009,
+    "total_time": 0.007012,
+    "wall_time": 0.15527975199984212
+  },
+  "iterated_wa_ff|organic-synthesis-split|p01.pddl": {
+    "coverage": 0,
+    "returncode": 21,
+    "wall_time": 9.082088724000641
+  },
+  "iterated_wa_ff|parcprinter|p01.pddl": {
+    "cost": 375821.0,
+    "coverage": 1,
+    "evaluations": 37,
+    "expansions": 30,
+    "generated": 94,
+    "incumbent_costs": [
+      375821.0
+    ],
+    "returncode": 0,
+    "search_time": 0.01687,
+    "total_time": 0.019871,
+    "wall_time": 0.18265094399976078
+  },
+  "iterated_wa_ff|parking|p01.pddl": {
+    "cost": 19.0,
+    "coverage": 1,
+    "evaluations": 842,
+    "expansions": 841,
+    "generated": 11544,
+    "incumbent_costs": [
+      35.0,
+      33.0,
+      31.0,
+      23.0,
+      21.0,
+      20.0,
+      19.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.181295241000043
+  },
+  "iterated_wa_ff|pathways|p01.pddl": {
+    "cost": 6.0,
+    "coverage": 1,
+    "evaluations": 8,
+    "expansions": 7,
+    "generated": 114,
+    "incumbent_costs": [
+      6.0
+    ],
+    "returncode": 0,
+    "search_time": 0.019826,
+    "total_time": 0.023927,
+    "wall_time": 0.1879088679997949
+  },
+  "iterated_wa_ff|pegsol|p01.pddl": {
+    "cost": 6.0,
+    "coverage": 1,
+    "evaluations": 322,
+    "expansions": 251,
+    "generated": 642,
+    "incumbent_costs": [
+      7.0,
+      6.0
+    ],
+    "returncode": 0,
+    "search_time": 0.080921,
+    "total_time": 0.083921,
+    "wall_time": 0.24431759199978842
+  },
+  "iterated_wa_ff|pipesworld-notankage|p01.pddl": {
+    "cost": 14.0,
+    "coverage": 1,
+    "evaluations": 24,
+    "expansions": 23,
+    "generated": 128,
+    "incumbent_costs": [
+      18.0,
+      16.0,
+      14.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.344588692998514
+  },
+  "iterated_wa_ff|pipesworld-tankage|p01.pddl": {
+    "cost": 22.0,
+    "coverage": 1,
+    "evaluations": 571,
+    "expansions": 560,
+    "generated": 2994,
+    "incumbent_costs": [
+      38.0,
+      30.0,
+      28.0,
+      26.0,
+      22.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.368245679999745
+  },
+  "iterated_wa_ff|rovers|p01.pddl": {
+    "cost": 30.0,
+    "coverage": 1,
+    "evaluations": 76,
+    "expansions": 75,
+    "generated": 1219,
+    "incumbent_costs": [
+      30.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.19084175900025
+  },
+  "iterated_wa_ff|satellite|p01.pddl": {
+    "cost": 13.0,
+    "coverage": 1,
+    "evaluations": 25,
+    "expansions": 24,
+    "generated": 876,
+    "incumbent_costs": [
+      15.0,
+      13.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.168587246000243
+  },
+  "iterated_wa_ff|scanalyzer|p01.pddl": {
+    "cost": 32.0,
+    "coverage": 1,
+    "evaluations": 103,
+    "expansions": 102,
+    "generated": 2040,
+    "incumbent_costs": [
+      36.0,
+      34.0,
+      32.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.270438612000362
+  },
+  "iterated_wa_ff|snake|p01.pddl": {
+    "cost": 15.0,
+    "coverage": 1,
+    "evaluations": 58,
+    "expansions": 57,
+    "generated": 136,
+    "incumbent_costs": [
+      20.0,
+      17.0,
+      15.0
+    ],
+    "returncode": 0,
+    "search_time": 7.016815,
+    "total_time": 7.158802,
+    "wall_time": 8.31069818800097
+  },
+  "iterated_wa_ff|sokoban|p01.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 37,
+    "expansions": 30,
+    "generated": 78,
+    "incumbent_costs": [
+      5.0
+    ],
+    "returncode": 0,
+    "search_time": 0.006004,
+    "total_time": 0.009953,
+    "wall_time": 0.17445092399975692
+  },
+  "iterated_wa_ff|storage|p01.pddl": {
+    "cost": 16.0,
+    "coverage": 1,
+    "evaluations": 3164,
+    "expansions": 3163,
+    "generated": 50165,
+    "incumbent_costs": [
+      17.0,
+      16.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.384172647000014
+  },
+  "iterated_wa_ff|termes|p01.pddl": {
+    "cost": 153.0,
+    "coverage": 1,
+    "evaluations": 23328,
+    "expansions": 23327,
+    "generated": 112095,
+    "incumbent_costs": [
+      203.0,
+      153.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.307029306000913
+  },
+  "iterated_wa_ff|tetris|p01.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 988,
+    "expansions": 987,
+    "generated": 9273,
+    "incumbent_costs": [
+      5.0
+    ],
+    "returncode": 0,
+    "search_time": 0.023,
+    "total_time": 0.026993,
+    "wall_time": 0.22800466700027755
+  },
+  "iterated_wa_ff|thoughtful|p01.pddl": {
+    "cost": 98.0,
+    "coverage": 1,
+    "evaluations": 443,
+    "expansions": 442,
+    "generated": 2234,
+    "incumbent_costs": [
+      98.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.577714510000078
+  },
+  "iterated_wa_ff|tidybot|p01.pddl": {
+    "cost": 22.0,
+    "coverage": 1,
+    "evaluations": 92,
+    "expansions": 91,
+    "generated": 278,
+    "incumbent_costs": [
+      26.0,
+      24.0,
+      23.0,
+      22.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.424296600000162
+  },
+  "iterated_wa_ff|tpp|p01.pddl": {
+    "cost": 19.0,
+    "coverage": 1,
+    "evaluations": 58,
+    "expansions": 57,
+    "generated": 209,
+    "incumbent_costs": [
+      27.0,
+      24.0,
+      23.0,
+      22.0,
+      21.0,
+      20.0,
+      19.0
+    ],
+    "returncode": 0,
+    "search_time": 2.850636,
+    "total_time": 2.858636,
+    "wall_time": 3.072771446999468
+  },
+  "iterated_wa_ff|transport|p01.pddl": {
+    "cost": 909.0,
+    "coverage": 1,
+    "evaluations": 117,
+    "expansions": 116,
+    "generated": 1519,
+    "incumbent_costs": [
+      1225.0,
+      1173.0,
+      1164.0,
+      1060.0,
+      909.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.740614603999347
+  },
+  "iterated_wa_ff|visitall|p01.pddl": {
+    "cost": 44.0,
+    "coverage": 1,
+    "evaluations": 1226,
+    "expansions": 1225,
+    "generated": 4597,
+    "incumbent_costs": [
+      112.0,
+      100.0,
+      82.0,
+      68.0,
+      46.0,
+      45.0,
+      44.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.153526987998703
+  },
+  "iterated_wa_ff|woodworking|p01.pddl": {
+    "cost": 85.0,
+    "coverage": 1,
+    "evaluations": 7,
+    "expansions": 6,
+    "generated": 26,
+    "incumbent_costs": [
+      85.0
+    ],
+    "returncode": 0,
+    "search_time": 0.00598,
+    "total_time": 0.01098,
+    "wall_time": 0.20318924999992305
+  },
+  "iterated_wa_ff|zenotravel|p01.pddl": {
+    "cost": 26.0,
+    "coverage": 1,
+    "evaluations": 84,
+    "expansions": 83,
+    "generated": 1695,
+    "incumbent_costs": [
+      28.0,
+      27.0,
+      26.0
+    ],
+    "returncode": 23,
+    "wall_time": 9.686556662998555
+  }
+}
