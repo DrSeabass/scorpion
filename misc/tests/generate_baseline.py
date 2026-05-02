@@ -7,6 +7,8 @@ algorithm or configuration change.  Equivalent to running
   python misc/tests/test-regression.py --update
 but with a developer-facing interface.
 
+Pass --track TRACK [TRACK ...] to regenerate only specific tracks.
+
 Set AUTOSCALE_BENCHMARKS to the autoscale-benchmarks root directory,
 or pass --benchmarks PATH to override.
 """

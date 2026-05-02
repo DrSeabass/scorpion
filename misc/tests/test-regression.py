@@ -4,6 +4,7 @@ Check or update scorpion search regression baselines.
 
   --check   Run registered tracks and compare against committed baselines.
   --update  Regenerate committed baselines from current results.
+  --track   Run only the named track(s); default is all registered tracks.
 
 Set AUTOSCALE_BENCHMARKS to the autoscale-benchmarks root directory,
 or pass --benchmarks PATH to override.
@@ -19,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from regression_heuristic import check_heuristics, update_heuristics  # noqa: E402
 from regression_optimal import check_optimal, update_optimal  # noqa: E402
+from regression_satisficing import check_satisficing, update_satisficing  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 TESTS_DIR = Path(__file__).resolve().parent
@@ -55,7 +57,7 @@ def _get_benchmarks_path(cli_override):
 TRACKS = [
     ("heuristics",  check_heuristics,  update_heuristics),
     ("optimal",     check_optimal,     update_optimal),
-    # ("satisficing", check_satisficing, update_satisficing),
+    ("satisficing", check_satisficing, update_satisficing),
     # ("anytime",     check_anytime,     update_anytime),
 ]
 
@@ -87,6 +89,14 @@ def main():
         metavar="PATH",
         help="Autoscale benchmarks root (overrides AUTOSCALE_BENCHMARKS)",
     )
+    track_names = [name for name, _, _ in TRACKS]
+    parser.add_argument(
+        "--track",
+        nargs="+",
+        metavar="TRACK",
+        choices=track_names,
+        help=f"Run only these track(s); choices: {track_names}",
+    )
     args = parser.parse_args()
 
     benchmarks = _get_benchmarks_path(args.benchmarks)
@@ -106,8 +116,13 @@ def main():
     print(f"Mode:            {'CHECK' if args.check else 'UPDATE'}")
     print()
 
+    selected = (
+        [(n, c, u) for n, c, u in TRACKS if n in args.track]
+        if args.track else TRACKS
+    )
+
     all_failures = []
-    for track_name, check_fn, update_fn in TRACKS:
+    for track_name, check_fn, update_fn in selected:
         print(f"--- {track_name} ---")
         if args.check:
             failures = check_fn(benchmarks, BASELINE_DIR, args.workers)
@@ -121,7 +136,7 @@ def main():
             print("  updated")
 
     print("=" * 60)
-    if not TRACKS:
+    if not selected:
         print("No tracks registered; nothing to do.")
         return
     if args.check:
