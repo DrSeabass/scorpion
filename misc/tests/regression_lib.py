@@ -39,13 +39,28 @@ _PATTERNS = [
 def parse_fd_output(output: str) -> dict:
     """Return a metrics dict from combined FD stdout+stderr."""
     result = {}
+
+    # Capture all plan costs (one per incumbent for anytime search; one for
+    # single-solution search).  "cost" is the final/best plan; "incumbent_costs"
+    # is the full improving sequence.
+    cost_matches = re.findall(r"Plan cost: (.+)", output)
+    if cost_matches:
+        try:
+            result["incumbent_costs"] = [float(v) for v in cost_matches]
+            result["cost"] = result["incumbent_costs"][-1]
+        except ValueError:
+            pass
+
     for name, pattern, typ in _PATTERNS:
+        if name == "cost":
+            continue  # already handled above
         m = re.search(pattern, output)
         if m:
             try:
                 result[name] = typ(m.group(1))
             except ValueError:
                 pass
+
     result["coverage"] = 1 if "cost" in result else 0
 
     matches = re.findall(

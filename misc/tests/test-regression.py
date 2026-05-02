@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from regression_heuristic import check_heuristics, update_heuristics  # noqa: E402
 from regression_optimal import check_optimal, update_optimal  # noqa: E402
 from regression_satisficing import check_satisficing, update_satisficing  # noqa: E402
+from regression_anytime import check_anytime, update_anytime  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 TESTS_DIR = Path(__file__).resolve().parent
@@ -58,7 +59,7 @@ TRACKS = [
     ("heuristics",  check_heuristics,  update_heuristics),
     ("optimal",     check_optimal,     update_optimal),
     ("satisficing", check_satisficing, update_satisficing),
-    # ("anytime",     check_anytime,     update_anytime),
+    ("anytime",     check_anytime,     update_anytime),
 ]
 
 
