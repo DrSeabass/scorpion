@@ -18,6 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from regression_heuristic import check_heuristics, update_heuristics  # noqa: E402
+from regression_optimal import check_optimal, update_optimal  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 TESTS_DIR = Path(__file__).resolve().parent
@@ -53,7 +54,7 @@ def _get_benchmarks_path(cli_override):
 # ---------------------------------------------------------------------------
 TRACKS = [
     ("heuristics",  check_heuristics,  update_heuristics),
-    # ("optimal",     check_optimal,     update_optimal),
+    ("optimal",     check_optimal,     update_optimal),
     # ("satisficing", check_satisficing, update_satisficing),
     # ("anytime",     check_anytime,     update_anytime),
 ]
