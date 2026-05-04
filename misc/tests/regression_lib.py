@@ -246,6 +246,7 @@ def compare_results(
     exact_keys: list[str],
     runtime_key: str = "search_time",
     time_limit: int = None,
+    prefix_keys: list[str] = None,
 ) -> list[str]:
     """Return a list of failure description strings (empty = pass).
 
@@ -253,8 +254,14 @@ def compare_results(
     comfortably within the time limit (< 50% of time_limit).  Instances
     that solved close to the wall-clock limit are inherently timing-sensitive
     and are skipped for coverage comparison.
+
+    Keys listed in prefix_keys are list-valued and compared only on the shared
+    prefix (up to min length).  A shorter sequence is not a failure provided
+    the shared values match — the sequence length varies with wall-clock luck,
+    but the order and values are deterministic.
     """
     failures = []
+    prefix_keys = set(prefix_keys or [])
     coverage_stable_threshold = (0.5 * time_limit) if time_limit else None
 
     for run_id, base in baseline.items():
@@ -281,7 +288,16 @@ def compare_results(
             for key in exact_keys:
                 bv = base.get(key)
                 cv = curr.get(key)
-                if bv is not None and cv is not None and bv != cv:
+                if bv is None or cv is None:
+                    continue
+                if key in prefix_keys:
+                    n = min(len(bv), len(cv))
+                    if bv[:n] != cv[:n]:
+                        failures.append(
+                            f"MISMATCH {key}: {run_id} "
+                            f"baseline={bv} current={cv}"
+                        )
+                elif bv != cv:
                     failures.append(
                         f"MISMATCH {key}: {run_id} "
                         f"baseline={bv} current={cv}"

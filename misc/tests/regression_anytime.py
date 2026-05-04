@@ -89,7 +89,8 @@ def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
     # time_limit=None: disables the coverage-stability threshold — anytime
     # wall_time is always ~60s so the threshold would skip every coverage loss.
     return compare_results(current, baseline, EXACT_KEYS,
-                           runtime_key="wall_time", time_limit=None)
+                           runtime_key="wall_time", time_limit=None,
+                           prefix_keys=EXACT_KEYS)
 
 
 def update_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
