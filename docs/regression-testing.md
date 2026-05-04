@@ -16,7 +16,9 @@ The directory must contain `21.11-optimal-strips/` and `21.11-agile-strips/`.
 
 ### Light mode (default) — developer iteration
 
-Runs p01 only, 1–2 configs per track, 10 s per instance.  Target: under 5 min.
+Runs p01 only, 1–2 configs per track, 10 s per instance (60 s for anytime).
+Compares against the matching subset of the full baseline files.
+Target: under 5 min total.
 
     tox -e regression
 
@@ -45,16 +47,14 @@ Pass `--track` to check or update only one track:
 
 After an intentional algorithm or configuration change, regenerate the baselines:
 
-    python misc/tests/generate_baseline.py           # both light and full
-    python misc/tests/generate_baseline.py --light-only
-    python misc/tests/generate_baseline.py --full-only
+    python misc/tests/generate_baseline.py
     python misc/tests/generate_baseline.py --track satisficing
+    python misc/tests/generate_baseline.py --workers 8
 
 Then commit the updated `misc/tests/regression-baselines/*.json` files.
 
-`--workers N` sets the number of parallel workers (default: 4):
-
-    python misc/tests/generate_baseline.py --workers 8
+Light mode uses a filtered subset of the full baseline files; there are no
+separate `*-light.json` files.  Rebaselining always runs full mode.
 
 ## Test tracks
 
@@ -65,12 +65,19 @@ Then commit the updated `misc/tests/regression-baselines/*.json` files.
 | satisficing | agile-strips | 4 configs | eager_greedy_ff, lama-first | cost, expansions, evaluations, generated |
 | anytime | agile-strips | 2 configs | iterated_wa_ff | incumbent_costs (full improving sequence) |
 
+**Light mode time limits**: 10 s per instance for heuristics, optimal, and
+satisficing; 60 s for anytime (anytime planners must run to budget to produce
+a comparable incumbent sequence).
+
 ## Adding a new track
 
 1. Create `misc/tests/regression_<track>.py` following the pattern of
    `regression_optimal.py`.  Define `CONFIGS`, `LIGHT_CONFIGS`,
-   `TIME_LIMIT`, `LIGHT_TIME_LIMIT`, `EXACT_KEYS`, and implement
-   `check_<track>` / `update_<track>` with `*, light: bool = True` kwargs.
+   `TIME_LIMIT`, `EXACT_KEYS`, and implement `check_<track>` / `update_<track>`
+   with `*, light: bool = True` kwargs.  `update_<track>` should return
+   immediately when `light=True` (baselines are only regenerated in full mode).
+   `check_<track>` should load the full baseline and call `filter_baseline` when
+   in light mode.
 
 2. Import and register in `misc/tests/test-regression.py`:
 

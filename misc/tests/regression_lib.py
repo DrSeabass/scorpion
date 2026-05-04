@@ -190,6 +190,29 @@ def run_experiment(
 
 
 # ---------------------------------------------------------------------------
+# Baseline filtering
+# ---------------------------------------------------------------------------
+
+def filter_baseline(baseline: dict, configs: set, max_instance: int) -> dict:
+    """Return only entries whose config is in *configs* and instance number ≤ max_instance.
+
+    Keys have the form  "config|domain|instance.pddl"  where instance is e.g. "p01.pddl".
+    """
+    result = {}
+    for key, value in baseline.items():
+        parts = key.split("|")
+        if len(parts) != 3:
+            continue
+        config, _domain, instance = parts
+        stem = Path(instance).stem          # "p01", "p05", ...
+        if not (stem.startswith("p") and stem[1:].isdigit()):
+            continue
+        if config in configs and int(stem[1:]) <= max_instance:
+            result[key] = value
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Baseline I/O
 # ---------------------------------------------------------------------------
 

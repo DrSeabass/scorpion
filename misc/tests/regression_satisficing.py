@@ -24,6 +24,7 @@ from pathlib import Path
 from regression_lib import (
     compare_results,
     discover_instances,
+    filter_baseline,
     load_baseline,
     run_experiment,
     save_baseline,
@@ -77,18 +78,20 @@ def check_satisficing(benchmarks: Path, baseline_dir: Path, workers: int,
                       *, light: bool = True) -> list[str]:
     print("Running satisficing search experiments...")
     current = _run(benchmarks, workers, light)
-    track = f"{TRACK_NAME}-light" if light else TRACK_NAME
     time_limit = LIGHT_TIME_LIMIT if light else TIME_LIMIT
-    baseline = load_baseline(baseline_dir, track)
+    baseline = load_baseline(baseline_dir, TRACK_NAME)
     if not baseline:
-        return [f"No baseline found at {baseline_dir}/{track}.json; "
+        return [f"No baseline found at {baseline_dir}/{TRACK_NAME}.json; "
                 "run generate_baseline.py first"]
+    if light:
+        baseline = filter_baseline(baseline, set(LIGHT_CONFIGS), 1)
     return compare_results(current, baseline, EXACT_KEYS, time_limit=time_limit)
 
 
 def update_satisficing(benchmarks: Path, baseline_dir: Path, workers: int,
                        *, light: bool = True) -> None:
+    if light:
+        return  # baselines are only regenerated in full mode
     print("Running satisficing search experiments (baseline generation)...")
-    results = _run(benchmarks, workers, light)
-    track = f"{TRACK_NAME}-light" if light else TRACK_NAME
-    save_baseline(baseline_dir, track, results)
+    results = _run(benchmarks, workers, light=False)
+    save_baseline(baseline_dir, TRACK_NAME, results)

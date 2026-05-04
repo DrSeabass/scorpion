@@ -24,14 +24,14 @@ from pathlib import Path
 from regression_lib import (
     compare_results,
     discover_instances,
+    filter_baseline,
     load_baseline,
     run_experiment,
     save_baseline,
 )
 
 TRACK_NAME = "anytime"
-TIME_LIMIT = 60       # seconds per instance (full mode)
-LIGHT_TIME_LIMIT = 10 # seconds per instance (light mode)
+TIME_LIMIT = 60  # seconds per instance (both modes — anytime planners must run to budget)
 
 CONFIGS = {
     "iterated_wa_ff": [
@@ -68,23 +68,23 @@ EXACT_KEYS = ["incumbent_costs"]
 def _run(benchmarks: Path, workers: int, light: bool) -> dict:
     agile_strips = benchmarks / "21.11-agile-strips"
     configs = LIGHT_CONFIGS if light else CONFIGS
-    time_limit = LIGHT_TIME_LIMIT if light else TIME_LIMIT
     max_inst = 1 if light else 5
     instances = discover_instances(agile_strips, max_instance=max_inst)
     print(f"  Instances: {len(instances)} | configs: {len(configs)} | "
-          f"time limit: {time_limit}s | workers: {workers}")
-    return run_experiment(instances, configs, time_limit, workers)
+          f"time limit: {TIME_LIMIT}s | workers: {workers}")
+    return run_experiment(instances, configs, TIME_LIMIT, workers)
 
 
 def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
                   *, light: bool = True) -> list[str]:
     print("Running anytime search experiments...")
     current = _run(benchmarks, workers, light)
-    track = f"{TRACK_NAME}-light" if light else TRACK_NAME
-    baseline = load_baseline(baseline_dir, track)
+    baseline = load_baseline(baseline_dir, TRACK_NAME)
     if not baseline:
-        return [f"No baseline found at {baseline_dir}/{track}.json; "
+        return [f"No baseline found at {baseline_dir}/{TRACK_NAME}.json; "
                 "run generate_baseline.py first"]
+    if light:
+        baseline = filter_baseline(baseline, set(LIGHT_CONFIGS), 1)
     # wall_time: iterated search does not emit "Search time:".
     # time_limit=None: disables the coverage-stability threshold — anytime
     # wall_time is always ~60s so the threshold would skip every coverage loss.
@@ -94,7 +94,8 @@ def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
 
 def update_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
                    *, light: bool = True) -> None:
+    if light:
+        return  # baselines are only regenerated in full mode
     print("Running anytime search experiments (baseline generation)...")
-    results = _run(benchmarks, workers, light)
-    track = f"{TRACK_NAME}-light" if light else TRACK_NAME
-    save_baseline(baseline_dir, track, results)
+    results = _run(benchmarks, workers, light=False)
+    save_baseline(baseline_dir, TRACK_NAME, results)
