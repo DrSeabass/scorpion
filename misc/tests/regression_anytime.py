@@ -22,10 +22,16 @@ Uses 21.11-agile-strips (same as satisficing track) and a 60 s time limit.
 from pathlib import Path
 
 from regression_lib import (
+    DEFAULT_FULL_INSTANCES,
+    DEFAULT_LIGHT_INSTANCES,
+    baseline_missing_error,
     compare_results,
-    discover_instances,
+    drop_invalid_runs,
     filter_baseline,
+    is_full_default_instances,
     load_baseline,
+    resolve_configs,
+    resolve_instances,
     run_experiment,
     save_baseline,
 )
@@ -60,25 +66,35 @@ CONFIGS = {
 EXACT_KEYS = ["incumbent_costs"]
 
 
-def _run(benchmarks: Path, workers: int, light: bool) -> dict:
+def _run(benchmarks: Path, workers: int,
+         configs: dict, instances: list,
+         validate: bool, validate_bin) -> dict:
     agile_strips = benchmarks / "21.11-agile-strips"
-    max_inst = 1 if light else 5
-    instances = discover_instances(agile_strips, max_instance=max_inst)
-    print(f"  Instances: {len(instances)} | configs: {len(CONFIGS)} | "
-          f"time limit: {TIME_LIMIT}s | workers: {workers}")
-    return run_experiment(instances, CONFIGS, TIME_LIMIT, workers)
+    discovered = resolve_instances(agile_strips, instances)
+    print(f"  Instances: {len(discovered)} | configs: {len(configs)} | "
+          f"time limit: {TIME_LIMIT}s | workers: {workers} | "
+          f"validate: {'on' if validate else 'off'} (final plan only)")
+    return run_experiment(discovered, configs, TIME_LIMIT, workers,
+                          validate=validate, validate_bin=validate_bin)
 
 
 def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
-                  *, light: bool = True) -> list[str]:
+                  *, configs: dict = None,
+                  extra_configs: dict = None,
+                  instances: list = None,
+                  validate: bool = True,
+                  validate_bin: Path = None) -> dict:
     print("Running anytime search experiments...")
-    current = _run(benchmarks, workers, light)
+    resolved_configs = resolve_configs(CONFIGS, configs, extra_configs)
+    resolved_instances = (
+        list(instances) if instances is not None else list(DEFAULT_LIGHT_INSTANCES)
+    )
+    current = _run(benchmarks, workers, resolved_configs, resolved_instances,
+                   validate, validate_bin)
     baseline = load_baseline(baseline_dir, TRACK_NAME)
     if not baseline:
-        return [f"No baseline found at {baseline_dir}/{TRACK_NAME}.json; "
-                "run generate_baseline.py first"]
-    if light:
-        baseline = filter_baseline(baseline, set(CONFIGS), 1)
+        return baseline_missing_error(baseline_dir, TRACK_NAME)
+    baseline = filter_baseline(baseline, set(resolved_configs), resolved_instances)
     # wall_time: iterated search does not emit "Search time:".
     # time_limit=None: disables the coverage-stability threshold — anytime
     # wall_time is always ~60s so the threshold would skip every coverage loss.
@@ -88,9 +104,22 @@ def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
 
 
 def update_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
-                   *, light: bool = True) -> None:
-    if light:
-        raise ValueError("update_anytime must not be called in light mode")
+                   *, configs: dict = None,
+                   extra_configs: dict = None,
+                   instances: list = None,
+                   validate: bool = True,
+                   validate_bin: Path = None) -> list[str]:
     print("Running anytime search experiments (baseline generation)...")
-    results = _run(benchmarks, workers, light=False)
-    save_baseline(baseline_dir, TRACK_NAME, results)
+    resolved_configs = resolve_configs(CONFIGS, configs, extra_configs)
+    resolved_instances = (
+        list(instances) if instances is not None else list(DEFAULT_FULL_INSTANCES)
+    )
+    results = _run(benchmarks, workers, resolved_configs, resolved_instances,
+                   validate, validate_bin)
+    errors = drop_invalid_runs(results)
+    has_override = (
+        configs is not None or extra_configs is not None
+        or not is_full_default_instances(resolved_instances)
+    )
+    save_baseline(baseline_dir, TRACK_NAME, results, merge=has_override)
+    return errors

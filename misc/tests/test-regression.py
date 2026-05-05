@@ -2,22 +2,39 @@
 """
 Check or update scorpion search regression baselines.
 
-  --check   Run registered tracks and compare against committed baselines.
-  --update  Regenerate committed baselines from current results.
-  --full    Full mode: p01-p05, all configs, 60 s limit (default: light mode).
-  --track   Run only the named track(s); default is all registered tracks.
+  --check          Run registered tracks and compare against committed baselines.
+  --update         Regenerate committed baselines from current results.
+  --full           instances=[1,2,3,4,5]; mutually exclusive with --instances.
+  --instances      Run only these instances; each item is integer N (=p0N across
+                   all domains) or "domain/problem.pddl" (exact instance).
+  --track          Run only the named track(s); default is all registered tracks.
+  --config-file    JSON dict {name: [cli_args, ...]} replacing each selected
+                   track's CONFIGS; on --update, results are merged into the
+                   existing baseline file.
+  --json-output    Write a per-instance comparison dump to PATH (--check only).
+  --skip-validate  Disable VAL plan validation (on by default for optimal,
+                   satisficing, anytime; the heuristic track never validates).
+  --validate-bin   Override VAL binary discovery; default search order is
+                   --validate-bin > VAL env var > "validate" on PATH.
 
-Light mode (default): p01 only, all configs, 10 s limit; fast developer check.
-Full mode (--full):   p01-p05, all configs, 60 s limit; intended as CI gate.
+Default --check (no flags): instances=[1], 10 s limit (fast developer check).
+--check --full:              instances=[1,2,3,4,5], 60 s limit (CI gate).
+--check --instances ...:     custom subset, 60 s limit.
 
 Set AUTOSCALE_BENCHMARKS to the autoscale-benchmarks root directory,
 or pass --benchmarks PATH to override.
 """
 
 import argparse
+import datetime
+import json
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
+
+JSON_SCHEMA_VERSION = 1
 
 # Add tests dir to path so track modules can import regression_lib.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -31,6 +48,72 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 TESTS_DIR = Path(__file__).resolve().parent
 BASELINE_DIR = TESTS_DIR / "regression-baselines"
 DEFAULT_WORKERS = 4
+
+
+def _find_validate_bin(cli_override):
+    """Return the VAL binary path.  Search order: CLI > VAL env > PATH."""
+    if cli_override:
+        p = Path(cli_override)
+        if not p.is_file():
+            sys.exit(f"ERROR: --validate-bin {cli_override}: not a file")
+        return p
+    env_val = os.environ.get("VAL")
+    if env_val:
+        p = Path(env_val)
+        if not p.is_file():
+            sys.exit(f"ERROR: VAL env var points to {env_val}: not a file")
+        return p
+    found = shutil.which("validate")
+    return Path(found) if found else None
+
+
+def _scorpion_commit():
+    """Return the HEAD commit short SHA, or None if unavailable."""
+    try:
+        r = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(REPO_ROOT), capture_output=True, text=True, check=True,
+        )
+        return r.stdout.strip() or None
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
+
+
+def _parse_instance_item(item):
+    """Parse a CLI --instances element as int or 'domain/problem.pddl' string."""
+    try:
+        return int(item)
+    except ValueError:
+        pass
+    if "/" in item and item.endswith(".pddl"):
+        domain, problem = item.split("/", 1)
+        if domain and problem and "/" not in domain:
+            return item
+    sys.exit(
+        f"ERROR: --instances item {item!r} must be either an integer "
+        f"or a 'domain/problem.pddl' string"
+    )
+
+
+def _load_config_file(path):
+    if path is None:
+        return None
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        sys.exit(f"ERROR: --config-file {path}: {e}")
+    if not isinstance(data, dict) or not data:
+        sys.exit(f"ERROR: --config-file {path}: top-level must be a non-empty object")
+    for name, args in data.items():
+        if not isinstance(name, str):
+            sys.exit(f"ERROR: --config-file {path}: keys must be strings")
+        if not isinstance(args, list) or not all(isinstance(a, str) for a in args):
+            sys.exit(
+                f"ERROR: --config-file {path}: value for {name!r} must be a "
+                f"list of strings (e.g. [\"--search\", \"astar(...)\"])"
+            )
+    return data
 
 
 def _get_benchmarks_path(cli_override):
@@ -94,10 +177,18 @@ def main():
         metavar="PATH",
         help="Autoscale benchmarks root (overrides AUTOSCALE_BENCHMARKS)",
     )
-    parser.add_argument(
+    instance_group = parser.add_mutually_exclusive_group()
+    instance_group.add_argument(
         "--full",
         action="store_true",
-        help="Full mode: p01-p05, 60 s (default: light mode p01-only, 10 s)",
+        help="Run on instances=[1,2,3,4,5] (sugar; mutually exclusive with --instances)",
+    )
+    instance_group.add_argument(
+        "--instances",
+        nargs="+",
+        metavar="ITEM",
+        help="Run only on these instances; each ITEM is integer N "
+             "(=p0N across all domains) or 'domain/problem.pddl' (exact)",
     )
     track_names = [name for name, _, _ in TRACKS]
     parser.add_argument(
@@ -107,9 +198,66 @@ def main():
         choices=track_names,
         help=f"Run only these track(s); choices: {track_names}",
     )
+    parser.add_argument(
+        "--config-file",
+        metavar="PATH",
+        type=Path,
+        help="Replace each selected track's CONFIGS with the JSON dict at PATH "
+             "(shape: {name: [cli_arg, ...], ...}); on --update the results are "
+             "merged into the existing baseline file rather than overwriting it",
+    )
+    parser.add_argument(
+        "--json-output",
+        metavar="PATH",
+        type=Path,
+        help="Write a per-instance comparison JSON dump to PATH (--check only). "
+             "Use the committed regression-baselines/*.json files for --update output.",
+    )
+    parser.add_argument(
+        "--skip-validate",
+        action="store_true",
+        help="Disable VAL plan validation (on by default for optimal, "
+             "satisficing, and anytime tracks)",
+    )
+    parser.add_argument(
+        "--validate-bin",
+        metavar="PATH",
+        help="Path to the VAL binary; overrides VAL env var and PATH lookup",
+    )
     args = parser.parse_args()
 
     benchmarks = _get_benchmarks_path(args.benchmarks)
+    configs_override = _load_config_file(args.config_file)
+
+    if args.instances:
+        instances_arg = [_parse_instance_item(x) for x in args.instances]
+    elif args.full:
+        instances_arg = [1, 2, 3, 4, 5]
+    else:
+        instances_arg = None
+
+    if args.update and instances_arg is None and configs_override is None:
+        parser.error(
+            "--update requires an explicit scope: --full (rebaseline "
+            "everything), --instances ... (regenerate a subset), or "
+            "--config-file ... (regenerate specific configs)"
+        )
+
+    if args.json_output and args.update:
+        parser.error(
+            "--json-output is only valid in --check mode; the updated "
+            "regression-baselines/*.json files are the structured output "
+            "for --update"
+        )
+
+    validate = not args.skip_validate
+    validate_bin = _find_validate_bin(args.validate_bin) if validate else None
+    if validate and validate_bin is None:
+        sys.exit(
+            "ERROR: VAL plan validator not found.  Install VAL and put "
+            "`validate` on PATH, set the VAL environment variable, pass "
+            "--validate-bin PATH, or disable validation with --skip-validate."
+        )
 
     if args.check and not BASELINE_DIR.is_dir():
         sys.exit(
@@ -119,14 +267,28 @@ def main():
     if args.update:
         BASELINE_DIR.mkdir(parents=True, exist_ok=True)
 
-    light = not args.full
+    if instances_arg is None:
+        scope = "instances=[1] (default)"
+    elif args.full:
+        scope = "instances=[1,2,3,4,5] (--full)"
+    else:
+        scope = f"instances={instances_arg}"
+
+    started_at = datetime.datetime.now(datetime.timezone.utc).isoformat(
+        timespec="seconds"
+    )
+    scorpion_commit = _scorpion_commit()
+
+    validate_str = (
+        f"on  ({validate_bin})" if validate else "off (--skip-validate)"
+    )
 
     print(f"Repository root: {REPO_ROOT}")
     print(f"Benchmarks:      {benchmarks}")
     print(f"Baselines:       {BASELINE_DIR}")
     print(f"Workers:         {args.workers}")
-    print(f"Mode:            {'CHECK' if args.check else 'UPDATE'} "
-          f"({'light' if light else 'full'})")
+    print(f"Mode:            {'CHECK' if args.check else 'UPDATE'}  ({scope})")
+    print(f"Validation:      {validate_str}")
     print()
 
     selected = (
@@ -135,18 +297,74 @@ def main():
     )
 
     all_failures = []
+    track_comparisons = {}
+    update_errors = []
+    any_error = False
     for track_name, check_fn, update_fn in selected:
         print(f"--- {track_name} ---")
         if args.check:
-            failures = check_fn(benchmarks, BASELINE_DIR, args.workers, light=light)
-            status = "PASS" if not failures else f"FAIL ({len(failures)} regression(s))"
+            comp = check_fn(benchmarks, BASELINE_DIR, args.workers,
+                            configs=configs_override,
+                            instances=instances_arg,
+                            validate=validate,
+                            validate_bin=validate_bin)
+            track_comparisons[track_name] = comp
+            outcome = comp.get("outcome", "error")
+            msgs = comp.get("messages", [])
+            if outcome == "pass":
+                status = "PASS"
+            elif outcome == "fail":
+                status = f"FAIL ({len(msgs)} regression(s))"
+            else:
+                status = f"ERROR ({len(msgs)} message(s))"
+                any_error = True
             print(f"  {status}")
-            for msg in failures:
+            for msg in msgs:
                 print(f"    * {msg}")
-            all_failures.extend(failures)
+            if outcome != "pass":
+                all_failures.extend(msgs)
         else:
-            update_fn(benchmarks, BASELINE_DIR, args.workers, light=light)
-            print("  updated")
+            errors = update_fn(benchmarks, BASELINE_DIR, args.workers,
+                               configs=configs_override,
+                               instances=instances_arg,
+                               validate=validate,
+                               validate_bin=validate_bin) or []
+            update_errors.extend(errors)
+            if errors:
+                print(f"  updated  ({len(errors)} validation error(s); see above)")
+            else:
+                print("  updated")
+
+    if args.check and args.json_output:
+        # `messages` is a stdout-only convenience field; strip it from the
+        # JSON shape so consumers don't ingest derived data.
+        json_tracks = {}
+        for name, comp in track_comparisons.items():
+            json_tracks[name] = {
+                "outcome": comp["outcome"],
+                "per_config": comp["per_config"],
+                "runs": comp["runs"],
+            }
+        overall = (
+            "fail"
+            if any_error or any(c["outcome"] != "pass"
+                                for c in track_comparisons.values())
+            else "pass"
+        )
+        payload = {
+            "schema_version": JSON_SCHEMA_VERSION,
+            "mode": "check",
+            "scorpion_commit": scorpion_commit,
+            "started_at": started_at,
+            "instances": (
+                instances_arg if instances_arg is not None else [1]
+            ),
+            "tracks": json_tracks,
+            "outcome": overall,
+        }
+        args.json_output.parent.mkdir(parents=True, exist_ok=True)
+        args.json_output.write_text(json.dumps(payload, indent=2, sort_keys=True))
+        print(f"\nJSON output: {args.json_output}")
 
     print("=" * 60)
     if not selected:
@@ -161,6 +379,10 @@ def main():
         else:
             print("SUCCESS: all tracks passed.")
     else:
+        if update_errors:
+            print(f"FAILURE: {len(update_errors)} run(s) had invalid plans "
+                  "and were not written to the baseline.")
+            sys.exit(1)
         print("Baselines updated.")
 
 

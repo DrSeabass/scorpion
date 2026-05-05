@@ -9,10 +9,12 @@ import json
 import math
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 import time
+from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
@@ -89,32 +91,128 @@ def find_domain_file(problem_path: Path) -> Path:
     raise FileNotFoundError(f"No domain file for {problem_path}")
 
 
-def discover_instances(benchmark_subdir: Path, max_instance: int = 5) -> list[dict]:
-    """Return a sorted list of instance dicts for p01..p<max_instance>.
+def resolve_instances(benchmark_subdir: Path, instances: list) -> list[dict]:
+    """Resolve a heterogeneous instance spec to discovered instance dicts.
 
-    Each dict has keys: domain, problem (filename), domain_file (path),
+    Each list element is one of:
+      - int N: expand to "p0N.pddl" across every domain that has one.
+      - str "domain/problem.pddl": one exact instance.
+
+    Duplicates (same domain, same problem) are deduplicated; the result is
+    sorted by (domain, problem) for stable iteration.
+
+    Returns dicts with keys: domain, problem (filename), domain_file (path),
     problem_file (path).
     """
-    instances = []
-    for domain_dir in sorted(benchmark_subdir.iterdir()):
-        if not domain_dir.is_dir():
-            continue
-        domain = domain_dir.name
-        for i in range(1, max_instance + 1):
-            prob = domain_dir / f"p{i:02d}.pddl"
+    seen = set()
+    result = []
+
+    for item in instances:
+        if isinstance(item, bool):
+            # bool is a subclass of int; reject before the int branch swallows it.
+            raise TypeError(f"Invalid instance entry: {item!r}")
+        if isinstance(item, int):
+            for domain_dir in sorted(benchmark_subdir.iterdir()):
+                if not domain_dir.is_dir():
+                    continue
+                domain = domain_dir.name
+                prob = domain_dir / f"p{item:02d}.pddl"
+                if not prob.exists():
+                    continue
+                key = (domain, prob.name)
+                if key in seen:
+                    continue
+                try:
+                    dom = find_domain_file(prob)
+                except FileNotFoundError:
+                    continue
+                seen.add(key)
+                result.append({
+                    "domain": domain,
+                    "problem": prob.name,
+                    "domain_file": dom,
+                    "problem_file": prob,
+                })
+        elif isinstance(item, str):
+            if "/" not in item:
+                raise ValueError(
+                    f"Invalid instance string {item!r}; "
+                    f"expected 'domain/problem.pddl'"
+                )
+            domain, problem = item.split("/", 1)
+            prob = benchmark_subdir / domain / problem
             if not prob.exists():
+                raise FileNotFoundError(f"Instance not found: {prob}")
+            key = (domain, prob.name)
+            if key in seen:
                 continue
-            try:
-                dom = find_domain_file(prob)
-            except FileNotFoundError:
-                continue
-            instances.append({
+            dom = find_domain_file(prob)
+            seen.add(key)
+            result.append({
                 "domain": domain,
                 "problem": prob.name,
                 "domain_file": dom,
                 "problem_file": prob,
             })
-    return instances
+        else:
+            raise TypeError(
+                f"Instance entry must be int or str, got "
+                f"{type(item).__name__}: {item!r}"
+            )
+
+    result.sort(key=lambda d: (d["domain"], d["problem"]))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Plan validation
+# ---------------------------------------------------------------------------
+
+def _find_final_plan(plan_path_prefix: Path):
+    """Return the highest-numbered plan file at the given prefix, or the
+    unsuffixed file if it exists, or None if no plan was emitted.
+
+    For optimal/satisficing search FD writes the plan to <prefix>; for
+    iterated/anytime search it writes <prefix>.1, <prefix>.2, ... — the
+    final (best) plan is the highest-numbered.
+    """
+    if plan_path_prefix.exists():
+        return plan_path_prefix
+    parent = plan_path_prefix.parent
+    if not parent.is_dir():
+        return None
+    needle = plan_path_prefix.name + "."
+    candidates = []
+    for entry in parent.iterdir():
+        if entry.name.startswith(needle):
+            suffix = entry.name[len(needle):]
+            if suffix.isdigit():
+                candidates.append((int(suffix), entry))
+    if not candidates:
+        return None
+    candidates.sort()
+    return candidates[-1][1]
+
+
+def _validate_plan(validate_bin: Path, domain_file: Path, problem_file: Path,
+                   plan_path: Path, timeout: int = 30) -> tuple[bool, str]:
+    """Invoke VAL on a plan file.  Return (valid, message).
+
+    VAL exits 0 for a valid plan, non-zero otherwise.
+    """
+    try:
+        r = subprocess.run(
+            [str(validate_bin), str(domain_file), str(problem_file), str(plan_path)],
+            capture_output=True, text=True, timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return False, f"VAL timed out after {timeout}s"
+    except FileNotFoundError:
+        return False, f"VAL binary not found: {validate_bin}"
+    if r.returncode == 0:
+        return True, ""
+    tail = (r.stdout + r.stderr).strip().splitlines()[-3:]
+    return False, f"VAL exit={r.returncode}: {' / '.join(tail)}"
 
 
 # ---------------------------------------------------------------------------
@@ -123,16 +221,19 @@ def discover_instances(benchmark_subdir: Path, max_instance: int = 5) -> list[di
 
 def _run_one(args):
     """Worker: run one (config, instance) combination and return results."""
-    config_name, config_opts, domain_file, problem_file, time_limit = args
+    (config_name, config_opts, domain_file, problem_file, time_limit,
+     validate, validate_bin) = args
 
-    sas_fd, sas_path = tempfile.mkstemp(suffix=".sas")
-    os.close(sas_fd)
+    workdir = Path(tempfile.mkdtemp(prefix="scorpion_reg_"))
+    sas_path = workdir / "output.sas"
+    plan_prefix = workdir / "plan"
     try:
         cmd = (
             [sys.executable, str(FAST_DOWNWARD),
              "--overall-time-limit", str(time_limit),
              "--overall-memory-limit", f"{MEM_LIMIT_MB}M",
-             "--sas-file", sas_path,
+             "--sas-file", str(sas_path),
+             "--plan-file", str(plan_prefix),
              str(domain_file), str(problem_file)]
             + config_opts
         )
@@ -149,8 +250,27 @@ def _run_one(args):
         except subprocess.TimeoutExpired:
             metrics = {"coverage": 0, "returncode": -1,
                        "wall_time": time.monotonic() - t0}
+
+        # Validate emitted plan if requested.  plan_valid is None unless we
+        # actually run VAL; coverage=0 runs and validate=False both leave
+        # plan_valid unset.
+        if validate and validate_bin and metrics.get("coverage", 0) == 1:
+            plan_path = _find_final_plan(plan_prefix)
+            if plan_path is None:
+                metrics["plan_valid"] = False
+                metrics["plan_validation_message"] = (
+                    "coverage=1 but no plan file found at "
+                    f"{plan_prefix}(.N) — FD output mismatch"
+                )
+            else:
+                valid, msg = _validate_plan(
+                    Path(validate_bin), domain_file, problem_file, plan_path
+                )
+                metrics["plan_valid"] = valid
+                if msg:
+                    metrics["plan_validation_message"] = msg
     finally:
-        Path(sas_path).unlink(missing_ok=True)
+        shutil.rmtree(workdir, ignore_errors=True)
 
     return config_name, domain_file.parent.name, Path(problem_file).name, metrics
 
@@ -160,14 +280,23 @@ def run_experiment(
     configs: dict,
     time_limit: int,
     workers: int,
+    *,
+    validate: bool = False,
+    validate_bin: Path = None,
 ) -> dict:
     """Run all configs × instances in parallel; return a results dict.
 
     Result keys are  "config|domain|problem"  strings.
+
+    When validate=True (and validate_bin is set), each successful run's
+    final plan is checked with VAL; the result is recorded as
+    `plan_valid: True/False` in the run's metrics.  `plan_valid` is
+    absent for runs that did not solve, or when validate=False.
     """
     tasks = [
         (cfg_name, cfg_opts,
-         inst["domain_file"], inst["problem_file"], time_limit)
+         inst["domain_file"], inst["problem_file"], time_limit,
+         validate, str(validate_bin) if validate_bin else None)
         for cfg_name, cfg_opts in configs.items()
         for inst in instances
     ]
@@ -183,7 +312,15 @@ def run_experiment(
             results[run_id] = metrics
             done += 1
             cov = metrics.get("coverage", 0)
-            status = "OK" if cov else "---"
+            pv = metrics.get("plan_valid")
+            if not cov:
+                status = "---"
+            elif pv is False:
+                status = "BAD"
+            elif pv is True:
+                status = "OK✓"
+            else:
+                status = "OK"
             print(f"  [{done:4d}/{total}] {status}  {run_id}", flush=True)
 
     return results
@@ -193,21 +330,37 @@ def run_experiment(
 # Baseline filtering
 # ---------------------------------------------------------------------------
 
-def filter_baseline(baseline: dict, configs: set, max_instance: int) -> dict:
-    """Return only entries whose config is in *configs* and instance number ≤ max_instance.
+def filter_baseline(baseline: dict, configs: set, instances: list) -> dict:
+    """Return only entries whose config is in *configs* and instance is in *instances*.
 
-    Keys have the form  "config|domain|instance.pddl"  where instance is e.g. "p01.pddl".
+    Keys have the form "config|domain|instance.pddl" where instance is e.g. "p01.pddl".
+    Each *instances* element is either int N (matches any "p0N.pddl" across
+    domains) or str "domain/problem.pddl" (exact match).
     """
+    int_set = {n for n in instances
+               if isinstance(n, int) and not isinstance(n, bool)}
+    str_set = set()
+    for s in instances:
+        if isinstance(s, str):
+            d, p = s.split("/", 1)
+            str_set.add((d, p))
+
     result = {}
     for key, value in baseline.items():
         parts = key.split("|")
         if len(parts) != 3:
             continue
-        config, _domain, instance = parts
-        stem = Path(instance).stem          # "p01", "p05", ...
-        if not (stem.startswith("p") and stem[1:].isdigit()):
+        config, domain, instance = parts
+        if config not in configs:
             continue
-        if config in configs and int(stem[1:]) <= max_instance:
+        stem = Path(instance).stem
+        is_int_match = (
+            stem.startswith("p")
+            and stem[1:].isdigit()
+            and int(stem[1:]) in int_set
+        )
+        is_str_match = (domain, instance) in str_set
+        if is_int_match or is_str_match:
             result[key] = value
     return result
 
@@ -220,6 +373,38 @@ def baseline_path(baseline_dir: Path, track_name: str) -> Path:
     return baseline_dir / f"{track_name}.json"
 
 
+def drop_invalid_runs(results: dict) -> list[str]:
+    """Remove runs whose plan_valid is False from *results* in place.
+
+    Returns a list of human-readable error messages, one per dropped run,
+    suitable for surfacing to the user.  The dropped entries must not be
+    written to a baseline (per the design summary's plan-validation step).
+    """
+    errors = []
+    for run_id in [r for r, m in results.items() if m.get("plan_valid") is False]:
+        msg = (
+            f"INVALID PLAN: {run_id} — not writing this entry to baseline"
+            f" ({results[run_id].get('plan_validation_message', 'VAL rejected the plan')})"
+        )
+        print(f"  ERROR: {msg}", flush=True)
+        errors.append(msg)
+        del results[run_id]
+    return errors
+
+
+def baseline_missing_error(baseline_dir: Path, track_name: str) -> dict:
+    """Return an `outcome="error"` comparison dict for a missing baseline file."""
+    return {
+        "outcome": "error",
+        "per_config": {},
+        "runs": {},
+        "messages": [
+            f"No baseline found at {baseline_dir}/{track_name}.json; "
+            "run generate_baseline.py first"
+        ],
+    }
+
+
 def load_baseline(baseline_dir: Path, track_name: str) -> dict:
     path = baseline_path(baseline_dir, track_name)
     if not path.exists():
@@ -228,12 +413,54 @@ def load_baseline(baseline_dir: Path, track_name: str) -> dict:
         return json.load(f)
 
 
-def save_baseline(baseline_dir: Path, track_name: str, results: dict) -> None:
+def save_baseline(baseline_dir: Path, track_name: str, results: dict,
+                  *, merge: bool = False) -> None:
+    """Write the baseline.  When merge=True, overlay results on the existing
+    file instead of overwriting it; existing keys not in results are preserved."""
     path = baseline_path(baseline_dir, track_name)
     baseline_dir.mkdir(parents=True, exist_ok=True)
+    if merge and path.exists():
+        with open(path) as f:
+            existing = json.load(f)
+        existing.update(results)
+        results = existing
     with open(path, "w") as f:
         json.dump(results, f, indent=2, sort_keys=True)
     print(f"  Saved baseline: {path}")
+
+
+DEFAULT_LIGHT_INSTANCES = [1]
+DEFAULT_FULL_INSTANCES = [1, 2, 3, 4, 5]
+
+
+def is_full_default_instances(instances: list) -> bool:
+    """Return True iff *instances* is a permutation of [1, 2, 3, 4, 5].
+
+    Used by `update_*` to decide whether to overwrite the baseline (rebaseline
+    default) or to merge new entries into it (a partial subset override).
+    """
+    return (
+        len(instances) == len(DEFAULT_FULL_INSTANCES)
+        and all(isinstance(i, int) and not isinstance(i, bool) for i in instances)
+        and set(instances) == set(DEFAULT_FULL_INSTANCES)
+    )
+
+
+def resolve_configs(default: dict, configs=None, extra_configs=None) -> dict:
+    """Return the effective configs dict given optional overrides.
+
+    Both None  → copy of default.
+    configs=X  → X (full replacement).
+    extra_configs=Y → default with Y merged in (Y wins on key collisions).
+    Both set   → ValueError.
+    """
+    if configs is not None and extra_configs is not None:
+        raise ValueError("configs= and extra_configs= are mutually exclusive")
+    if configs is not None:
+        return dict(configs)
+    if extra_configs is not None:
+        return {**default, **extra_configs}
+    return dict(default)
 
 
 # ---------------------------------------------------------------------------
@@ -247,44 +474,78 @@ def compare_results(
     runtime_key: str = "search_time",
     time_limit: int = None,
     prefix_keys: list[str] = None,
-) -> list[str]:
-    """Return a list of failure description strings (empty = pass).
+) -> dict:
+    """Return a structured comparison dict.
+
+    Shape:
+        {
+          "outcome": "pass" | "fail",
+          "per_config": {<config>: {
+              "runtime_geomean_ratio": <float | None>,
+              "runtime_regression":    <bool>,
+              "runtime_compared_count": <int>,
+          }},
+          "runs": {<run_id>: {
+              "outcome": "pass" | "fail",
+              "failure_kind": "exact_match" | "coverage_loss" | None,
+              "metrics": {<metric>: {
+                  "baseline": <v>, "current": <v>, "match": <bool>
+              }},
+          }},
+          "messages": [<human-readable failure description>, ...],
+        }
+
+    `runs` contains one entry per baseline run_id (full dump, not just
+    failures).  `messages` is a CLI-stdout convenience extension over
+    the documented schema; JSON consumers should iterate `runs` and
+    `per_config` instead.
 
     Coverage loss is only a hard failure when the baseline solved
     comfortably within the time limit (< 50% of time_limit).  Instances
-    that solved close to the wall-clock limit are inherently timing-sensitive
-    and are skipped for coverage comparison.
+    that solved close to the wall-clock limit are inherently
+    timing-sensitive and are skipped for coverage comparison.
 
-    Keys listed in prefix_keys are list-valued and compared only on the shared
-    prefix (up to min length).  A shorter sequence is not a failure provided
-    the shared values match — the sequence length varies with wall-clock luck,
-    but the order and values are deterministic.
+    Keys listed in prefix_keys are list-valued and compared only on the
+    shared prefix (up to min length).  A shorter sequence is not a
+    failure provided the shared values match.
+
+    Runtime geo-mean is computed per config; any config exceeding the
+    threshold is flagged in `per_config[name].runtime_regression`.
     """
-    failures = []
+    runs = {}
+    messages = []
     prefix_keys = set(prefix_keys or [])
     coverage_stable_threshold = (0.5 * time_limit) if time_limit else None
 
     for run_id, base in baseline.items():
-        curr = current.get(run_id)
-        if curr is None:
-            failures.append(f"MISSING run: {run_id}")
-            continue
+        curr = current.get(run_id, {})
+        run_entry = {
+            "outcome": "pass",
+            "failure_kind": None,
+            "plan_valid": curr.get("plan_valid"),
+            "metrics": {},
+        }
 
         base_cov = base.get("coverage", 0)
         curr_cov = curr.get("coverage", 0)
+
         if base_cov == 1 and curr_cov == 0:
-            # Use wall_time for the borderline check: search_time alone
-            # understates elapsed time for configs with expensive precomputation
-            # (e.g., merge-and-shrink).  Fall back to runtime_key if absent.
             base_time = base.get("wall_time") or base.get(runtime_key, 0)
-            if coverage_stable_threshold and base_time > coverage_stable_threshold:
-                # Borderline instance: solved close to the wall-clock limit.
-                # Skip — coverage is timing-sensitive here.
-                continue
-            failures.append(
-                f"COVERAGE LOSS: {run_id} "
-                f"(baseline {base_time:.1f}s, limit {time_limit}s)"
+            is_borderline = (
+                coverage_stable_threshold is not None
+                and base_time > coverage_stable_threshold
             )
+            if not is_borderline:
+                run_entry["outcome"] = "fail"
+                run_entry["failure_kind"] = "coverage_loss"
+                if time_limit:
+                    messages.append(
+                        f"COVERAGE LOSS: {run_id} "
+                        f"(baseline {base_time:.1f}s, limit {time_limit}s)"
+                    )
+                else:
+                    messages.append(f"COVERAGE LOSS: {run_id}")
+            runs[run_id] = run_entry
             continue
 
         if base_cov == 1 and curr_cov == 1:
@@ -295,32 +556,73 @@ def compare_results(
                     continue
                 if key in prefix_keys:
                     n = min(len(bv), len(cv))
-                    if bv[:n] != cv[:n]:
-                        failures.append(
-                            f"MISMATCH {key}: {run_id} "
-                            f"baseline={bv} current={cv}"
-                        )
-                elif bv != cv:
-                    failures.append(
+                    match = bv[:n] == cv[:n]
+                else:
+                    match = bv == cv
+                run_entry["metrics"][key] = {
+                    "baseline": bv, "current": cv, "match": match
+                }
+                if not match:
+                    if run_entry["outcome"] == "pass":
+                        run_entry["outcome"] = "fail"
+                        run_entry["failure_kind"] = "exact_match"
+                    messages.append(
                         f"MISMATCH {key}: {run_id} "
                         f"baseline={bv} current={cv}"
                     )
 
-    # Runtime geo-mean check (only over commonly solved instances).
-    ratios = []
+        # Invalid plan trumps exact_match (more severe).
+        if curr.get("plan_valid") is False:
+            run_entry["outcome"] = "fail"
+            run_entry["failure_kind"] = "invalid_plan"
+            val_msg = curr.get("plan_validation_message", "")
+            messages.append(
+                f"INVALID PLAN: {run_id}"
+                + (f" — {val_msg}" if val_msg else "")
+            )
+
+        runs[run_id] = run_entry
+
+    # Per-config runtime geo-mean.
+    config_ratios = defaultdict(list)
     for run_id, base in baseline.items():
+        config = run_id.split("|", 1)[0]
         curr = current.get(run_id, {})
         bt = base.get(runtime_key)
         ct = curr.get(runtime_key)
         if bt and ct and bt > 0 and ct > 0:
-            ratios.append(ct / bt)
-    if ratios:
-        geomean = math.exp(sum(math.log(r) for r in ratios) / len(ratios))
-        if geomean >= RUNTIME_REGRESSION_THRESHOLD:
-            failures.append(
-                f"RUNTIME: geo-mean ratio {geomean:.2f}x "
+            config_ratios[config].append(ct / bt)
+
+    per_config = {}
+    all_configs = {run_id.split("|", 1)[0] for run_id in baseline}
+    for config in sorted(all_configs):
+        ratios = config_ratios.get(config, [])
+        if ratios:
+            geomean = math.exp(sum(math.log(r) for r in ratios) / len(ratios))
+            regression = geomean >= RUNTIME_REGRESSION_THRESHOLD
+        else:
+            geomean = None
+            regression = False
+        per_config[config] = {
+            "runtime_geomean_ratio": geomean,
+            "runtime_regression": regression,
+            "runtime_compared_count": len(ratios),
+        }
+        if regression:
+            messages.append(
+                f"RUNTIME: {config} geo-mean ratio {geomean:.2f}x "
                 f">= {RUNTIME_REGRESSION_THRESHOLD}x threshold "
                 f"(over {len(ratios)} instances)"
             )
 
-    return failures
+    any_fail = (
+        any(r["outcome"] == "fail" for r in runs.values())
+        or any(c["runtime_regression"] for c in per_config.values())
+    )
+
+    return {
+        "outcome": "fail" if any_fail else "pass",
+        "per_config": per_config,
+        "runs": runs,
+        "messages": messages,
+    }
