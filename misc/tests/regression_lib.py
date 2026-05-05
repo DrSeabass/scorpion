@@ -91,6 +91,13 @@ def find_domain_file(problem_path: Path) -> Path:
     raise FileNotFoundError(f"No domain file for {problem_path}")
 
 
+def is_single_domain_layout(domain_dir: Path) -> bool:
+    """True if *domain_dir* points at a single domain (p01.pddl directly
+    under it); False if it's a benchmark set (parent of per-domain dirs).
+    Same rule resolve_instances uses to decide its iteration shape."""
+    return (domain_dir / "p01.pddl").exists()
+
+
 def resolve_instances(domain_dir: Path, instance_ids: list[int]) -> list[dict]:
     """Resolve integer instance ids to discovered instance dicts.
 
@@ -116,7 +123,7 @@ def resolve_instances(domain_dir: Path, instance_ids: list[int]) -> list[dict]:
                 f"{type(item).__name__}: {item!r}"
             )
 
-    if (domain_dir / "p01.pddl").exists():
+    if is_single_domain_layout(domain_dir):
         domain_dirs = [domain_dir]
     else:
         domain_dirs = sorted(d for d in domain_dir.iterdir() if d.is_dir())

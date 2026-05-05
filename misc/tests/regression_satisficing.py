@@ -29,6 +29,7 @@ from regression_lib import (
     drop_invalid_runs,
     filter_baseline,
     is_full_default_instances,
+    is_single_domain_layout,
     load_baseline,
     resolve_configs,
     resolve_instances,
@@ -115,6 +116,7 @@ def update_satisficing(domain_dir: Path, baseline_dir: Path, workers: int,
     has_override = (
         configs is not None or extra_configs is not None
         or not is_full_default_instances(resolved_instances)
+        or is_single_domain_layout(domain_dir)
     )
     save_baseline(baseline_dir, TRACK_NAME, results, merge=has_override)
     return errors
