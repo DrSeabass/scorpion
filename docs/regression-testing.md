@@ -104,7 +104,8 @@ Top-level shape:
           "runs": {
             "<config>|<domain>|<instance>.pddl": {
               "outcome": "pass" | "fail",
-              "failure_kind": "exact_match" | "coverage_loss" | null,
+              "failure_kind": "exact_match" | "coverage_loss" | "invalid_plan" | null,
+              "plan_valid":   true | false | null,
               "metrics": {
                 "<metric>": {"baseline": <v>, "current": <v>, "match": <bool>}
               }
@@ -116,9 +117,10 @@ Top-level shape:
 
 Every baseline run gets a `runs` entry (full dump, not failures-only).
 Per-config aggregates (geo-mean ratio, regression flag) sit alongside
-`runs`.  `--json-output` is invalid in `--update` mode; use the
-committed `regression-baselines/*.json` files as the structured output
-for updates.
+`runs`.  `plan_valid` is `null` for the heuristic track and for runs
+that did not solve.  `--json-output` is invalid in `--update` mode;
+use the committed `regression-baselines/*.json` files as the
+structured output for updates.
 
 ### Running on a custom instance set (`--instances`)
 
@@ -193,12 +195,12 @@ files; there are no separate `*-light.json` files.
 
 ## Test tracks
 
-| Track | Benchmark set | Configs | Exact-match keys |
-|---|---|---|---|
-| heuristics | optimal-strips | 5 A* configs | initial_h_value, expansions, evaluations, generated, cost |
-| optimal | optimal-strips | 6 configs | cost, expansions, evaluations, generated |
-| satisficing | agile-strips | 4 configs | cost, expansions, evaluations, generated |
-| anytime | agile-strips | 2 configs | incumbent_costs (full improving sequence) |
+| Track | Benchmark set | Configs | Exact-match keys | Validates plans? |
+|---|---|---|---|---|
+| heuristics  | optimal-strips | 5 A* configs | initial_h_value, expansions, evaluations, generated, cost | no |
+| optimal     | optimal-strips | 6 configs | cost, expansions, evaluations, generated | yes |
+| satisficing | agile-strips   | 4 configs | cost, expansions, evaluations, generated | yes |
+| anytime     | agile-strips   | 2 configs | incumbent_costs (full improving sequence) | yes (final plan only) |
 
 Light mode runs the same configs as full mode, only on p01 instead of p01–p05.
 
@@ -214,19 +216,34 @@ a comparable incumbent sequence).
    keyword args:
 
         def check_<track>(benchmarks, baseline_dir, workers, *,
-                          configs=None, extra_configs=None, instances=None):
-            ...
-        def update_<track>(benchmarks, baseline_dir, workers, *,
-                           configs=None, extra_configs=None, instances=None):
+                          configs=None, extra_configs=None,
+                          instances=None,
+                          validate=True, validate_bin=None) -> dict:
             ...
 
-   Resolve `configs` via `resolve_configs(CONFIGS, configs, extra_configs)`.
-   Default `instances` to `DEFAULT_LIGHT_INSTANCES` in `check_*` and
-   `DEFAULT_FULL_INSTANCES` in `update_*`.  Filter the baseline with
-   `filter_baseline(baseline, set(resolved_configs), resolved_instances)`.
-   `update_*` should pass `merge=True` to `save_baseline` whenever any
-   override was supplied (configs, extra_configs, or non-default instances —
-   use `is_full_default_instances` to test).
+        def update_<track>(benchmarks, baseline_dir, workers, *,
+                           configs=None, extra_configs=None,
+                           instances=None,
+                           validate=True, validate_bin=None) -> list[str]:
+            ...
+
+   - Resolve `configs` via `resolve_configs(CONFIGS, configs, extra_configs)`.
+   - Default `instances` to `DEFAULT_LIGHT_INSTANCES` in `check_*` and
+     `DEFAULT_FULL_INSTANCES` in `update_*`.
+   - Filter the baseline with
+     `filter_baseline(baseline, set(resolved_configs), resolved_instances)`
+     in `check_*`.
+   - Forward `validate` and `validate_bin` to `run_experiment` (or
+     hardcode `validate=False` if your track's primary metric isn't
+     plan-related, like the heuristic track does).
+   - `update_*` should call `drop_invalid_runs(results)` before
+     `save_baseline` and return the resulting error list; pass
+     `merge=True` to `save_baseline` whenever any override was
+     supplied (configs, extra_configs, or non-default instances —
+     use `is_full_default_instances` to test).
+   - `check_*` returns the comparison dict from `compare_results` or
+     `baseline_missing_error(baseline_dir, TRACK_NAME)` if the
+     baseline file is missing.
 
 2. Import and register in `misc/tests/test-regression.py`:
 
