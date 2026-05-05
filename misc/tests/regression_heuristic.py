@@ -11,6 +11,7 @@ from pathlib import Path
 from regression_lib import (
     DEFAULT_FULL_INSTANCES,
     DEFAULT_LIGHT_INSTANCES,
+    baseline_missing_error,
     compare_results,
     filter_baseline,
     is_full_default_instances,
@@ -50,7 +51,7 @@ def _run(benchmarks: Path, workers: int, time_limit: int,
 def check_heuristics(benchmarks: Path, baseline_dir: Path, workers: int,
                      *, configs: dict = None,
                      extra_configs: dict = None,
-                     instances: list = None) -> list[str]:
+                     instances: list = None) -> dict:
     print("Running heuristic experiments...")
     resolved_configs = resolve_configs(CONFIGS, configs, extra_configs)
     resolved_instances = (
@@ -62,8 +63,7 @@ def check_heuristics(benchmarks: Path, baseline_dir: Path, workers: int,
     current = _run(benchmarks, workers, time_limit, resolved_configs, resolved_instances)
     baseline = load_baseline(baseline_dir, TRACK_NAME)
     if not baseline:
-        return [f"No baseline found at {baseline_dir}/{TRACK_NAME}.json; "
-                "run generate_baseline.py first"]
+        return baseline_missing_error(baseline_dir, TRACK_NAME)
     baseline = filter_baseline(baseline, set(resolved_configs), resolved_instances)
     return compare_results(current, baseline, EXACT_KEYS, time_limit=time_limit)
 

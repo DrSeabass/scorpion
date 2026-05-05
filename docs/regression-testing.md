@@ -42,6 +42,51 @@ Pass `--track` to check or update only one track:
     python misc/tests/test-regression.py --check --track satisficing
     python misc/tests/test-regression.py --check --full --track optimal satisficing
 
+### Structured JSON output (`--json-output`)
+
+Pass `--json-output PATH` (with `--check`) to write a per-instance
+comparison dump alongside the human-readable stdout output:
+
+    python misc/tests/test-regression.py --check --json-output /tmp/r.json
+
+Top-level shape:
+
+    {
+      "schema_version": 1,
+      "mode": "check",
+      "scorpion_commit": "abc1234",
+      "started_at": "2026-05-05T14:00:00+00:00",
+      "instances": [1],
+      "outcome": "pass" | "fail",
+      "tracks": {
+        "<track>": {
+          "outcome": "pass" | "fail" | "error",
+          "per_config": {
+            "<config>": {
+              "runtime_geomean_ratio": 1.08,
+              "runtime_regression":    false,
+              "runtime_compared_count": 42
+            }
+          },
+          "runs": {
+            "<config>|<domain>|<instance>.pddl": {
+              "outcome": "pass" | "fail",
+              "failure_kind": "exact_match" | "coverage_loss" | null,
+              "metrics": {
+                "<metric>": {"baseline": <v>, "current": <v>, "match": <bool>}
+              }
+            }
+          }
+        }
+      }
+    }
+
+Every baseline run gets a `runs` entry (full dump, not failures-only).
+Per-config aggregates (geo-mean ratio, regression flag) sit alongside
+`runs`.  `--json-output` is invalid in `--update` mode; use the
+committed `regression-baselines/*.json` files as the structured output
+for updates.
+
 ### Running on a custom instance set (`--instances`)
 
 `--instances ITEM [ITEM ...]` overrides the default instance scope.  Each

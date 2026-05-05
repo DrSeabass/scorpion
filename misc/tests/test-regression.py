@@ -11,6 +11,7 @@ Check or update scorpion search regression baselines.
   --config-file  JSON dict {name: [cli_args, ...]} replacing each selected
                  track's CONFIGS; on --update, results are merged into the
                  existing baseline file.
+  --json-output  Write a per-instance comparison dump to PATH (--check only).
 
 Default --check (no flags): instances=[1], 10 s limit (fast developer check).
 --check --full:              instances=[1,2,3,4,5], 60 s limit (CI gate).
@@ -21,10 +22,14 @@ or pass --benchmarks PATH to override.
 """
 
 import argparse
+import datetime
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
+
+JSON_SCHEMA_VERSION = 1
 
 # Add tests dir to path so track modules can import regression_lib.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -38,6 +43,18 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 TESTS_DIR = Path(__file__).resolve().parent
 BASELINE_DIR = TESTS_DIR / "regression-baselines"
 DEFAULT_WORKERS = 4
+
+
+def _scorpion_commit():
+    """Return the HEAD commit short SHA, or None if unavailable."""
+    try:
+        r = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(REPO_ROOT), capture_output=True, text=True, check=True,
+        )
+        return r.stdout.strip() or None
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
 
 
 def _parse_instance_item(item):
@@ -167,6 +184,13 @@ def main():
              "(shape: {name: [cli_arg, ...], ...}); on --update the results are "
              "merged into the existing baseline file rather than overwriting it",
     )
+    parser.add_argument(
+        "--json-output",
+        metavar="PATH",
+        type=Path,
+        help="Write a per-instance comparison JSON dump to PATH (--check only). "
+             "Use the committed regression-baselines/*.json files for --update output.",
+    )
     args = parser.parse_args()
 
     benchmarks = _get_benchmarks_path(args.benchmarks)
@@ -186,6 +210,13 @@ def main():
             "--config-file ... (regenerate specific configs)"
         )
 
+    if args.json_output and args.update:
+        parser.error(
+            "--json-output is only valid in --check mode; the updated "
+            "regression-baselines/*.json files are the structured output "
+            "for --update"
+        )
+
     if args.check and not BASELINE_DIR.is_dir():
         sys.exit(
             f"ERROR: Baseline directory not found: {BASELINE_DIR}\n"
@@ -201,6 +232,11 @@ def main():
     else:
         scope = f"instances={instances_arg}"
 
+    started_at = datetime.datetime.now(datetime.timezone.utc).isoformat(
+        timespec="seconds"
+    )
+    scorpion_commit = _scorpion_commit()
+
     print(f"Repository root: {REPO_ROOT}")
     print(f"Benchmarks:      {benchmarks}")
     print(f"Baselines:       {BASELINE_DIR}")
@@ -214,22 +250,65 @@ def main():
     )
 
     all_failures = []
+    track_comparisons = {}
+    any_error = False
     for track_name, check_fn, update_fn in selected:
         print(f"--- {track_name} ---")
         if args.check:
-            failures = check_fn(benchmarks, BASELINE_DIR, args.workers,
-                                configs=configs_override,
-                                instances=instances_arg)
-            status = "PASS" if not failures else f"FAIL ({len(failures)} regression(s))"
+            comp = check_fn(benchmarks, BASELINE_DIR, args.workers,
+                            configs=configs_override,
+                            instances=instances_arg)
+            track_comparisons[track_name] = comp
+            outcome = comp.get("outcome", "error")
+            msgs = comp.get("messages", [])
+            if outcome == "pass":
+                status = "PASS"
+            elif outcome == "fail":
+                status = f"FAIL ({len(msgs)} regression(s))"
+            else:
+                status = f"ERROR ({len(msgs)} message(s))"
+                any_error = True
             print(f"  {status}")
-            for msg in failures:
+            for msg in msgs:
                 print(f"    * {msg}")
-            all_failures.extend(failures)
+            if outcome != "pass":
+                all_failures.extend(msgs)
         else:
             update_fn(benchmarks, BASELINE_DIR, args.workers,
                       configs=configs_override,
                       instances=instances_arg)
             print("  updated")
+
+    if args.check and args.json_output:
+        # `messages` is a stdout-only convenience field; strip it from the
+        # JSON shape so consumers don't ingest derived data.
+        json_tracks = {}
+        for name, comp in track_comparisons.items():
+            json_tracks[name] = {
+                "outcome": comp["outcome"],
+                "per_config": comp["per_config"],
+                "runs": comp["runs"],
+            }
+        overall = (
+            "fail"
+            if any_error or any(c["outcome"] != "pass"
+                                for c in track_comparisons.values())
+            else "pass"
+        )
+        payload = {
+            "schema_version": JSON_SCHEMA_VERSION,
+            "mode": "check",
+            "scorpion_commit": scorpion_commit,
+            "started_at": started_at,
+            "instances": (
+                instances_arg if instances_arg is not None else [1]
+            ),
+            "tracks": json_tracks,
+            "outcome": overall,
+        }
+        args.json_output.parent.mkdir(parents=True, exist_ok=True)
+        args.json_output.write_text(json.dumps(payload, indent=2, sort_keys=True))
+        print(f"\nJSON output: {args.json_output}")
 
     print("=" * 60)
     if not selected:

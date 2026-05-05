@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
@@ -281,6 +282,19 @@ def baseline_path(baseline_dir: Path, track_name: str) -> Path:
     return baseline_dir / f"{track_name}.json"
 
 
+def baseline_missing_error(baseline_dir: Path, track_name: str) -> dict:
+    """Return an `outcome="error"` comparison dict for a missing baseline file."""
+    return {
+        "outcome": "error",
+        "per_config": {},
+        "runs": {},
+        "messages": [
+            f"No baseline found at {baseline_dir}/{track_name}.json; "
+            "run generate_baseline.py first"
+        ],
+    }
+
+
 def load_baseline(baseline_dir: Path, track_name: str) -> dict:
     path = baseline_path(baseline_dir, track_name)
     if not path.exists():
@@ -350,44 +364,73 @@ def compare_results(
     runtime_key: str = "search_time",
     time_limit: int = None,
     prefix_keys: list[str] = None,
-) -> list[str]:
-    """Return a list of failure description strings (empty = pass).
+) -> dict:
+    """Return a structured comparison dict.
+
+    Shape:
+        {
+          "outcome": "pass" | "fail",
+          "per_config": {<config>: {
+              "runtime_geomean_ratio": <float | None>,
+              "runtime_regression":    <bool>,
+              "runtime_compared_count": <int>,
+          }},
+          "runs": {<run_id>: {
+              "outcome": "pass" | "fail",
+              "failure_kind": "exact_match" | "coverage_loss" | None,
+              "metrics": {<metric>: {
+                  "baseline": <v>, "current": <v>, "match": <bool>
+              }},
+          }},
+          "messages": [<human-readable failure description>, ...],
+        }
+
+    `runs` contains one entry per baseline run_id (full dump, not just
+    failures).  `messages` is a CLI-stdout convenience extension over
+    the documented schema; JSON consumers should iterate `runs` and
+    `per_config` instead.
 
     Coverage loss is only a hard failure when the baseline solved
     comfortably within the time limit (< 50% of time_limit).  Instances
-    that solved close to the wall-clock limit are inherently timing-sensitive
-    and are skipped for coverage comparison.
+    that solved close to the wall-clock limit are inherently
+    timing-sensitive and are skipped for coverage comparison.
 
-    Keys listed in prefix_keys are list-valued and compared only on the shared
-    prefix (up to min length).  A shorter sequence is not a failure provided
-    the shared values match — the sequence length varies with wall-clock luck,
-    but the order and values are deterministic.
+    Keys listed in prefix_keys are list-valued and compared only on the
+    shared prefix (up to min length).  A shorter sequence is not a
+    failure provided the shared values match.
+
+    Runtime geo-mean is computed per config; any config exceeding the
+    threshold is flagged in `per_config[name].runtime_regression`.
     """
-    failures = []
+    runs = {}
+    messages = []
     prefix_keys = set(prefix_keys or [])
     coverage_stable_threshold = (0.5 * time_limit) if time_limit else None
 
     for run_id, base in baseline.items():
-        curr = current.get(run_id)
-        if curr is None:
-            failures.append(f"MISSING run: {run_id}")
-            continue
+        curr = current.get(run_id, {})
+        run_entry = {"outcome": "pass", "failure_kind": None, "metrics": {}}
 
         base_cov = base.get("coverage", 0)
         curr_cov = curr.get("coverage", 0)
+
         if base_cov == 1 and curr_cov == 0:
-            # Use wall_time for the borderline check: search_time alone
-            # understates elapsed time for configs with expensive precomputation
-            # (e.g., merge-and-shrink).  Fall back to runtime_key if absent.
             base_time = base.get("wall_time") or base.get(runtime_key, 0)
-            if coverage_stable_threshold and base_time > coverage_stable_threshold:
-                # Borderline instance: solved close to the wall-clock limit.
-                # Skip — coverage is timing-sensitive here.
-                continue
-            failures.append(
-                f"COVERAGE LOSS: {run_id} "
-                f"(baseline {base_time:.1f}s, limit {time_limit}s)"
+            is_borderline = (
+                coverage_stable_threshold is not None
+                and base_time > coverage_stable_threshold
             )
+            if not is_borderline:
+                run_entry["outcome"] = "fail"
+                run_entry["failure_kind"] = "coverage_loss"
+                if time_limit:
+                    messages.append(
+                        f"COVERAGE LOSS: {run_id} "
+                        f"(baseline {base_time:.1f}s, limit {time_limit}s)"
+                    )
+                else:
+                    messages.append(f"COVERAGE LOSS: {run_id}")
+            runs[run_id] = run_entry
             continue
 
         if base_cov == 1 and curr_cov == 1:
@@ -398,32 +441,63 @@ def compare_results(
                     continue
                 if key in prefix_keys:
                     n = min(len(bv), len(cv))
-                    if bv[:n] != cv[:n]:
-                        failures.append(
-                            f"MISMATCH {key}: {run_id} "
-                            f"baseline={bv} current={cv}"
-                        )
-                elif bv != cv:
-                    failures.append(
+                    match = bv[:n] == cv[:n]
+                else:
+                    match = bv == cv
+                run_entry["metrics"][key] = {
+                    "baseline": bv, "current": cv, "match": match
+                }
+                if not match:
+                    if run_entry["outcome"] == "pass":
+                        run_entry["outcome"] = "fail"
+                        run_entry["failure_kind"] = "exact_match"
+                    messages.append(
                         f"MISMATCH {key}: {run_id} "
                         f"baseline={bv} current={cv}"
                     )
 
-    # Runtime geo-mean check (only over commonly solved instances).
-    ratios = []
+        runs[run_id] = run_entry
+
+    # Per-config runtime geo-mean.
+    config_ratios = defaultdict(list)
     for run_id, base in baseline.items():
+        config = run_id.split("|", 1)[0]
         curr = current.get(run_id, {})
         bt = base.get(runtime_key)
         ct = curr.get(runtime_key)
         if bt and ct and bt > 0 and ct > 0:
-            ratios.append(ct / bt)
-    if ratios:
-        geomean = math.exp(sum(math.log(r) for r in ratios) / len(ratios))
-        if geomean >= RUNTIME_REGRESSION_THRESHOLD:
-            failures.append(
-                f"RUNTIME: geo-mean ratio {geomean:.2f}x "
+            config_ratios[config].append(ct / bt)
+
+    per_config = {}
+    all_configs = {run_id.split("|", 1)[0] for run_id in baseline}
+    for config in sorted(all_configs):
+        ratios = config_ratios.get(config, [])
+        if ratios:
+            geomean = math.exp(sum(math.log(r) for r in ratios) / len(ratios))
+            regression = geomean >= RUNTIME_REGRESSION_THRESHOLD
+        else:
+            geomean = None
+            regression = False
+        per_config[config] = {
+            "runtime_geomean_ratio": geomean,
+            "runtime_regression": regression,
+            "runtime_compared_count": len(ratios),
+        }
+        if regression:
+            messages.append(
+                f"RUNTIME: {config} geo-mean ratio {geomean:.2f}x "
                 f">= {RUNTIME_REGRESSION_THRESHOLD}x threshold "
                 f"(over {len(ratios)} instances)"
             )
 
-    return failures
+    any_fail = (
+        any(r["outcome"] == "fail" for r in runs.values())
+        or any(c["runtime_regression"] for c in per_config.values())
+    )
+
+    return {
+        "outcome": "fail" if any_fail else "pass",
+        "per_config": per_config,
+        "runs": runs,
+        "messages": messages,
+    }
