@@ -4,9 +4,12 @@ Check or update scorpion search regression baselines.
 
   --check          Run registered tracks and compare against committed baselines.
   --update         Regenerate committed baselines from current results.
+  --domain-dir     (required) Path to a benchmark *set* (parent of per-domain
+                   dirs, each holding p01.pddl, ...) or a single *domain* folder
+                   (p01.pddl, ... directly).  Auto-detected.
   --full           instances=[1,2,3,4,5]; mutually exclusive with --instances.
-  --instances      Run only these instances; each item is integer N (=p0N across
-                   all domains) or "domain/problem.pddl" (exact instance).
+  --instances      Run only these instances, by integer id; each ITEM is an
+                   integer N meaning p0N.pddl in every domain under --domain-dir.
   --track          Run only the named track(s); default is all registered tracks.
   --config-file    JSON dict {name: [cli_args, ...]} replacing each selected
                    track's CONFIGS; on --update, results are merged into the
@@ -21,8 +24,8 @@ Default --check (no flags): instances=[1], 10 s limit (fast developer check).
 --check --full:              instances=[1,2,3,4,5], 60 s limit (CI gate).
 --check --instances ...:     custom subset, 60 s limit.
 
-Set AUTOSCALE_BENCHMARKS to the autoscale-benchmarks root directory,
-or pass --benchmarks PATH to override.
+For an exact single-instance rerun: point --domain-dir at the domain folder
+and pass --instances <id> (e.g. --domain-dir .../airport --instances 3).
 """
 
 import argparse
@@ -79,20 +82,12 @@ def _scorpion_commit():
         return None
 
 
-def _parse_instance_item(item):
-    """Parse a CLI --instances element as int or 'domain/problem.pddl' string."""
+def _parse_instance_id(item):
+    """Parse a CLI --instances element as an integer id."""
     try:
         return int(item)
     except ValueError:
-        pass
-    if "/" in item and item.endswith(".pddl"):
-        domain, problem = item.split("/", 1)
-        if domain and problem and "/" not in domain:
-            return item
-    sys.exit(
-        f"ERROR: --instances item {item!r} must be either an integer "
-        f"or a 'domain/problem.pddl' string"
-    )
+        sys.exit(f"ERROR: --instances item {item!r} must be an integer")
 
 
 def _load_config_file(path):
@@ -116,20 +111,9 @@ def _load_config_file(path):
     return data
 
 
-def _get_benchmarks_path(cli_override):
-    if cli_override:
-        path = Path(cli_override)
-    else:
-        env_val = os.environ.get("AUTOSCALE_BENCHMARKS")
-        if not env_val:
-            sys.exit(
-                "ERROR: AUTOSCALE_BENCHMARKS is not set.\n"
-                "  Point it to the autoscale-benchmarks root, "
-                "or use --benchmarks PATH."
-            )
-        path = Path(env_val)
+def _validate_domain_dir(path: Path) -> Path:
     if not path.is_dir():
-        sys.exit(f"ERROR: Benchmarks directory not found: {path}")
+        sys.exit(f"ERROR: --domain-dir directory not found: {path}")
     return path.resolve()
 
 
@@ -137,10 +121,8 @@ def _get_benchmarks_path(cli_override):
 # Track registry.
 #
 # Each entry is (name, check_fn, update_fn).
-#   check_fn(benchmarks, baseline_dir, workers) -> list[str]  (failure msgs)
-#   update_fn(benchmarks, baseline_dir, workers) -> None
-#
-# Tracks are added here as they are implemented in Phase 3:
+#   check_fn(domain_dir, baseline_dir, workers, **kwargs) -> dict (comparison)
+#   update_fn(domain_dir, baseline_dir, workers, **kwargs) -> list[str]  (errs)
 # ---------------------------------------------------------------------------
 TRACKS = [
     ("heuristics",  check_heuristics,  update_heuristics),
@@ -173,9 +155,13 @@ def main():
         help=f"Parallel workers (default: {DEFAULT_WORKERS})",
     )
     parser.add_argument(
-        "--benchmarks",
+        "--domain-dir",
         metavar="PATH",
-        help="Autoscale benchmarks root (overrides AUTOSCALE_BENCHMARKS)",
+        type=Path,
+        required=True,
+        help="Path to a benchmark set (parent of per-domain dirs) or a "
+             "single domain folder; auto-detected by checking for p01.pddl "
+             "directly in PATH",
     )
     instance_group = parser.add_mutually_exclusive_group()
     instance_group.add_argument(
@@ -186,9 +172,9 @@ def main():
     instance_group.add_argument(
         "--instances",
         nargs="+",
-        metavar="ITEM",
-        help="Run only on these instances; each ITEM is integer N "
-             "(=p0N across all domains) or 'domain/problem.pddl' (exact)",
+        metavar="ID",
+        help="Run only on these instance ids; each ID is integer N meaning "
+             "p0N.pddl in every domain under --domain-dir",
     )
     track_names = [name for name, _, _ in TRACKS]
     parser.add_argument(
@@ -226,11 +212,11 @@ def main():
     )
     args = parser.parse_args()
 
-    benchmarks = _get_benchmarks_path(args.benchmarks)
+    domain_dir = _validate_domain_dir(args.domain_dir)
     configs_override = _load_config_file(args.config_file)
 
     if args.instances:
-        instances_arg = [_parse_instance_item(x) for x in args.instances]
+        instances_arg = [_parse_instance_id(x) for x in args.instances]
     elif args.full:
         instances_arg = [1, 2, 3, 4, 5]
     else:
@@ -284,7 +270,7 @@ def main():
     )
 
     print(f"Repository root: {REPO_ROOT}")
-    print(f"Benchmarks:      {benchmarks}")
+    print(f"Domain dir:      {domain_dir}")
     print(f"Baselines:       {BASELINE_DIR}")
     print(f"Workers:         {args.workers}")
     print(f"Mode:            {'CHECK' if args.check else 'UPDATE'}  ({scope})")
@@ -303,7 +289,7 @@ def main():
     for track_name, check_fn, update_fn in selected:
         print(f"--- {track_name} ---")
         if args.check:
-            comp = check_fn(benchmarks, BASELINE_DIR, args.workers,
+            comp = check_fn(domain_dir, BASELINE_DIR, args.workers,
                             configs=configs_override,
                             instances=instances_arg,
                             validate=validate,
@@ -324,7 +310,7 @@ def main():
             if outcome != "pass":
                 all_failures.extend(msgs)
         else:
-            errors = update_fn(benchmarks, BASELINE_DIR, args.workers,
+            errors = update_fn(domain_dir, BASELINE_DIR, args.workers,
                                configs=configs_override,
                                instances=instances_arg,
                                validate=validate,
