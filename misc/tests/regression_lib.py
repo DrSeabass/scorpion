@@ -315,34 +315,26 @@ def run_experiment(
 # ---------------------------------------------------------------------------
 
 def filter_baseline(baseline: dict, configs: set,
-                    instance_ids: list[int]) -> dict:
-    """Return only entries whose config is in *configs* and whose problem
-    is `p{N:02d}.pddl` for some *N* in *instance_ids*.
+                    instances: list[dict]) -> dict:
+    """Return only entries whose config is in *configs* and whose
+    `(domain, problem)` pair is in *instances*.
 
-    Keys have the form "config|domain|instance.pddl" where instance is
-    e.g. "p01.pddl".  *instance_ids* is a list of integers; non-integer
-    entries (including bools) raise `TypeError`.
+    Keys have the form "config|domain|instance.pddl".  *instances* is a
+    list of resolved-instance dicts (as produced by `resolve_instances`)
+    each with 'domain' and 'problem' keys.  Matching is exact on the
+    pair, so callers that ran against a narrow `domain_dir` (e.g. a
+    single domain folder) get back a baseline slice covering only the
+    domains they actually ran — no false coverage_loss reports for the
+    un-run ones.
     """
-    for n in instance_ids:
-        if not isinstance(n, int) or isinstance(n, bool):
-            raise TypeError(
-                f"Instance ids must be integers; got "
-                f"{type(n).__name__}: {n!r}"
-            )
-    id_set = set(instance_ids)
-
+    pair_set = {(inst["domain"], inst["problem"]) for inst in instances}
     result = {}
     for key, value in baseline.items():
         parts = key.split("|")
         if len(parts) != 3:
             continue
-        config, _domain, instance = parts
-        if config not in configs:
-            continue
-        stem = Path(instance).stem
-        if (stem.startswith("p")
-                and stem[1:].isdigit()
-                and int(stem[1:]) in id_set):
+        config, domain, problem = parts
+        if config in configs and (domain, problem) in pair_set:
             result[key] = value
     return result
 

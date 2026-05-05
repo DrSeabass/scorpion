@@ -68,13 +68,14 @@ EXACT_KEYS = ["incumbent_costs"]
 
 def _run(domain_dir: Path, workers: int,
          configs: dict, instances: list,
-         validate: bool, validate_bin) -> dict:
+         validate: bool, validate_bin) -> tuple[list[dict], dict]:
     discovered = resolve_instances(domain_dir, instances)
     print(f"  Instances: {len(discovered)} | configs: {len(configs)} | "
           f"time limit: {TIME_LIMIT}s | workers: {workers} | "
           f"validate: {'on' if validate else 'off'} (final plan only)")
-    return run_experiment(discovered, configs, TIME_LIMIT, workers,
-                          validate=validate, validate_bin=validate_bin)
+    results = run_experiment(discovered, configs, TIME_LIMIT, workers,
+                             validate=validate, validate_bin=validate_bin)
+    return discovered, results
 
 
 def check_anytime(domain_dir: Path, baseline_dir: Path, workers: int,
@@ -88,12 +89,12 @@ def check_anytime(domain_dir: Path, baseline_dir: Path, workers: int,
     resolved_instances = (
         list(instances) if instances is not None else list(DEFAULT_LIGHT_INSTANCES)
     )
-    current = _run(domain_dir, workers, resolved_configs, resolved_instances,
-                   validate, validate_bin)
+    discovered, current = _run(domain_dir, workers, resolved_configs,
+                               resolved_instances, validate, validate_bin)
     baseline = load_baseline(baseline_dir, TRACK_NAME)
     if not baseline:
         return baseline_missing_error(baseline_dir, TRACK_NAME)
-    baseline = filter_baseline(baseline, set(resolved_configs), resolved_instances)
+    baseline = filter_baseline(baseline, set(resolved_configs), discovered)
     # wall_time: iterated search does not emit "Search time:".
     # time_limit=None: disables the coverage-stability threshold — anytime
     # wall_time is always ~60s so the threshold would skip every coverage loss.
@@ -113,8 +114,8 @@ def update_anytime(domain_dir: Path, baseline_dir: Path, workers: int,
     resolved_instances = (
         list(instances) if instances is not None else list(DEFAULT_FULL_INSTANCES)
     )
-    results = _run(domain_dir, workers, resolved_configs, resolved_instances,
-                   validate, validate_bin)
+    _discovered, results = _run(domain_dir, workers, resolved_configs,
+                                resolved_instances, validate, validate_bin)
     errors = drop_invalid_runs(results)
     has_override = (
         configs is not None or extra_configs is not None
