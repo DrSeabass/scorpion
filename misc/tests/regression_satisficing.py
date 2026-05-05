@@ -63,11 +63,10 @@ CONFIGS = {
 EXACT_KEYS = ["cost", "expansions", "evaluations", "generated"]
 
 
-def _run(benchmarks: Path, workers: int, time_limit: int,
+def _run(domain_dir: Path, workers: int, time_limit: int,
          configs: dict, instances: list,
          validate: bool, validate_bin) -> dict:
-    agile_strips = benchmarks / "21.11-agile-strips"
-    discovered = resolve_instances(agile_strips, instances)
+    discovered = resolve_instances(domain_dir, instances)
     print(f"  Instances: {len(discovered)} | configs: {len(configs)} | "
           f"time limit: {time_limit}s | workers: {workers} | "
           f"validate: {'on' if validate else 'off'}")
@@ -75,7 +74,7 @@ def _run(benchmarks: Path, workers: int, time_limit: int,
                           validate=validate, validate_bin=validate_bin)
 
 
-def check_satisficing(benchmarks: Path, baseline_dir: Path, workers: int,
+def check_satisficing(domain_dir: Path, baseline_dir: Path, workers: int,
                       *, configs: dict = None,
                       extra_configs: dict = None,
                       instances: list = None,
@@ -89,7 +88,7 @@ def check_satisficing(benchmarks: Path, baseline_dir: Path, workers: int,
     time_limit = (
         LIGHT_TIME_LIMIT if resolved_instances == DEFAULT_LIGHT_INSTANCES else TIME_LIMIT
     )
-    current = _run(benchmarks, workers, time_limit, resolved_configs,
+    current = _run(domain_dir, workers, time_limit, resolved_configs,
                    resolved_instances, validate, validate_bin)
     baseline = load_baseline(baseline_dir, TRACK_NAME)
     if not baseline:
@@ -98,7 +97,7 @@ def check_satisficing(benchmarks: Path, baseline_dir: Path, workers: int,
     return compare_results(current, baseline, EXACT_KEYS, time_limit=time_limit)
 
 
-def update_satisficing(benchmarks: Path, baseline_dir: Path, workers: int,
+def update_satisficing(domain_dir: Path, baseline_dir: Path, workers: int,
                        *, configs: dict = None,
                        extra_configs: dict = None,
                        instances: list = None,
@@ -109,7 +108,7 @@ def update_satisficing(benchmarks: Path, baseline_dir: Path, workers: int,
     resolved_instances = (
         list(instances) if instances is not None else list(DEFAULT_FULL_INSTANCES)
     )
-    results = _run(benchmarks, workers, TIME_LIMIT, resolved_configs,
+    results = _run(domain_dir, workers, TIME_LIMIT, resolved_configs,
                    resolved_instances, validate, validate_bin)
     errors = drop_invalid_runs(results)
     has_override = (

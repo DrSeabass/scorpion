@@ -39,10 +39,9 @@ CONFIGS = {
 EXACT_KEYS = ["initial_h_value", "expansions", "evaluations", "generated", "cost"]
 
 
-def _run(benchmarks: Path, workers: int, time_limit: int,
+def _run(domain_dir: Path, workers: int, time_limit: int,
          configs: dict, instances: list) -> dict:
-    optimal_strips = benchmarks / "21.11-optimal-strips"
-    discovered = resolve_instances(optimal_strips, instances)
+    discovered = resolve_instances(domain_dir, instances)
     print(f"  Instances: {len(discovered)} | configs: {len(configs)} | "
           f"time limit: {time_limit}s | workers: {workers}")
     # Heuristic track does not validate plans: its primary metric is
@@ -51,7 +50,7 @@ def _run(benchmarks: Path, workers: int, time_limit: int,
                           validate=False, validate_bin=None)
 
 
-def check_heuristics(benchmarks: Path, baseline_dir: Path, workers: int,
+def check_heuristics(domain_dir: Path, baseline_dir: Path, workers: int,
                      *, configs: dict = None,
                      extra_configs: dict = None,
                      instances: list = None,
@@ -65,7 +64,7 @@ def check_heuristics(benchmarks: Path, baseline_dir: Path, workers: int,
     time_limit = (
         LIGHT_TIME_LIMIT if resolved_instances == DEFAULT_LIGHT_INSTANCES else TIME_LIMIT
     )
-    current = _run(benchmarks, workers, time_limit, resolved_configs, resolved_instances)
+    current = _run(domain_dir, workers, time_limit, resolved_configs, resolved_instances)
     baseline = load_baseline(baseline_dir, TRACK_NAME)
     if not baseline:
         return baseline_missing_error(baseline_dir, TRACK_NAME)
@@ -73,7 +72,7 @@ def check_heuristics(benchmarks: Path, baseline_dir: Path, workers: int,
     return compare_results(current, baseline, EXACT_KEYS, time_limit=time_limit)
 
 
-def update_heuristics(benchmarks: Path, baseline_dir: Path, workers: int,
+def update_heuristics(domain_dir: Path, baseline_dir: Path, workers: int,
                       *, configs: dict = None,
                       extra_configs: dict = None,
                       instances: list = None,
@@ -84,7 +83,7 @@ def update_heuristics(benchmarks: Path, baseline_dir: Path, workers: int,
     resolved_instances = (
         list(instances) if instances is not None else list(DEFAULT_FULL_INSTANCES)
     )
-    results = _run(benchmarks, workers, TIME_LIMIT, resolved_configs, resolved_instances)
+    results = _run(domain_dir, workers, TIME_LIMIT, resolved_configs, resolved_instances)
     has_override = (
         configs is not None or extra_configs is not None
         or not is_full_default_instances(resolved_instances)

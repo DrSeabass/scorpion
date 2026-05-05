@@ -66,11 +66,10 @@ CONFIGS = {
 EXACT_KEYS = ["incumbent_costs"]
 
 
-def _run(benchmarks: Path, workers: int,
+def _run(domain_dir: Path, workers: int,
          configs: dict, instances: list,
          validate: bool, validate_bin) -> dict:
-    agile_strips = benchmarks / "21.11-agile-strips"
-    discovered = resolve_instances(agile_strips, instances)
+    discovered = resolve_instances(domain_dir, instances)
     print(f"  Instances: {len(discovered)} | configs: {len(configs)} | "
           f"time limit: {TIME_LIMIT}s | workers: {workers} | "
           f"validate: {'on' if validate else 'off'} (final plan only)")
@@ -78,7 +77,7 @@ def _run(benchmarks: Path, workers: int,
                           validate=validate, validate_bin=validate_bin)
 
 
-def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
+def check_anytime(domain_dir: Path, baseline_dir: Path, workers: int,
                   *, configs: dict = None,
                   extra_configs: dict = None,
                   instances: list = None,
@@ -89,7 +88,7 @@ def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
     resolved_instances = (
         list(instances) if instances is not None else list(DEFAULT_LIGHT_INSTANCES)
     )
-    current = _run(benchmarks, workers, resolved_configs, resolved_instances,
+    current = _run(domain_dir, workers, resolved_configs, resolved_instances,
                    validate, validate_bin)
     baseline = load_baseline(baseline_dir, TRACK_NAME)
     if not baseline:
@@ -103,7 +102,7 @@ def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
                            prefix_keys=EXACT_KEYS)
 
 
-def update_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
+def update_anytime(domain_dir: Path, baseline_dir: Path, workers: int,
                    *, configs: dict = None,
                    extra_configs: dict = None,
                    instances: list = None,
@@ -114,7 +113,7 @@ def update_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
     resolved_instances = (
         list(instances) if instances is not None else list(DEFAULT_FULL_INSTANCES)
     )
-    results = _run(benchmarks, workers, resolved_configs, resolved_instances,
+    results = _run(domain_dir, workers, resolved_configs, resolved_instances,
                    validate, validate_bin)
     errors = drop_invalid_runs(results)
     has_override = (
