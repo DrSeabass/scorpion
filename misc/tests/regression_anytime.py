@@ -56,23 +56,17 @@ CONFIGS = {
         "],repeat_last=true,continue_on_fail=true)))"],
 }
 
-# Light: one config, p01 only, 10 s.
-LIGHT_CONFIGS = {
-    "iterated_wa_ff": CONFIGS["iterated_wa_ff"],
-}
-
 # The full incumbent cost sequence must reproduce exactly.
 EXACT_KEYS = ["incumbent_costs"]
 
 
 def _run(benchmarks: Path, workers: int, light: bool) -> dict:
     agile_strips = benchmarks / "21.11-agile-strips"
-    configs = LIGHT_CONFIGS if light else CONFIGS
     max_inst = 1 if light else 5
     instances = discover_instances(agile_strips, max_instance=max_inst)
-    print(f"  Instances: {len(instances)} | configs: {len(configs)} | "
+    print(f"  Instances: {len(instances)} | configs: {len(CONFIGS)} | "
           f"time limit: {TIME_LIMIT}s | workers: {workers}")
-    return run_experiment(instances, configs, TIME_LIMIT, workers)
+    return run_experiment(instances, CONFIGS, TIME_LIMIT, workers)
 
 
 def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
@@ -84,7 +78,7 @@ def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
         return [f"No baseline found at {baseline_dir}/{TRACK_NAME}.json; "
                 "run generate_baseline.py first"]
     if light:
-        baseline = filter_baseline(baseline, set(LIGHT_CONFIGS), 1)
+        baseline = filter_baseline(baseline, set(CONFIGS), 1)
     # wall_time: iterated search does not emit "Search time:".
     # time_limit=None: disables the coverage-stability threshold — anytime
     # wall_time is always ~60s so the threshold would skip every coverage loss.
@@ -96,7 +90,7 @@ def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
 def update_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
                    *, light: bool = True) -> None:
     if light:
-        return  # baselines are only regenerated in full mode
+        raise ValueError("update_anytime must not be called in light mode")
     print("Running anytime search experiments (baseline generation)...")
     results = _run(benchmarks, workers, light=False)
     save_baseline(baseline_dir, TRACK_NAME, results)

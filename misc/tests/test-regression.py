@@ -7,7 +7,7 @@ Check or update scorpion search regression baselines.
   --full    Full mode: p01-p05, all configs, 60 s limit (default: light mode).
   --track   Run only the named track(s); default is all registered tracks.
 
-Light mode (default): p01 only, 1-2 configs/track, 10 s limit; target < 5 min.
+Light mode (default): p01 only, all configs, 10 s limit; fast developer check.
 Full mode (--full):   p01-p05, all configs, 60 s limit; intended as CI gate.
 
 Set AUTOSCALE_BENCHMARKS to the autoscale-benchmarks root directory,
@@ -97,7 +97,7 @@ def main():
     parser.add_argument(
         "--full",
         action="store_true",
-        help="Full mode: p01-p05, all configs, 60 s (default: light mode)",
+        help="Full mode: p01-p05, 60 s (default: light mode p01-only, 10 s)",
     )
     track_names = [name for name, _, _ in TRACKS]
     parser.add_argument(

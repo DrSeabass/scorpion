@@ -273,7 +273,10 @@ def compare_results(
         base_cov = base.get("coverage", 0)
         curr_cov = curr.get("coverage", 0)
         if base_cov == 1 and curr_cov == 0:
-            base_time = base.get(runtime_key, 0)
+            # Use wall_time for the borderline check: search_time alone
+            # understates elapsed time for configs with expensive precomputation
+            # (e.g., merge-and-shrink).  Fall back to runtime_key if absent.
+            base_time = base.get("wall_time") or base.get(runtime_key, 0)
             if coverage_stable_threshold and base_time > coverage_stable_threshold:
                 # Borderline instance: solved close to the wall-clock limit.
                 # Skip — coverage is timing-sensitive here.

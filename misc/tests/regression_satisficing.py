@@ -52,12 +52,6 @@ CONFIGS = {
         "cost_type=one,reopen_closed=false)))"],
 }
 
-# Light: most common greedy config + landmark-based config, p01 only, 10 s.
-LIGHT_CONFIGS = {
-    "eager_greedy_ff": CONFIGS["eager_greedy_ff"],
-    "lama-first":      CONFIGS["lama-first"],
-}
-
 # Satisficing cost is not bounded from below, but configs are deterministic
 # (fixed RNG seed 2011), so cost and node counts must reproduce exactly.
 EXACT_KEYS = ["cost", "expansions", "evaluations", "generated"]
@@ -65,13 +59,12 @@ EXACT_KEYS = ["cost", "expansions", "evaluations", "generated"]
 
 def _run(benchmarks: Path, workers: int, light: bool) -> dict:
     agile_strips = benchmarks / "21.11-agile-strips"
-    configs = LIGHT_CONFIGS if light else CONFIGS
     time_limit = LIGHT_TIME_LIMIT if light else TIME_LIMIT
     max_inst = 1 if light else 5
     instances = discover_instances(agile_strips, max_instance=max_inst)
-    print(f"  Instances: {len(instances)} | configs: {len(configs)} | "
+    print(f"  Instances: {len(instances)} | configs: {len(CONFIGS)} | "
           f"time limit: {time_limit}s | workers: {workers}")
-    return run_experiment(instances, configs, time_limit, workers)
+    return run_experiment(instances, CONFIGS, time_limit, workers)
 
 
 def check_satisficing(benchmarks: Path, baseline_dir: Path, workers: int,
@@ -84,14 +77,14 @@ def check_satisficing(benchmarks: Path, baseline_dir: Path, workers: int,
         return [f"No baseline found at {baseline_dir}/{TRACK_NAME}.json; "
                 "run generate_baseline.py first"]
     if light:
-        baseline = filter_baseline(baseline, set(LIGHT_CONFIGS), 1)
+        baseline = filter_baseline(baseline, set(CONFIGS), 1)
     return compare_results(current, baseline, EXACT_KEYS, time_limit=time_limit)
 
 
 def update_satisficing(benchmarks: Path, baseline_dir: Path, workers: int,
                        *, light: bool = True) -> None:
     if light:
-        return  # baselines are only regenerated in full mode
+        raise ValueError("update_satisficing must not be called in light mode")
     print("Running satisficing search experiments (baseline generation)...")
     results = _run(benchmarks, workers, light=False)
     save_baseline(baseline_dir, TRACK_NAME, results)

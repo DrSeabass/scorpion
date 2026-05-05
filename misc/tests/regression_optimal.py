@@ -55,25 +55,18 @@ CONFIGS = {
         "--search", "astar(cegar([landmarks(), goals()]))"],
 }
 
-# Light: one classical admissible + one scorpion-specific config, p01 only, 10 s.
-LIGHT_CONFIGS = {
-    "astar_lmcut":  CONFIGS["astar_lmcut"],
-    "astar_cegar":  CONFIGS["astar_cegar"],
-}
-
 # Metrics that must match exactly between baseline and current run.
 EXACT_KEYS = ["cost", "expansions", "evaluations", "generated"]
 
 
 def _run(benchmarks: Path, workers: int, light: bool) -> dict:
     optimal_strips = benchmarks / "21.11-optimal-strips"
-    configs = LIGHT_CONFIGS if light else CONFIGS
     time_limit = LIGHT_TIME_LIMIT if light else TIME_LIMIT
     max_inst = 1 if light else 5
     instances = discover_instances(optimal_strips, max_instance=max_inst)
-    print(f"  Instances: {len(instances)} | configs: {len(configs)} | "
+    print(f"  Instances: {len(instances)} | configs: {len(CONFIGS)} | "
           f"time limit: {time_limit}s | workers: {workers}")
-    return run_experiment(instances, configs, time_limit, workers)
+    return run_experiment(instances, CONFIGS, time_limit, workers)
 
 
 def check_optimal(benchmarks: Path, baseline_dir: Path, workers: int,
@@ -86,14 +79,14 @@ def check_optimal(benchmarks: Path, baseline_dir: Path, workers: int,
         return [f"No baseline found at {baseline_dir}/{TRACK_NAME}.json; "
                 "run generate_baseline.py first"]
     if light:
-        baseline = filter_baseline(baseline, set(LIGHT_CONFIGS), 1)
+        baseline = filter_baseline(baseline, set(CONFIGS), 1)
     return compare_results(current, baseline, EXACT_KEYS, time_limit=time_limit)
 
 
 def update_optimal(benchmarks: Path, baseline_dir: Path, workers: int,
                    *, light: bool = True) -> None:
     if light:
-        return  # baselines are only regenerated in full mode
+        raise ValueError("update_optimal must not be called in light mode")
     print("Running optimal search experiments (baseline generation)...")
     results = _run(benchmarks, workers, light=False)
     save_baseline(baseline_dir, TRACK_NAME, results)
