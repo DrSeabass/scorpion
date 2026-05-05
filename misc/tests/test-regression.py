@@ -2,16 +2,20 @@
 """
 Check or update scorpion search regression baselines.
 
-  --check        Run registered tracks and compare against committed baselines.
-  --update       Regenerate committed baselines from current results.
-  --full         instances=[1,2,3,4,5]; mutually exclusive with --instances.
-  --instances    Run only these instances; each item is integer N (=p0N across
-                 all domains) or "domain/problem.pddl" (exact instance).
-  --track        Run only the named track(s); default is all registered tracks.
-  --config-file  JSON dict {name: [cli_args, ...]} replacing each selected
-                 track's CONFIGS; on --update, results are merged into the
-                 existing baseline file.
-  --json-output  Write a per-instance comparison dump to PATH (--check only).
+  --check          Run registered tracks and compare against committed baselines.
+  --update         Regenerate committed baselines from current results.
+  --full           instances=[1,2,3,4,5]; mutually exclusive with --instances.
+  --instances      Run only these instances; each item is integer N (=p0N across
+                   all domains) or "domain/problem.pddl" (exact instance).
+  --track          Run only the named track(s); default is all registered tracks.
+  --config-file    JSON dict {name: [cli_args, ...]} replacing each selected
+                   track's CONFIGS; on --update, results are merged into the
+                   existing baseline file.
+  --json-output    Write a per-instance comparison dump to PATH (--check only).
+  --skip-validate  Disable VAL plan validation (on by default for optimal,
+                   satisficing, anytime; the heuristic track never validates).
+  --validate-bin   Override VAL binary discovery; default search order is
+                   --validate-bin > VAL env var > "validate" on PATH.
 
 Default --check (no flags): instances=[1], 10 s limit (fast developer check).
 --check --full:              instances=[1,2,3,4,5], 60 s limit (CI gate).
@@ -25,6 +29,7 @@ import argparse
 import datetime
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -43,6 +48,23 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 TESTS_DIR = Path(__file__).resolve().parent
 BASELINE_DIR = TESTS_DIR / "regression-baselines"
 DEFAULT_WORKERS = 4
+
+
+def _find_validate_bin(cli_override):
+    """Return the VAL binary path.  Search order: CLI > VAL env > PATH."""
+    if cli_override:
+        p = Path(cli_override)
+        if not p.is_file():
+            sys.exit(f"ERROR: --validate-bin {cli_override}: not a file")
+        return p
+    env_val = os.environ.get("VAL")
+    if env_val:
+        p = Path(env_val)
+        if not p.is_file():
+            sys.exit(f"ERROR: VAL env var points to {env_val}: not a file")
+        return p
+    found = shutil.which("validate")
+    return Path(found) if found else None
 
 
 def _scorpion_commit():
@@ -191,6 +213,17 @@ def main():
         help="Write a per-instance comparison JSON dump to PATH (--check only). "
              "Use the committed regression-baselines/*.json files for --update output.",
     )
+    parser.add_argument(
+        "--skip-validate",
+        action="store_true",
+        help="Disable VAL plan validation (on by default for optimal, "
+             "satisficing, and anytime tracks)",
+    )
+    parser.add_argument(
+        "--validate-bin",
+        metavar="PATH",
+        help="Path to the VAL binary; overrides VAL env var and PATH lookup",
+    )
     args = parser.parse_args()
 
     benchmarks = _get_benchmarks_path(args.benchmarks)
@@ -217,6 +250,15 @@ def main():
             "for --update"
         )
 
+    validate = not args.skip_validate
+    validate_bin = _find_validate_bin(args.validate_bin) if validate else None
+    if validate and validate_bin is None:
+        sys.exit(
+            "ERROR: VAL plan validator not found.  Install VAL and put "
+            "`validate` on PATH, set the VAL environment variable, pass "
+            "--validate-bin PATH, or disable validation with --skip-validate."
+        )
+
     if args.check and not BASELINE_DIR.is_dir():
         sys.exit(
             f"ERROR: Baseline directory not found: {BASELINE_DIR}\n"
@@ -237,11 +279,16 @@ def main():
     )
     scorpion_commit = _scorpion_commit()
 
+    validate_str = (
+        f"on  ({validate_bin})" if validate else "off (--skip-validate)"
+    )
+
     print(f"Repository root: {REPO_ROOT}")
     print(f"Benchmarks:      {benchmarks}")
     print(f"Baselines:       {BASELINE_DIR}")
     print(f"Workers:         {args.workers}")
     print(f"Mode:            {'CHECK' if args.check else 'UPDATE'}  ({scope})")
+    print(f"Validation:      {validate_str}")
     print()
 
     selected = (
@@ -251,13 +298,16 @@ def main():
 
     all_failures = []
     track_comparisons = {}
+    update_errors = []
     any_error = False
     for track_name, check_fn, update_fn in selected:
         print(f"--- {track_name} ---")
         if args.check:
             comp = check_fn(benchmarks, BASELINE_DIR, args.workers,
                             configs=configs_override,
-                            instances=instances_arg)
+                            instances=instances_arg,
+                            validate=validate,
+                            validate_bin=validate_bin)
             track_comparisons[track_name] = comp
             outcome = comp.get("outcome", "error")
             msgs = comp.get("messages", [])
@@ -274,10 +324,16 @@ def main():
             if outcome != "pass":
                 all_failures.extend(msgs)
         else:
-            update_fn(benchmarks, BASELINE_DIR, args.workers,
-                      configs=configs_override,
-                      instances=instances_arg)
-            print("  updated")
+            errors = update_fn(benchmarks, BASELINE_DIR, args.workers,
+                               configs=configs_override,
+                               instances=instances_arg,
+                               validate=validate,
+                               validate_bin=validate_bin) or []
+            update_errors.extend(errors)
+            if errors:
+                print(f"  updated  ({len(errors)} validation error(s); see above)")
+            else:
+                print("  updated")
 
     if args.check and args.json_output:
         # `messages` is a stdout-only convenience field; strip it from the
@@ -323,6 +379,10 @@ def main():
         else:
             print("SUCCESS: all tracks passed.")
     else:
+        if update_errors:
+            print(f"FAILURE: {len(update_errors)} run(s) had invalid plans "
+                  "and were not written to the baseline.")
+            sys.exit(1)
         print("Baselines updated.")
 
 

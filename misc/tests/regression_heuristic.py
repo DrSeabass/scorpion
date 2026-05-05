@@ -45,13 +45,18 @@ def _run(benchmarks: Path, workers: int, time_limit: int,
     discovered = resolve_instances(optimal_strips, instances)
     print(f"  Instances: {len(discovered)} | configs: {len(configs)} | "
           f"time limit: {time_limit}s | workers: {workers}")
-    return run_experiment(discovered, configs, time_limit, workers)
+    # Heuristic track does not validate plans: its primary metric is
+    # h-values; the plan is incidental.
+    return run_experiment(discovered, configs, time_limit, workers,
+                          validate=False, validate_bin=None)
 
 
 def check_heuristics(benchmarks: Path, baseline_dir: Path, workers: int,
                      *, configs: dict = None,
                      extra_configs: dict = None,
-                     instances: list = None) -> dict:
+                     instances: list = None,
+                     validate: bool = True,
+                     validate_bin: Path = None) -> dict:
     print("Running heuristic experiments...")
     resolved_configs = resolve_configs(CONFIGS, configs, extra_configs)
     resolved_instances = (
@@ -71,7 +76,9 @@ def check_heuristics(benchmarks: Path, baseline_dir: Path, workers: int,
 def update_heuristics(benchmarks: Path, baseline_dir: Path, workers: int,
                       *, configs: dict = None,
                       extra_configs: dict = None,
-                      instances: list = None) -> None:
+                      instances: list = None,
+                      validate: bool = True,
+                      validate_bin: Path = None) -> list[str]:
     print("Running heuristic experiments (baseline generation)...")
     resolved_configs = resolve_configs(CONFIGS, configs, extra_configs)
     resolved_instances = (
@@ -83,3 +90,4 @@ def update_heuristics(benchmarks: Path, baseline_dir: Path, workers: int,
         or not is_full_default_instances(resolved_instances)
     )
     save_baseline(baseline_dir, TRACK_NAME, results, merge=has_override)
+    return []

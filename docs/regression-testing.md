@@ -12,6 +12,11 @@ Set `AUTOSCALE_BENCHMARKS` to the root of the autoscale-benchmarks repository:
 
 The directory must contain `21.11-optimal-strips/` and `21.11-agile-strips/`.
 
+The harness validates emitted plans with [VAL](https://github.com/KCL-Planning/VAL)
+by default.  Install VAL and ensure the `validate` binary is on your `PATH`
+(or set the `VAL` environment variable, or pass `--validate-bin PATH`).
+Pass `--skip-validate` to disable validation.
+
 ## Running the tests
 
 ### Default — developer iteration
@@ -41,6 +46,34 @@ Pass `--track` to check or update only one track:
 
     python misc/tests/test-regression.py --check --track satisficing
     python misc/tests/test-regression.py --check --full --track optimal satisficing
+
+### Plan validation (`--skip-validate`, `--validate-bin`)
+
+Each successful run on the optimal, satisficing, and anytime tracks has
+its emitted plan checked with VAL by default.  An invalid plan is a
+hard failure (`failure_kind: "invalid_plan"` in the JSON output) and
+its run's metrics are not written to the baseline in `--update` mode.
+The heuristic track never validates plans; its primary metric is
+h-values and the plan is incidental.
+
+For anytime search, only the *final* (best) plan is validated;
+intermediate incumbents are already exact-matched via the
+`incumbent_costs` sequence.
+
+Disabling and overrides:
+
+    # disable validation entirely
+    python misc/tests/test-regression.py --check --skip-validate
+
+    # point at a specific VAL binary
+    python misc/tests/test-regression.py --check --validate-bin /opt/val/validate
+
+    # equivalent via env var
+    VAL=/opt/val/validate python misc/tests/test-regression.py --check
+
+If validation is enabled (default) and no VAL binary is found, the
+harness exits at startup with a clear error rather than silently
+skipping validation.
 
 ### Structured JSON output (`--json-output`)
 

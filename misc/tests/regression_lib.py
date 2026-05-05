@@ -9,6 +9,7 @@ import json
 import math
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -164,21 +165,75 @@ def resolve_instances(benchmark_subdir: Path, instances: list) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Plan validation
+# ---------------------------------------------------------------------------
+
+def _find_final_plan(plan_path_prefix: Path):
+    """Return the highest-numbered plan file at the given prefix, or the
+    unsuffixed file if it exists, or None if no plan was emitted.
+
+    For optimal/satisficing search FD writes the plan to <prefix>; for
+    iterated/anytime search it writes <prefix>.1, <prefix>.2, ... — the
+    final (best) plan is the highest-numbered.
+    """
+    if plan_path_prefix.exists():
+        return plan_path_prefix
+    parent = plan_path_prefix.parent
+    if not parent.is_dir():
+        return None
+    needle = plan_path_prefix.name + "."
+    candidates = []
+    for entry in parent.iterdir():
+        if entry.name.startswith(needle):
+            suffix = entry.name[len(needle):]
+            if suffix.isdigit():
+                candidates.append((int(suffix), entry))
+    if not candidates:
+        return None
+    candidates.sort()
+    return candidates[-1][1]
+
+
+def _validate_plan(validate_bin: Path, domain_file: Path, problem_file: Path,
+                   plan_path: Path, timeout: int = 30) -> tuple[bool, str]:
+    """Invoke VAL on a plan file.  Return (valid, message).
+
+    VAL exits 0 for a valid plan, non-zero otherwise.
+    """
+    try:
+        r = subprocess.run(
+            [str(validate_bin), str(domain_file), str(problem_file), str(plan_path)],
+            capture_output=True, text=True, timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return False, f"VAL timed out after {timeout}s"
+    except FileNotFoundError:
+        return False, f"VAL binary not found: {validate_bin}"
+    if r.returncode == 0:
+        return True, ""
+    tail = (r.stdout + r.stderr).strip().splitlines()[-3:]
+    return False, f"VAL exit={r.returncode}: {' / '.join(tail)}"
+
+
+# ---------------------------------------------------------------------------
 # Parallel experiment execution
 # ---------------------------------------------------------------------------
 
 def _run_one(args):
     """Worker: run one (config, instance) combination and return results."""
-    config_name, config_opts, domain_file, problem_file, time_limit = args
+    (config_name, config_opts, domain_file, problem_file, time_limit,
+     validate, validate_bin) = args
 
-    sas_fd, sas_path = tempfile.mkstemp(suffix=".sas")
-    os.close(sas_fd)
+    workdir = Path(tempfile.mkdtemp(prefix="scorpion_reg_"))
+    sas_path = workdir / "output.sas"
+    plan_prefix = workdir / "plan"
     try:
         cmd = (
             [sys.executable, str(FAST_DOWNWARD),
              "--overall-time-limit", str(time_limit),
              "--overall-memory-limit", f"{MEM_LIMIT_MB}M",
-             "--sas-file", sas_path,
+             "--sas-file", str(sas_path),
+             "--plan-file", str(plan_prefix),
              str(domain_file), str(problem_file)]
             + config_opts
         )
@@ -195,8 +250,27 @@ def _run_one(args):
         except subprocess.TimeoutExpired:
             metrics = {"coverage": 0, "returncode": -1,
                        "wall_time": time.monotonic() - t0}
+
+        # Validate emitted plan if requested.  plan_valid is None unless we
+        # actually run VAL; coverage=0 runs and validate=False both leave
+        # plan_valid unset.
+        if validate and validate_bin and metrics.get("coverage", 0) == 1:
+            plan_path = _find_final_plan(plan_prefix)
+            if plan_path is None:
+                metrics["plan_valid"] = False
+                metrics["plan_validation_message"] = (
+                    "coverage=1 but no plan file found at "
+                    f"{plan_prefix}(.N) — FD output mismatch"
+                )
+            else:
+                valid, msg = _validate_plan(
+                    Path(validate_bin), domain_file, problem_file, plan_path
+                )
+                metrics["plan_valid"] = valid
+                if msg:
+                    metrics["plan_validation_message"] = msg
     finally:
-        Path(sas_path).unlink(missing_ok=True)
+        shutil.rmtree(workdir, ignore_errors=True)
 
     return config_name, domain_file.parent.name, Path(problem_file).name, metrics
 
@@ -206,14 +280,23 @@ def run_experiment(
     configs: dict,
     time_limit: int,
     workers: int,
+    *,
+    validate: bool = False,
+    validate_bin: Path = None,
 ) -> dict:
     """Run all configs × instances in parallel; return a results dict.
 
     Result keys are  "config|domain|problem"  strings.
+
+    When validate=True (and validate_bin is set), each successful run's
+    final plan is checked with VAL; the result is recorded as
+    `plan_valid: True/False` in the run's metrics.  `plan_valid` is
+    absent for runs that did not solve, or when validate=False.
     """
     tasks = [
         (cfg_name, cfg_opts,
-         inst["domain_file"], inst["problem_file"], time_limit)
+         inst["domain_file"], inst["problem_file"], time_limit,
+         validate, str(validate_bin) if validate_bin else None)
         for cfg_name, cfg_opts in configs.items()
         for inst in instances
     ]
@@ -229,7 +312,15 @@ def run_experiment(
             results[run_id] = metrics
             done += 1
             cov = metrics.get("coverage", 0)
-            status = "OK" if cov else "---"
+            pv = metrics.get("plan_valid")
+            if not cov:
+                status = "---"
+            elif pv is False:
+                status = "BAD"
+            elif pv is True:
+                status = "OK✓"
+            else:
+                status = "OK"
             print(f"  [{done:4d}/{total}] {status}  {run_id}", flush=True)
 
     return results
@@ -280,6 +371,25 @@ def filter_baseline(baseline: dict, configs: set, instances: list) -> dict:
 
 def baseline_path(baseline_dir: Path, track_name: str) -> Path:
     return baseline_dir / f"{track_name}.json"
+
+
+def drop_invalid_runs(results: dict) -> list[str]:
+    """Remove runs whose plan_valid is False from *results* in place.
+
+    Returns a list of human-readable error messages, one per dropped run,
+    suitable for surfacing to the user.  The dropped entries must not be
+    written to a baseline (per the design summary's plan-validation step).
+    """
+    errors = []
+    for run_id in [r for r, m in results.items() if m.get("plan_valid") is False]:
+        msg = (
+            f"INVALID PLAN: {run_id} — not writing this entry to baseline"
+            f" ({results[run_id].get('plan_validation_message', 'VAL rejected the plan')})"
+        )
+        print(f"  ERROR: {msg}", flush=True)
+        errors.append(msg)
+        del results[run_id]
+    return errors
 
 
 def baseline_missing_error(baseline_dir: Path, track_name: str) -> dict:
@@ -409,7 +519,12 @@ def compare_results(
 
     for run_id, base in baseline.items():
         curr = current.get(run_id, {})
-        run_entry = {"outcome": "pass", "failure_kind": None, "metrics": {}}
+        run_entry = {
+            "outcome": "pass",
+            "failure_kind": None,
+            "plan_valid": curr.get("plan_valid"),
+            "metrics": {},
+        }
 
         base_cov = base.get("coverage", 0)
         curr_cov = curr.get("coverage", 0)
@@ -455,6 +570,16 @@ def compare_results(
                         f"MISMATCH {key}: {run_id} "
                         f"baseline={bv} current={cv}"
                     )
+
+        # Invalid plan trumps exact_match (more severe).
+        if curr.get("plan_valid") is False:
+            run_entry["outcome"] = "fail"
+            run_entry["failure_kind"] = "invalid_plan"
+            val_msg = curr.get("plan_validation_message", "")
+            messages.append(
+                f"INVALID PLAN: {run_id}"
+                + (f" — {val_msg}" if val_msg else "")
+            )
 
         runs[run_id] = run_entry
 

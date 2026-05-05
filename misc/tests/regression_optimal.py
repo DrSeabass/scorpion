@@ -24,6 +24,7 @@ from regression_lib import (
     DEFAULT_LIGHT_INSTANCES,
     baseline_missing_error,
     compare_results,
+    drop_invalid_runs,
     filter_baseline,
     is_full_default_instances,
     load_baseline,
@@ -65,18 +66,23 @@ EXACT_KEYS = ["cost", "expansions", "evaluations", "generated"]
 
 
 def _run(benchmarks: Path, workers: int, time_limit: int,
-         configs: dict, instances: list) -> dict:
+         configs: dict, instances: list,
+         validate: bool, validate_bin) -> dict:
     optimal_strips = benchmarks / "21.11-optimal-strips"
     discovered = resolve_instances(optimal_strips, instances)
     print(f"  Instances: {len(discovered)} | configs: {len(configs)} | "
-          f"time limit: {time_limit}s | workers: {workers}")
-    return run_experiment(discovered, configs, time_limit, workers)
+          f"time limit: {time_limit}s | workers: {workers} | "
+          f"validate: {'on' if validate else 'off'}")
+    return run_experiment(discovered, configs, time_limit, workers,
+                          validate=validate, validate_bin=validate_bin)
 
 
 def check_optimal(benchmarks: Path, baseline_dir: Path, workers: int,
                   *, configs: dict = None,
                   extra_configs: dict = None,
-                  instances: list = None) -> dict:
+                  instances: list = None,
+                  validate: bool = True,
+                  validate_bin: Path = None) -> dict:
     print("Running optimal search experiments...")
     resolved_configs = resolve_configs(CONFIGS, configs, extra_configs)
     resolved_instances = (
@@ -85,7 +91,8 @@ def check_optimal(benchmarks: Path, baseline_dir: Path, workers: int,
     time_limit = (
         LIGHT_TIME_LIMIT if resolved_instances == DEFAULT_LIGHT_INSTANCES else TIME_LIMIT
     )
-    current = _run(benchmarks, workers, time_limit, resolved_configs, resolved_instances)
+    current = _run(benchmarks, workers, time_limit, resolved_configs,
+                   resolved_instances, validate, validate_bin)
     baseline = load_baseline(baseline_dir, TRACK_NAME)
     if not baseline:
         return baseline_missing_error(baseline_dir, TRACK_NAME)
@@ -96,15 +103,20 @@ def check_optimal(benchmarks: Path, baseline_dir: Path, workers: int,
 def update_optimal(benchmarks: Path, baseline_dir: Path, workers: int,
                    *, configs: dict = None,
                    extra_configs: dict = None,
-                   instances: list = None) -> None:
+                   instances: list = None,
+                   validate: bool = True,
+                   validate_bin: Path = None) -> list[str]:
     print("Running optimal search experiments (baseline generation)...")
     resolved_configs = resolve_configs(CONFIGS, configs, extra_configs)
     resolved_instances = (
         list(instances) if instances is not None else list(DEFAULT_FULL_INSTANCES)
     )
-    results = _run(benchmarks, workers, TIME_LIMIT, resolved_configs, resolved_instances)
+    results = _run(benchmarks, workers, TIME_LIMIT, resolved_configs,
+                   resolved_instances, validate, validate_bin)
+    errors = drop_invalid_runs(results)
     has_override = (
         configs is not None or extra_configs is not None
         or not is_full_default_instances(resolved_instances)
     )
     save_baseline(baseline_dir, TRACK_NAME, results, merge=has_override)
+    return errors
