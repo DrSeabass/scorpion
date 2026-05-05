@@ -2,10 +2,13 @@
 """
 Check or update scorpion search regression baselines.
 
-  --check   Run registered tracks and compare against committed baselines.
-  --update  Regenerate committed baselines from current results.
-  --full    Full mode: p01-p05, all configs, 60 s limit (default: light mode).
-  --track   Run only the named track(s); default is all registered tracks.
+  --check        Run registered tracks and compare against committed baselines.
+  --update       Regenerate committed baselines from current results.
+  --full         Full mode: p01-p05, all configs, 60 s limit (default: light mode).
+  --track        Run only the named track(s); default is all registered tracks.
+  --config-file  JSON dict {name: [cli_args, ...]} replacing each selected
+                 track's CONFIGS for this invocation; on --update, results are
+                 merged into the existing baseline file.
 
 Light mode (default): p01 only, all configs, 10 s limit; fast developer check.
 Full mode (--full):   p01-p05, all configs, 60 s limit; intended as CI gate.
@@ -15,6 +18,7 @@ or pass --benchmarks PATH to override.
 """
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -31,6 +35,27 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 TESTS_DIR = Path(__file__).resolve().parent
 BASELINE_DIR = TESTS_DIR / "regression-baselines"
 DEFAULT_WORKERS = 4
+
+
+def _load_config_file(path):
+    if path is None:
+        return None
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        sys.exit(f"ERROR: --config-file {path}: {e}")
+    if not isinstance(data, dict) or not data:
+        sys.exit(f"ERROR: --config-file {path}: top-level must be a non-empty object")
+    for name, args in data.items():
+        if not isinstance(name, str):
+            sys.exit(f"ERROR: --config-file {path}: keys must be strings")
+        if not isinstance(args, list) or not all(isinstance(a, str) for a in args):
+            sys.exit(
+                f"ERROR: --config-file {path}: value for {name!r} must be a "
+                f"list of strings (e.g. [\"--search\", \"astar(...)\"])"
+            )
+    return data
 
 
 def _get_benchmarks_path(cli_override):
@@ -107,9 +132,18 @@ def main():
         choices=track_names,
         help=f"Run only these track(s); choices: {track_names}",
     )
+    parser.add_argument(
+        "--config-file",
+        metavar="PATH",
+        type=Path,
+        help="Replace each selected track's CONFIGS with the JSON dict at PATH "
+             "(shape: {name: [cli_arg, ...], ...}); on --update the results are "
+             "merged into the existing baseline file rather than overwriting it",
+    )
     args = parser.parse_args()
 
     benchmarks = _get_benchmarks_path(args.benchmarks)
+    configs_override = _load_config_file(args.config_file)
 
     if args.check and not BASELINE_DIR.is_dir():
         sys.exit(
@@ -138,14 +172,16 @@ def main():
     for track_name, check_fn, update_fn in selected:
         print(f"--- {track_name} ---")
         if args.check:
-            failures = check_fn(benchmarks, BASELINE_DIR, args.workers, light=light)
+            failures = check_fn(benchmarks, BASELINE_DIR, args.workers,
+                                light=light, configs=configs_override)
             status = "PASS" if not failures else f"FAIL ({len(failures)} regression(s))"
             print(f"  {status}")
             for msg in failures:
                 print(f"    * {msg}")
             all_failures.extend(failures)
         else:
-            update_fn(benchmarks, BASELINE_DIR, args.workers, light=light)
+            update_fn(benchmarks, BASELINE_DIR, args.workers,
+                      light=light, configs=configs_override)
             print("  updated")
 
     print("=" * 60)

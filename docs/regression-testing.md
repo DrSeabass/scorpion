@@ -42,6 +42,29 @@ Pass `--track` to check or update only one track:
     python misc/tests/test-regression.py --check --track satisficing
     python misc/tests/test-regression.py --check --full --track optimal satisficing
 
+### Running custom configs (`--config-file`)
+
+`--config-file PATH` replaces each selected track's `CONFIGS` with a JSON
+dict for the duration of the invocation.  The file shape is
+
+    {
+      "my_algo":       ["--search", "astar(my_h())"],
+      "my_other_algo": ["--evaluator", "h=my_h()", "--search", "astar(h)"]
+    }
+
+Typical usage targets a single track:
+
+    python misc/tests/test-regression.py --check --full \
+        --track optimal --config-file my-configs.json
+
+The same dict is applied to every selected track, so `--config-file` is
+usually combined with `--track`.  In `--check` mode, the comparison runs
+against whichever entries already exist in the baseline (a custom config
+not present in the baseline simply has nothing to compare against).  In
+`--update` mode, the new entries are *merged* into the existing baseline
+file — entries for non-overridden configs are preserved, entries for
+overridden configs are replaced.
+
 ## Rebaselining
 
 After an intentional algorithm or configuration change, regenerate the baselines:

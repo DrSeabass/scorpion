@@ -228,12 +228,37 @@ def load_baseline(baseline_dir: Path, track_name: str) -> dict:
         return json.load(f)
 
 
-def save_baseline(baseline_dir: Path, track_name: str, results: dict) -> None:
+def save_baseline(baseline_dir: Path, track_name: str, results: dict,
+                  *, merge: bool = False) -> None:
+    """Write the baseline.  When merge=True, overlay results on the existing
+    file instead of overwriting it; existing keys not in results are preserved."""
     path = baseline_path(baseline_dir, track_name)
     baseline_dir.mkdir(parents=True, exist_ok=True)
+    if merge and path.exists():
+        with open(path) as f:
+            existing = json.load(f)
+        existing.update(results)
+        results = existing
     with open(path, "w") as f:
         json.dump(results, f, indent=2, sort_keys=True)
     print(f"  Saved baseline: {path}")
+
+
+def resolve_configs(default: dict, configs=None, extra_configs=None) -> dict:
+    """Return the effective configs dict given optional overrides.
+
+    Both None  → copy of default.
+    configs=X  → X (full replacement).
+    extra_configs=Y → default with Y merged in (Y wins on key collisions).
+    Both set   → ValueError.
+    """
+    if configs is not None and extra_configs is not None:
+        raise ValueError("configs= and extra_configs= are mutually exclusive")
+    if configs is not None:
+        return dict(configs)
+    if extra_configs is not None:
+        return {**default, **extra_configs}
+    return dict(default)
 
 
 # ---------------------------------------------------------------------------

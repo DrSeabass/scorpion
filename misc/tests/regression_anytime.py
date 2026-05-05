@@ -26,6 +26,7 @@ from regression_lib import (
     discover_instances,
     filter_baseline,
     load_baseline,
+    resolve_configs,
     run_experiment,
     save_baseline,
 )
@@ -60,25 +61,28 @@ CONFIGS = {
 EXACT_KEYS = ["incumbent_costs"]
 
 
-def _run(benchmarks: Path, workers: int, light: bool) -> dict:
+def _run(benchmarks: Path, workers: int, light: bool, configs: dict) -> dict:
     agile_strips = benchmarks / "21.11-agile-strips"
     max_inst = 1 if light else 5
     instances = discover_instances(agile_strips, max_instance=max_inst)
-    print(f"  Instances: {len(instances)} | configs: {len(CONFIGS)} | "
+    print(f"  Instances: {len(instances)} | configs: {len(configs)} | "
           f"time limit: {TIME_LIMIT}s | workers: {workers}")
-    return run_experiment(instances, CONFIGS, TIME_LIMIT, workers)
+    return run_experiment(instances, configs, TIME_LIMIT, workers)
 
 
 def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
-                  *, light: bool = True) -> list[str]:
+                  *, light: bool = True,
+                  configs: dict = None,
+                  extra_configs: dict = None) -> list[str]:
     print("Running anytime search experiments...")
-    current = _run(benchmarks, workers, light)
+    resolved = resolve_configs(CONFIGS, configs, extra_configs)
+    current = _run(benchmarks, workers, light, resolved)
     baseline = load_baseline(baseline_dir, TRACK_NAME)
     if not baseline:
         return [f"No baseline found at {baseline_dir}/{TRACK_NAME}.json; "
                 "run generate_baseline.py first"]
     if light:
-        baseline = filter_baseline(baseline, set(CONFIGS), 1)
+        baseline = filter_baseline(baseline, set(resolved), 1)
     # wall_time: iterated search does not emit "Search time:".
     # time_limit=None: disables the coverage-stability threshold — anytime
     # wall_time is always ~60s so the threshold would skip every coverage loss.
@@ -88,9 +92,13 @@ def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
 
 
 def update_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
-                   *, light: bool = True) -> None:
+                   *, light: bool = True,
+                   configs: dict = None,
+                   extra_configs: dict = None) -> None:
     if light:
         raise ValueError("update_anytime must not be called in light mode")
     print("Running anytime search experiments (baseline generation)...")
-    results = _run(benchmarks, workers, light=False)
-    save_baseline(baseline_dir, TRACK_NAME, results)
+    resolved = resolve_configs(CONFIGS, configs, extra_configs)
+    results = _run(benchmarks, workers, False, resolved)
+    has_override = configs is not None or extra_configs is not None
+    save_baseline(baseline_dir, TRACK_NAME, results, merge=has_override)
