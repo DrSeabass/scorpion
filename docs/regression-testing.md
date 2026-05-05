@@ -14,7 +14,7 @@ The directory must contain `21.11-optimal-strips/` and `21.11-agile-strips/`.
 
 ## Running the tests
 
-### Light mode (default) — developer iteration
+### Default — developer iteration
 
 Runs p01 only, all configs, 10 s per instance (60 s for anytime).
 Compares against the matching subset of the full baseline files.
@@ -41,6 +41,28 @@ Pass `--track` to check or update only one track:
 
     python misc/tests/test-regression.py --check --track satisficing
     python misc/tests/test-regression.py --check --full --track optimal satisficing
+
+### Running on a custom instance set (`--instances`)
+
+`--instances ITEM [ITEM ...]` overrides the default instance scope.  Each
+item is either an integer N (= `p0N.pddl` across every domain that has
+one) or a `domain/problem.pddl` string for an exact instance:
+
+    # rerun a single instance that failed
+    python misc/tests/test-regression.py --check \
+        --instances airport/p03.pddl --track optimal
+
+    # broader subset: p01–p03 across all domains
+    python misc/tests/test-regression.py --check --instances 1 2 3
+
+    # mix: p01 across all domains + one extra ad-hoc instance
+    python misc/tests/test-regression.py --check \
+        --instances 1 airport/p03.pddl
+
+`--instances` and `--full` are mutually exclusive.  Any `--instances`
+invocation uses the 60 s per-instance time budget (the 10 s budget is
+reserved for the default no-flag path).  On `--update`, results are
+*merged* into the existing baseline file rather than overwriting it.
 
 ### Running custom configs (`--config-file`)
 
@@ -75,8 +97,21 @@ After an intentional algorithm or configuration change, regenerate the baselines
 
 Then commit the updated `misc/tests/regression-baselines/*.json` files.
 
-Light mode uses a filtered subset of the full baseline files; there are no
-separate `*-light.json` files.  Rebaselining always runs full mode.
+`--update` requires an explicit scope flag — `--full`, `--instances`, or
+`--config-file` — to confirm the intended overwrite/merge semantics:
+
+| Flag combination                  | Behavior                                                                |
+|-----------------------------------|-------------------------------------------------------------------------|
+| `--update --full`                 | Rebaseline everything for the selected tracks; **overwrites** the file. |
+| `--update --instances ...`        | Regenerate only those instances; **merges** into the existing file.     |
+| `--update --config-file ...`      | Regenerate only those configs; **merges** into the existing file.       |
+| `--update` alone                  | Error: pick one of the above.                                           |
+
+`generate_baseline.py` always passes `--update --full`, so the standard
+rebaseline path is unchanged.
+
+The default light-mode check uses a filtered subset of the full baseline
+files; there are no separate `*-light.json` files.
 
 ## Test tracks
 
@@ -97,11 +132,23 @@ a comparable incumbent sequence).
 
 1. Create `misc/tests/regression_<track>.py` following the pattern of
    `regression_optimal.py`.  Define `CONFIGS`, `TIME_LIMIT`, `EXACT_KEYS`,
-   and implement `check_<track>` / `update_<track>` with `*, light: bool = True`
-   kwargs.  `update_<track>` must raise `ValueError` when `light=True` —
-   baselines are only generated in full mode.  `check_<track>` should load the
-   full baseline and call `filter_baseline(baseline, set(CONFIGS), 1)` when in
-   light mode.
+   and implement `check_<track>` / `update_<track>` with the standard
+   keyword args:
+
+        def check_<track>(benchmarks, baseline_dir, workers, *,
+                          configs=None, extra_configs=None, instances=None):
+            ...
+        def update_<track>(benchmarks, baseline_dir, workers, *,
+                           configs=None, extra_configs=None, instances=None):
+            ...
+
+   Resolve `configs` via `resolve_configs(CONFIGS, configs, extra_configs)`.
+   Default `instances` to `DEFAULT_LIGHT_INSTANCES` in `check_*` and
+   `DEFAULT_FULL_INSTANCES` in `update_*`.  Filter the baseline with
+   `filter_baseline(baseline, set(resolved_configs), resolved_instances)`.
+   `update_*` should pass `merge=True` to `save_baseline` whenever any
+   override was supplied (configs, extra_configs, or non-default instances —
+   use `is_full_default_instances` to test).
 
 2. Import and register in `misc/tests/test-regression.py`:
 

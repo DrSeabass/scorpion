@@ -4,14 +4,17 @@ Check or update scorpion search regression baselines.
 
   --check        Run registered tracks and compare against committed baselines.
   --update       Regenerate committed baselines from current results.
-  --full         Full mode: p01-p05, all configs, 60 s limit (default: light mode).
+  --full         instances=[1,2,3,4,5]; mutually exclusive with --instances.
+  --instances    Run only these instances; each item is integer N (=p0N across
+                 all domains) or "domain/problem.pddl" (exact instance).
   --track        Run only the named track(s); default is all registered tracks.
   --config-file  JSON dict {name: [cli_args, ...]} replacing each selected
-                 track's CONFIGS for this invocation; on --update, results are
-                 merged into the existing baseline file.
+                 track's CONFIGS; on --update, results are merged into the
+                 existing baseline file.
 
-Light mode (default): p01 only, all configs, 10 s limit; fast developer check.
-Full mode (--full):   p01-p05, all configs, 60 s limit; intended as CI gate.
+Default --check (no flags): instances=[1], 10 s limit (fast developer check).
+--check --full:              instances=[1,2,3,4,5], 60 s limit (CI gate).
+--check --instances ...:     custom subset, 60 s limit.
 
 Set AUTOSCALE_BENCHMARKS to the autoscale-benchmarks root directory,
 or pass --benchmarks PATH to override.
@@ -35,6 +38,22 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 TESTS_DIR = Path(__file__).resolve().parent
 BASELINE_DIR = TESTS_DIR / "regression-baselines"
 DEFAULT_WORKERS = 4
+
+
+def _parse_instance_item(item):
+    """Parse a CLI --instances element as int or 'domain/problem.pddl' string."""
+    try:
+        return int(item)
+    except ValueError:
+        pass
+    if "/" in item and item.endswith(".pddl"):
+        domain, problem = item.split("/", 1)
+        if domain and problem and "/" not in domain:
+            return item
+    sys.exit(
+        f"ERROR: --instances item {item!r} must be either an integer "
+        f"or a 'domain/problem.pddl' string"
+    )
 
 
 def _load_config_file(path):
@@ -119,10 +138,18 @@ def main():
         metavar="PATH",
         help="Autoscale benchmarks root (overrides AUTOSCALE_BENCHMARKS)",
     )
-    parser.add_argument(
+    instance_group = parser.add_mutually_exclusive_group()
+    instance_group.add_argument(
         "--full",
         action="store_true",
-        help="Full mode: p01-p05, 60 s (default: light mode p01-only, 10 s)",
+        help="Run on instances=[1,2,3,4,5] (sugar; mutually exclusive with --instances)",
+    )
+    instance_group.add_argument(
+        "--instances",
+        nargs="+",
+        metavar="ITEM",
+        help="Run only on these instances; each ITEM is integer N "
+             "(=p0N across all domains) or 'domain/problem.pddl' (exact)",
     )
     track_names = [name for name, _, _ in TRACKS]
     parser.add_argument(
@@ -145,6 +172,20 @@ def main():
     benchmarks = _get_benchmarks_path(args.benchmarks)
     configs_override = _load_config_file(args.config_file)
 
+    if args.instances:
+        instances_arg = [_parse_instance_item(x) for x in args.instances]
+    elif args.full:
+        instances_arg = [1, 2, 3, 4, 5]
+    else:
+        instances_arg = None
+
+    if args.update and instances_arg is None and configs_override is None:
+        parser.error(
+            "--update requires an explicit scope: --full (rebaseline "
+            "everything), --instances ... (regenerate a subset), or "
+            "--config-file ... (regenerate specific configs)"
+        )
+
     if args.check and not BASELINE_DIR.is_dir():
         sys.exit(
             f"ERROR: Baseline directory not found: {BASELINE_DIR}\n"
@@ -153,14 +194,18 @@ def main():
     if args.update:
         BASELINE_DIR.mkdir(parents=True, exist_ok=True)
 
-    light = not args.full
+    if instances_arg is None:
+        scope = "instances=[1] (default)"
+    elif args.full:
+        scope = "instances=[1,2,3,4,5] (--full)"
+    else:
+        scope = f"instances={instances_arg}"
 
     print(f"Repository root: {REPO_ROOT}")
     print(f"Benchmarks:      {benchmarks}")
     print(f"Baselines:       {BASELINE_DIR}")
     print(f"Workers:         {args.workers}")
-    print(f"Mode:            {'CHECK' if args.check else 'UPDATE'} "
-          f"({'light' if light else 'full'})")
+    print(f"Mode:            {'CHECK' if args.check else 'UPDATE'}  ({scope})")
     print()
 
     selected = (
@@ -173,7 +218,8 @@ def main():
         print(f"--- {track_name} ---")
         if args.check:
             failures = check_fn(benchmarks, BASELINE_DIR, args.workers,
-                                light=light, configs=configs_override)
+                                configs=configs_override,
+                                instances=instances_arg)
             status = "PASS" if not failures else f"FAIL ({len(failures)} regression(s))"
             print(f"  {status}")
             for msg in failures:
@@ -181,7 +227,8 @@ def main():
             all_failures.extend(failures)
         else:
             update_fn(benchmarks, BASELINE_DIR, args.workers,
-                      light=light, configs=configs_override)
+                      configs=configs_override,
+                      instances=instances_arg)
             print("  updated")
 
     print("=" * 60)

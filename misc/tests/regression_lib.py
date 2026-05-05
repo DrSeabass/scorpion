@@ -89,32 +89,77 @@ def find_domain_file(problem_path: Path) -> Path:
     raise FileNotFoundError(f"No domain file for {problem_path}")
 
 
-def discover_instances(benchmark_subdir: Path, max_instance: int = 5) -> list[dict]:
-    """Return a sorted list of instance dicts for p01..p<max_instance>.
+def resolve_instances(benchmark_subdir: Path, instances: list) -> list[dict]:
+    """Resolve a heterogeneous instance spec to discovered instance dicts.
 
-    Each dict has keys: domain, problem (filename), domain_file (path),
+    Each list element is one of:
+      - int N: expand to "p0N.pddl" across every domain that has one.
+      - str "domain/problem.pddl": one exact instance.
+
+    Duplicates (same domain, same problem) are deduplicated; the result is
+    sorted by (domain, problem) for stable iteration.
+
+    Returns dicts with keys: domain, problem (filename), domain_file (path),
     problem_file (path).
     """
-    instances = []
-    for domain_dir in sorted(benchmark_subdir.iterdir()):
-        if not domain_dir.is_dir():
-            continue
-        domain = domain_dir.name
-        for i in range(1, max_instance + 1):
-            prob = domain_dir / f"p{i:02d}.pddl"
+    seen = set()
+    result = []
+
+    for item in instances:
+        if isinstance(item, bool):
+            # bool is a subclass of int; reject before the int branch swallows it.
+            raise TypeError(f"Invalid instance entry: {item!r}")
+        if isinstance(item, int):
+            for domain_dir in sorted(benchmark_subdir.iterdir()):
+                if not domain_dir.is_dir():
+                    continue
+                domain = domain_dir.name
+                prob = domain_dir / f"p{item:02d}.pddl"
+                if not prob.exists():
+                    continue
+                key = (domain, prob.name)
+                if key in seen:
+                    continue
+                try:
+                    dom = find_domain_file(prob)
+                except FileNotFoundError:
+                    continue
+                seen.add(key)
+                result.append({
+                    "domain": domain,
+                    "problem": prob.name,
+                    "domain_file": dom,
+                    "problem_file": prob,
+                })
+        elif isinstance(item, str):
+            if "/" not in item:
+                raise ValueError(
+                    f"Invalid instance string {item!r}; "
+                    f"expected 'domain/problem.pddl'"
+                )
+            domain, problem = item.split("/", 1)
+            prob = benchmark_subdir / domain / problem
             if not prob.exists():
+                raise FileNotFoundError(f"Instance not found: {prob}")
+            key = (domain, prob.name)
+            if key in seen:
                 continue
-            try:
-                dom = find_domain_file(prob)
-            except FileNotFoundError:
-                continue
-            instances.append({
+            dom = find_domain_file(prob)
+            seen.add(key)
+            result.append({
                 "domain": domain,
                 "problem": prob.name,
                 "domain_file": dom,
                 "problem_file": prob,
             })
-    return instances
+        else:
+            raise TypeError(
+                f"Instance entry must be int or str, got "
+                f"{type(item).__name__}: {item!r}"
+            )
+
+    result.sort(key=lambda d: (d["domain"], d["problem"]))
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -193,21 +238,37 @@ def run_experiment(
 # Baseline filtering
 # ---------------------------------------------------------------------------
 
-def filter_baseline(baseline: dict, configs: set, max_instance: int) -> dict:
-    """Return only entries whose config is in *configs* and instance number ≤ max_instance.
+def filter_baseline(baseline: dict, configs: set, instances: list) -> dict:
+    """Return only entries whose config is in *configs* and instance is in *instances*.
 
-    Keys have the form  "config|domain|instance.pddl"  where instance is e.g. "p01.pddl".
+    Keys have the form "config|domain|instance.pddl" where instance is e.g. "p01.pddl".
+    Each *instances* element is either int N (matches any "p0N.pddl" across
+    domains) or str "domain/problem.pddl" (exact match).
     """
+    int_set = {n for n in instances
+               if isinstance(n, int) and not isinstance(n, bool)}
+    str_set = set()
+    for s in instances:
+        if isinstance(s, str):
+            d, p = s.split("/", 1)
+            str_set.add((d, p))
+
     result = {}
     for key, value in baseline.items():
         parts = key.split("|")
         if len(parts) != 3:
             continue
-        config, _domain, instance = parts
-        stem = Path(instance).stem          # "p01", "p05", ...
-        if not (stem.startswith("p") and stem[1:].isdigit()):
+        config, domain, instance = parts
+        if config not in configs:
             continue
-        if config in configs and int(stem[1:]) <= max_instance:
+        stem = Path(instance).stem
+        is_int_match = (
+            stem.startswith("p")
+            and stem[1:].isdigit()
+            and int(stem[1:]) in int_set
+        )
+        is_str_match = (domain, instance) in str_set
+        if is_int_match or is_str_match:
             result[key] = value
     return result
 
@@ -242,6 +303,23 @@ def save_baseline(baseline_dir: Path, track_name: str, results: dict,
     with open(path, "w") as f:
         json.dump(results, f, indent=2, sort_keys=True)
     print(f"  Saved baseline: {path}")
+
+
+DEFAULT_LIGHT_INSTANCES = [1]
+DEFAULT_FULL_INSTANCES = [1, 2, 3, 4, 5]
+
+
+def is_full_default_instances(instances: list) -> bool:
+    """Return True iff *instances* is a permutation of [1, 2, 3, 4, 5].
+
+    Used by `update_*` to decide whether to overwrite the baseline (rebaseline
+    default) or to merge new entries into it (a partial subset override).
+    """
+    return (
+        len(instances) == len(DEFAULT_FULL_INSTANCES)
+        and all(isinstance(i, int) and not isinstance(i, bool) for i in instances)
+        and set(instances) == set(DEFAULT_FULL_INSTANCES)
+    )
 
 
 def resolve_configs(default: dict, configs=None, extra_configs=None) -> dict:
