@@ -1,0 +1,5537 @@
+{
+  "iterated_wa_ff|agricola|p01.pddl": {
+    "cost": 1028.0,
+    "coverage": 1,
+    "evaluations": 139,
+    "expansions": 125,
+    "generated": 540,
+    "incumbent_costs": [
+      1115.0,
+      1085.0,
+      1028.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.92766432699955
+  },
+  "iterated_wa_ff|agricola|p02.pddl": {
+    "cost": 1115.0,
+    "coverage": 1,
+    "evaluations": 130,
+    "expansions": 120,
+    "generated": 485,
+    "incumbent_costs": [
+      1115.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.856382541999665
+  },
+  "iterated_wa_ff|agricola|p03.pddl": {
+    "cost": 1364.0,
+    "coverage": 1,
+    "evaluations": 145,
+    "expansions": 135,
+    "generated": 547,
+    "incumbent_costs": [
+      1364.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.76183433500046
+  },
+  "iterated_wa_ff|agricola|p04.pddl": {
+    "cost": 1993.0,
+    "coverage": 1,
+    "evaluations": 309,
+    "expansions": 280,
+    "generated": 1381,
+    "incumbent_costs": [
+      1996.0,
+      1994.0,
+      1993.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.44074737600022
+  },
+  "iterated_wa_ff|agricola|p05.pddl": {
+    "cost": 2122.0,
+    "coverage": 1,
+    "evaluations": 1228,
+    "expansions": 1143,
+    "generated": 5445,
+    "incumbent_costs": [
+      2122.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.44624187400041
+  },
+  "iterated_wa_ff|airport|p01.pddl": {
+    "cost": 101.0,
+    "coverage": 1,
+    "evaluations": 662,
+    "expansions": 329,
+    "generated": 1163,
+    "incumbent_costs": [
+      101.0
+    ],
+    "returncode": 0,
+    "search_time": 5.018058,
+    "total_time": 5.033059,
+    "wall_time": 6.231715392000297
+  },
+  "iterated_wa_ff|airport|p02.pddl": {
+    "cost": 148.0,
+    "coverage": 1,
+    "evaluations": 53340,
+    "expansions": 22652,
+    "generated": 118806,
+    "incumbent_costs": [
+      148.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.563231051
+  },
+  "iterated_wa_ff|airport|p03.pddl": {
+    "cost": 168.0,
+    "coverage": 1,
+    "evaluations": 63829,
+    "expansions": 26402,
+    "generated": 170248,
+    "incumbent_costs": [
+      168.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.83808864799994
+  },
+  "iterated_wa_ff|airport|p04.pddl": {
+    "cost": 164.0,
+    "coverage": 1,
+    "evaluations": 75775,
+    "expansions": 22947,
+    "generated": 187043,
+    "incumbent_costs": [
+      164.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.41624776000026
+  },
+  "iterated_wa_ff|airport|p05.pddl": {
+    "cost": 212.0,
+    "coverage": 1,
+    "evaluations": 75186,
+    "expansions": 27585,
+    "generated": 215270,
+    "incumbent_costs": [
+      212.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.4020136019999
+  },
+  "iterated_wa_ff|barman|p01.pddl": {
+    "cost": 85.0,
+    "coverage": 1,
+    "evaluations": 451,
+    "expansions": 450,
+    "generated": 6045,
+    "incumbent_costs": [
+      91.0,
+      85.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.297619879000194
+  },
+  "iterated_wa_ff|barman|p02.pddl": {
+    "cost": 135.0,
+    "coverage": 1,
+    "evaluations": 850,
+    "expansions": 849,
+    "generated": 14726,
+    "incumbent_costs": [
+      135.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.39054730099997
+  },
+  "iterated_wa_ff|barman|p03.pddl": {
+    "cost": 193.0,
+    "coverage": 1,
+    "evaluations": 1447,
+    "expansions": 1446,
+    "generated": 32512,
+    "incumbent_costs": [
+      193.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.49568655500025
+  },
+  "iterated_wa_ff|barman|p04.pddl": {
+    "cost": 233.0,
+    "coverage": 1,
+    "evaluations": 1979,
+    "expansions": 1978,
+    "generated": 53671,
+    "incumbent_costs": [
+      233.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.69007485499969
+  },
+  "iterated_wa_ff|barman|p05.pddl": {
+    "cost": 315.0,
+    "coverage": 1,
+    "evaluations": 7770,
+    "expansions": 7769,
+    "generated": 238541,
+    "incumbent_costs": [
+      315.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.86789535299977
+  },
+  "iterated_wa_ff|blocksworld|p01.pddl": {
+    "cost": 28.0,
+    "coverage": 1,
+    "evaluations": 153,
+    "expansions": 152,
+    "generated": 769,
+    "incumbent_costs": [
+      62.0,
+      46.0,
+      32.0,
+      28.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.184421891000056
+  },
+  "iterated_wa_ff|blocksworld|p02.pddl": {
+    "cost": 30.0,
+    "coverage": 1,
+    "evaluations": 120,
+    "expansions": 119,
+    "generated": 919,
+    "incumbent_costs": [
+      52.0,
+      40.0,
+      36.0,
+      32.0,
+      30.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.20930142100042
+  },
+  "iterated_wa_ff|blocksworld|p03.pddl": {
+    "cost": 52.0,
+    "coverage": 1,
+    "evaluations": 193,
+    "expansions": 192,
+    "generated": 1572,
+    "incumbent_costs": [
+      72.0,
+      60.0,
+      54.0,
+      52.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.26483764899967
+  },
+  "iterated_wa_ff|blocksworld|p04.pddl": {
+    "cost": 66.0,
+    "coverage": 1,
+    "evaluations": 345,
+    "expansions": 344,
+    "generated": 3227,
+    "incumbent_costs": [
+      96.0,
+      92.0,
+      80.0,
+      66.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.266186981999454
+  },
+  "iterated_wa_ff|blocksworld|p05.pddl": {
+    "cost": 78.0,
+    "coverage": 1,
+    "evaluations": 634,
+    "expansions": 633,
+    "generated": 5557,
+    "incumbent_costs": [
+      114.0,
+      108.0,
+      102.0,
+      78.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.32928710499982
+  },
+  "iterated_wa_ff|childsnack|p01.pddl": {
+    "cost": 21.0,
+    "coverage": 1,
+    "evaluations": 31221,
+    "expansions": 24683,
+    "generated": 507011,
+    "incumbent_costs": [
+      21.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.3262462040002
+  },
+  "iterated_wa_ff|childsnack|p02.pddl": {
+    "cost": 26.0,
+    "coverage": 1,
+    "evaluations": 40561,
+    "expansions": 28609,
+    "generated": 860338,
+    "incumbent_costs": [
+      26.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.29659257900039
+  },
+  "iterated_wa_ff|childsnack|p03.pddl": {
+    "cost": 31.0,
+    "coverage": 1,
+    "evaluations": 429,
+    "expansions": 420,
+    "generated": 90498,
+    "incumbent_costs": [
+      31.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.34521786999994
+  },
+  "iterated_wa_ff|childsnack|p04.pddl": {
+    "cost": 41.0,
+    "coverage": 1,
+    "evaluations": 475,
+    "expansions": 471,
+    "generated": 275009,
+    "incumbent_costs": [
+      43.0,
+      41.0
+    ],
+    "returncode": 22,
+    "wall_time": 52.107100779000575
+  },
+  "iterated_wa_ff|childsnack|p05.pddl": {
+    "cost": 49.0,
+    "coverage": 1,
+    "evaluations": 49083,
+    "expansions": 35216,
+    "generated": 2232003,
+    "incumbent_costs": [
+      56.0,
+      49.0
+    ],
+    "returncode": 22,
+    "wall_time": 53.72351178700046
+  },
+  "iterated_wa_ff|data-network|p01.pddl": {
+    "cost": 66.0,
+    "coverage": 1,
+    "evaluations": 3247,
+    "expansions": 3246,
+    "generated": 82160,
+    "incumbent_costs": [
+      66.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.824442035000175
+  },
+  "iterated_wa_ff|data-network|p02.pddl": {
+    "cost": 274.0,
+    "coverage": 1,
+    "evaluations": 16206,
+    "expansions": 16205,
+    "generated": 1006323,
+    "incumbent_costs": [
+      274.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.96548653299942
+  },
+  "iterated_wa_ff|data-network|p03.pddl": {
+    "coverage": 0,
+    "initial_h_value": 278,
+    "returncode": 23,
+    "wall_time": 59.97860970700003
+  },
+  "iterated_wa_ff|data-network|p04.pddl": {
+    "cost": 292.0,
+    "coverage": 1,
+    "evaluations": 44898,
+    "expansions": 44897,
+    "generated": 3897000,
+    "incumbent_costs": [
+      362.0,
+      352.0,
+      292.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.13276513799974
+  },
+  "iterated_wa_ff|data-network|p05.pddl": {
+    "coverage": 0,
+    "initial_h_value": 191,
+    "returncode": 23,
+    "wall_time": 59.30798373900052
+  },
+  "iterated_wa_ff|depots|p01.pddl": {
+    "cost": 12.0,
+    "coverage": 1,
+    "evaluations": 32,
+    "expansions": 31,
+    "generated": 719,
+    "incumbent_costs": [
+      12.0
+    ],
+    "returncode": 0,
+    "search_time": 34.048261,
+    "total_time": 34.061996,
+    "wall_time": 34.34104444500008
+  },
+  "iterated_wa_ff|depots|p02.pddl": {
+    "cost": 22.0,
+    "coverage": 1,
+    "evaluations": 526,
+    "expansions": 525,
+    "generated": 16441,
+    "incumbent_costs": [
+      24.0,
+      22.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.42986337000002
+  },
+  "iterated_wa_ff|depots|p03.pddl": {
+    "cost": 24.0,
+    "coverage": 1,
+    "evaluations": 75,
+    "expansions": 74,
+    "generated": 3134,
+    "incumbent_costs": [
+      25.0,
+      24.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.691975263999666
+  },
+  "iterated_wa_ff|depots|p04.pddl": {
+    "cost": 38.0,
+    "coverage": 1,
+    "evaluations": 194,
+    "expansions": 193,
+    "generated": 10054,
+    "incumbent_costs": [
+      40.0,
+      38.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.16726296900015
+  },
+  "iterated_wa_ff|depots|p05.pddl": {
+    "cost": 37.0,
+    "coverage": 1,
+    "evaluations": 184,
+    "expansions": 183,
+    "generated": 11750,
+    "incumbent_costs": [
+      37.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.9464254100003
+  },
+  "iterated_wa_ff|driverlog|p01.pddl": {
+    "cost": 66.0,
+    "coverage": 1,
+    "evaluations": 2305,
+    "expansions": 2304,
+    "generated": 58857,
+    "incumbent_costs": [
+      83.0,
+      79.0,
+      69.0,
+      66.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.33138615600001
+  },
+  "iterated_wa_ff|driverlog|p02.pddl": {
+    "cost": 100.0,
+    "coverage": 1,
+    "evaluations": 797,
+    "expansions": 796,
+    "generated": 23362,
+    "incumbent_costs": [
+      112.0,
+      111.0,
+      109.0,
+      100.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.40205262600011
+  },
+  "iterated_wa_ff|driverlog|p03.pddl": {
+    "cost": 93.0,
+    "coverage": 1,
+    "evaluations": 20084,
+    "expansions": 20083,
+    "generated": 527914,
+    "incumbent_costs": [
+      116.0,
+      114.0,
+      106.0,
+      93.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.49468916299975
+  },
+  "iterated_wa_ff|driverlog|p04.pddl": {
+    "cost": 110.0,
+    "coverage": 1,
+    "evaluations": 6392,
+    "expansions": 6391,
+    "generated": 156513,
+    "incumbent_costs": [
+      161.0,
+      146.0,
+      123.0,
+      110.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.69342454600064
+  },
+  "iterated_wa_ff|driverlog|p05.pddl": {
+    "cost": 124.0,
+    "coverage": 1,
+    "evaluations": 1213,
+    "expansions": 1212,
+    "generated": 38707,
+    "incumbent_costs": [
+      154.0,
+      145.0,
+      126.0,
+      124.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.79675049499929
+  },
+  "iterated_wa_ff|elevators|p01.pddl": {
+    "cost": 74.0,
+    "coverage": 1,
+    "evaluations": 206,
+    "expansions": 205,
+    "generated": 5249,
+    "incumbent_costs": [
+      126.0,
+      115.0,
+      102.0,
+      90.0,
+      79.0,
+      78.0,
+      74.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.221708058999866
+  },
+  "iterated_wa_ff|elevators|p02.pddl": {
+    "cost": 180.0,
+    "coverage": 1,
+    "evaluations": 228456,
+    "expansions": 228455,
+    "generated": 7349799,
+    "incumbent_costs": [
+      220.0,
+      190.0,
+      180.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.29657505999967
+  },
+  "iterated_wa_ff|elevators|p03.pddl": {
+    "coverage": 0,
+    "initial_h_value": 140,
+    "returncode": 23,
+    "wall_time": 59.34578598999997
+  },
+  "iterated_wa_ff|elevators|p04.pddl": {
+    "coverage": 0,
+    "initial_h_value": 171,
+    "returncode": 23,
+    "wall_time": 59.38610554299976
+  },
+  "iterated_wa_ff|elevators|p05.pddl": {
+    "coverage": 0,
+    "initial_h_value": 175,
+    "returncode": 23,
+    "wall_time": 59.46530196200001
+  },
+  "iterated_wa_ff|floortile|p01.pddl": {
+    "cost": 17.0,
+    "coverage": 1,
+    "evaluations": 30,
+    "expansions": 24,
+    "generated": 170,
+    "incumbent_costs": [
+      17.0
+    ],
+    "returncode": 0,
+    "search_time": 0.027274,
+    "total_time": 0.030274,
+    "wall_time": 0.18125354499989044
+  },
+  "iterated_wa_ff|floortile|p02.pddl": {
+    "cost": 67.0,
+    "coverage": 1,
+    "evaluations": 790267,
+    "expansions": 574937,
+    "generated": 4410528,
+    "incumbent_costs": [
+      99.0,
+      97.0,
+      73.0,
+      71.0,
+      67.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.20216434200029
+  },
+  "iterated_wa_ff|floortile|p03.pddl": {
+    "coverage": 0,
+    "initial_h_value": 78,
+    "returncode": 23,
+    "wall_time": 59.258826322999994
+  },
+  "iterated_wa_ff|floortile|p04.pddl": {
+    "coverage": 0,
+    "initial_h_value": 153,
+    "returncode": 23,
+    "wall_time": 59.331684970000424
+  },
+  "iterated_wa_ff|floortile|p05.pddl": {
+    "coverage": 0,
+    "initial_h_value": 224,
+    "returncode": 23,
+    "wall_time": 59.38208178700006
+  },
+  "iterated_wa_ff|freecell|p01.pddl": {
+    "cost": 16.0,
+    "coverage": 1,
+    "evaluations": 22,
+    "expansions": 21,
+    "generated": 125,
+    "incumbent_costs": [
+      17.0,
+      16.0
+    ],
+    "returncode": 0,
+    "search_time": 8.05468,
+    "total_time": 8.06368,
+    "wall_time": 8.33204509999996
+  },
+  "iterated_wa_ff|freecell|p02.pddl": {
+    "cost": 20.0,
+    "coverage": 1,
+    "evaluations": 28,
+    "expansions": 27,
+    "generated": 156,
+    "incumbent_costs": [
+      21.0,
+      20.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.28201933299988
+  },
+  "iterated_wa_ff|freecell|p03.pddl": {
+    "cost": 19.0,
+    "coverage": 1,
+    "evaluations": 21,
+    "expansions": 20,
+    "generated": 150,
+    "incumbent_costs": [
+      19.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.33269710799959
+  },
+  "iterated_wa_ff|freecell|p04.pddl": {
+    "cost": 35.0,
+    "coverage": 1,
+    "evaluations": 55,
+    "expansions": 54,
+    "generated": 298,
+    "incumbent_costs": [
+      37.0,
+      36.0,
+      35.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.35398241799976
+  },
+  "iterated_wa_ff|freecell|p05.pddl": {
+    "cost": 34.0,
+    "coverage": 1,
+    "evaluations": 88,
+    "expansions": 75,
+    "generated": 269,
+    "incumbent_costs": [
+      45.0,
+      42.0,
+      41.0,
+      38.0,
+      35.0,
+      34.0
+    ],
+    "returncode": 0,
+    "search_time": 6.064472,
+    "total_time": 6.081433,
+    "wall_time": 6.426766655999927
+  },
+  "iterated_wa_ff|ged|p01.pddl": {
+    "cost": 3.0,
+    "coverage": 1,
+    "evaluations": 168,
+    "expansions": 167,
+    "generated": 472,
+    "incumbent_costs": [
+      3.0
+    ],
+    "returncode": 0,
+    "search_time": 0.756966,
+    "total_time": 0.765968,
+    "wall_time": 1.0658975529995587
+  },
+  "iterated_wa_ff|ged|p02.pddl": {
+    "cost": 6.0,
+    "coverage": 1,
+    "evaluations": 766,
+    "expansions": 764,
+    "generated": 2336,
+    "incumbent_costs": [
+      7.0,
+      6.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.41455483300069
+  },
+  "iterated_wa_ff|ged|p03.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 551,
+    "expansions": 550,
+    "generated": 2010,
+    "incumbent_costs": [
+      7.0,
+      6.0,
+      5.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.395168848999674
+  },
+  "iterated_wa_ff|ged|p04.pddl": {
+    "coverage": 0,
+    "initial_h_value": 11,
+    "returncode": 23,
+    "wall_time": 59.29775167599928
+  },
+  "iterated_wa_ff|ged|p05.pddl": {
+    "coverage": 0,
+    "initial_h_value": 7,
+    "returncode": 23,
+    "wall_time": 59.30982493800002
+  },
+  "iterated_wa_ff|grid|p01.pddl": {
+    "cost": 27.0,
+    "coverage": 1,
+    "evaluations": 81,
+    "expansions": 80,
+    "generated": 355,
+    "incumbent_costs": [
+      34.0,
+      28.0,
+      27.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.26640360900001
+  },
+  "iterated_wa_ff|grid|p02.pddl": {
+    "cost": 38.0,
+    "coverage": 1,
+    "evaluations": 52,
+    "expansions": 51,
+    "generated": 190,
+    "incumbent_costs": [
+      38.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.38089138799933
+  },
+  "iterated_wa_ff|grid|p03.pddl": {
+    "cost": 34.0,
+    "coverage": 1,
+    "evaluations": 63,
+    "expansions": 62,
+    "generated": 266,
+    "incumbent_costs": [
+      39.0,
+      36.0,
+      35.0,
+      34.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.61606751100044
+  },
+  "iterated_wa_ff|grid|p04.pddl": {
+    "cost": 15.0,
+    "coverage": 1,
+    "evaluations": 19,
+    "expansions": 18,
+    "generated": 63,
+    "incumbent_costs": [
+      15.0
+    ],
+    "returncode": 0,
+    "search_time": 1.916678,
+    "total_time": 1.955691,
+    "wall_time": 2.8110025470004985
+  },
+  "iterated_wa_ff|grid|p05.pddl": {
+    "cost": 194.0,
+    "coverage": 1,
+    "evaluations": 7430,
+    "expansions": 7429,
+    "generated": 31145,
+    "incumbent_costs": [
+      223.0,
+      194.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.46774695000022
+  },
+  "iterated_wa_ff|gripper|p01.pddl": {
+    "cost": 59.0,
+    "coverage": 1,
+    "evaluations": 269,
+    "expansions": 268,
+    "generated": 1829,
+    "incumbent_costs": [
+      77.0,
+      71.0,
+      69.0,
+      59.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.19116175700037
+  },
+  "iterated_wa_ff|gripper|p02.pddl": {
+    "cost": 91.0,
+    "coverage": 1,
+    "evaluations": 399,
+    "expansions": 398,
+    "generated": 2849,
+    "incumbent_costs": [
+      97.0,
+      91.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.2997208630004
+  },
+  "iterated_wa_ff|gripper|p03.pddl": {
+    "cost": 111.0,
+    "coverage": 1,
+    "evaluations": 554,
+    "expansions": 553,
+    "generated": 4094,
+    "incumbent_costs": [
+      117.0,
+      111.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.253133931000775
+  },
+  "iterated_wa_ff|gripper|p04.pddl": {
+    "cost": 131.0,
+    "coverage": 1,
+    "evaluations": 734,
+    "expansions": 733,
+    "generated": 5564,
+    "incumbent_costs": [
+      137.0,
+      131.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.24401470599969
+  },
+  "iterated_wa_ff|gripper|p05.pddl": {
+    "cost": 151.0,
+    "coverage": 1,
+    "evaluations": 939,
+    "expansions": 938,
+    "generated": 7259,
+    "incumbent_costs": [
+      157.0,
+      151.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.20692023900028
+  },
+  "iterated_wa_ff|hiking|p01.pddl": {
+    "cost": 59.0,
+    "coverage": 1,
+    "evaluations": 211432,
+    "expansions": 211295,
+    "generated": 3220016,
+    "incumbent_costs": [
+      71.0,
+      69.0,
+      59.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.4586037400004
+  },
+  "iterated_wa_ff|hiking|p02.pddl": {
+    "cost": 78.0,
+    "coverage": 1,
+    "evaluations": 343407,
+    "expansions": 343254,
+    "generated": 5488881,
+    "incumbent_costs": [
+      78.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.46259682799973
+  },
+  "iterated_wa_ff|hiking|p03.pddl": {
+    "cost": 82.0,
+    "coverage": 1,
+    "evaluations": 591565,
+    "expansions": 591373,
+    "generated": 10040371,
+    "incumbent_costs": [
+      97.0,
+      91.0,
+      82.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.57748364500003
+  },
+  "iterated_wa_ff|hiking|p04.pddl": {
+    "cost": 99.0,
+    "coverage": 1,
+    "evaluations": 882298,
+    "expansions": 882081,
+    "generated": 15790366,
+    "incumbent_costs": [
+      106.0,
+      99.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.64284757099995
+  },
+  "iterated_wa_ff|hiking|p05.pddl": {
+    "cost": 116.0,
+    "coverage": 1,
+    "evaluations": 1298619,
+    "expansions": 1298384,
+    "generated": 24250349,
+    "incumbent_costs": [
+      116.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.716928703999656
+  },
+  "iterated_wa_ff|logistics|p01.pddl": {
+    "cost": 32.0,
+    "coverage": 1,
+    "evaluations": 98,
+    "expansions": 97,
+    "generated": 14502,
+    "incumbent_costs": [
+      32.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.410929040000156
+  },
+  "iterated_wa_ff|logistics|p02.pddl": {
+    "cost": 58.0,
+    "coverage": 1,
+    "evaluations": 528,
+    "expansions": 527,
+    "generated": 103542,
+    "incumbent_costs": [
+      59.0,
+      58.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.513862961000086
+  },
+  "iterated_wa_ff|logistics|p03.pddl": {
+    "cost": 84.0,
+    "coverage": 1,
+    "evaluations": 794,
+    "expansions": 793,
+    "generated": 207683,
+    "incumbent_costs": [
+      84.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.754956085999765
+  },
+  "iterated_wa_ff|logistics|p04.pddl": {
+    "cost": 126.0,
+    "coverage": 1,
+    "evaluations": 2237,
+    "expansions": 2236,
+    "generated": 719011,
+    "incumbent_costs": [
+      127.0,
+      126.0
+    ],
+    "returncode": 23,
+    "wall_time": 60.00571479199971
+  },
+  "iterated_wa_ff|logistics|p05.pddl": {
+    "cost": 166.0,
+    "coverage": 1,
+    "evaluations": 3848,
+    "expansions": 3847,
+    "generated": 1542336,
+    "incumbent_costs": [
+      170.0,
+      169.0,
+      168.0,
+      166.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.5504702319995
+  },
+  "iterated_wa_ff|miconic|p01.pddl": {
+    "cost": 50.0,
+    "coverage": 1,
+    "evaluations": 218,
+    "expansions": 217,
+    "generated": 2695,
+    "incumbent_costs": [
+      62.0,
+      61.0,
+      58.0,
+      56.0,
+      50.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.26566492299935
+  },
+  "iterated_wa_ff|miconic|p02.pddl": {
+    "cost": 62.0,
+    "coverage": 1,
+    "evaluations": 323,
+    "expansions": 322,
+    "generated": 4892,
+    "incumbent_costs": [
+      82.0,
+      81.0,
+      78.0,
+      69.0,
+      62.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.26931060900006
+  },
+  "iterated_wa_ff|miconic|p03.pddl": {
+    "cost": 86.0,
+    "coverage": 1,
+    "evaluations": 502,
+    "expansions": 501,
+    "generated": 9650,
+    "incumbent_costs": [
+      98.0,
+      97.0,
+      96.0,
+      86.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.334226567999394
+  },
+  "iterated_wa_ff|miconic|p04.pddl": {
+    "cost": 97.0,
+    "coverage": 1,
+    "evaluations": 665,
+    "expansions": 664,
+    "generated": 15406,
+    "incumbent_costs": [
+      114.0,
+      113.0,
+      107.0,
+      97.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.32529180799975
+  },
+  "iterated_wa_ff|miconic|p05.pddl": {
+    "cost": 109.0,
+    "coverage": 1,
+    "evaluations": 828,
+    "expansions": 827,
+    "generated": 22364,
+    "incumbent_costs": [
+      130.0,
+      126.0,
+      123.0,
+      109.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.29079978399932
+  },
+  "iterated_wa_ff|mprime|p01.pddl": {
+    "cost": 34.0,
+    "coverage": 1,
+    "evaluations": 164,
+    "expansions": 163,
+    "generated": 11200,
+    "incumbent_costs": [
+      37.0,
+      36.0,
+      35.0,
+      34.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.698110522000206
+  },
+  "iterated_wa_ff|mprime|p02.pddl": {
+    "cost": 28.0,
+    "coverage": 1,
+    "evaluations": 263,
+    "expansions": 262,
+    "generated": 13201,
+    "incumbent_costs": [
+      35.0,
+      33.0,
+      31.0,
+      28.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.6795043029997
+  },
+  "iterated_wa_ff|mprime|p03.pddl": {
+    "cost": 37.0,
+    "coverage": 1,
+    "evaluations": 2090,
+    "expansions": 2077,
+    "generated": 59026,
+    "incumbent_costs": [
+      45.0,
+      39.0,
+      37.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.37189803399997
+  },
+  "iterated_wa_ff|mprime|p04.pddl": {
+    "cost": 20.0,
+    "coverage": 1,
+    "evaluations": 103,
+    "expansions": 102,
+    "generated": 4827,
+    "incumbent_costs": [
+      27.0,
+      24.0,
+      23.0,
+      21.0,
+      20.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.37111374199958
+  },
+  "iterated_wa_ff|mprime|p05.pddl": {
+    "cost": 25.0,
+    "coverage": 1,
+    "evaluations": 659,
+    "expansions": 658,
+    "generated": 23824,
+    "incumbent_costs": [
+      31.0,
+      29.0,
+      28.0,
+      27.0,
+      25.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.392887562000396
+  },
+  "iterated_wa_ff|nomystery|p01.pddl": {
+    "cost": 32.0,
+    "coverage": 1,
+    "evaluations": 1425,
+    "expansions": 1071,
+    "generated": 6656,
+    "incumbent_costs": [
+      42.0,
+      41.0,
+      38.0,
+      36.0,
+      32.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.46027131499977
+  },
+  "iterated_wa_ff|nomystery|p02.pddl": {
+    "cost": 38.0,
+    "coverage": 1,
+    "evaluations": 944,
+    "expansions": 885,
+    "generated": 5002,
+    "incumbent_costs": [
+      55.0,
+      52.0,
+      49.0,
+      45.0,
+      38.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.93802304699966
+  },
+  "iterated_wa_ff|nomystery|p03.pddl": {
+    "cost": 59.0,
+    "coverage": 1,
+    "evaluations": 2842,
+    "expansions": 2647,
+    "generated": 14257,
+    "incumbent_costs": [
+      69.0,
+      68.0,
+      62.0,
+      59.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.78206907399999
+  },
+  "iterated_wa_ff|nomystery|p04.pddl": {
+    "cost": 64.0,
+    "coverage": 1,
+    "evaluations": 10931,
+    "expansions": 10915,
+    "generated": 74387,
+    "incumbent_costs": [
+      74.0,
+      71.0,
+      70.0,
+      64.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.80537510200065
+  },
+  "iterated_wa_ff|nomystery|p05.pddl": {
+    "coverage": 0,
+    "initial_h_value": 44,
+    "returncode": 23,
+    "wall_time": 59.295394695999676
+  },
+  "iterated_wa_ff|openstacks|p01.pddl": {
+    "cost": 2.0,
+    "coverage": 1,
+    "evaluations": 102,
+    "expansions": 101,
+    "generated": 280,
+    "incumbent_costs": [
+      2.0
+    ],
+    "returncode": 0,
+    "search_time": 0.003999,
+    "total_time": 0.006999,
+    "wall_time": 0.1239551010003197
+  },
+  "iterated_wa_ff|openstacks|p02.pddl": {
+    "coverage": 0,
+    "initial_h_value": 1,
+    "returncode": 23,
+    "wall_time": 59.39982587099985
+  },
+  "iterated_wa_ff|openstacks|p03.pddl": {
+    "coverage": 0,
+    "initial_h_value": 1,
+    "returncode": 23,
+    "wall_time": 59.42491541799973
+  },
+  "iterated_wa_ff|openstacks|p04.pddl": {
+    "coverage": 0,
+    "initial_h_value": 1,
+    "returncode": 23,
+    "wall_time": 59.52906993600027
+  },
+  "iterated_wa_ff|openstacks|p05.pddl": {
+    "coverage": 0,
+    "initial_h_value": 1,
+    "returncode": 23,
+    "wall_time": 59.47483888299939
+  },
+  "iterated_wa_ff|organic-synthesis-split|p01.pddl": {
+    "cost": 882.0,
+    "coverage": 1,
+    "evaluations": 2165,
+    "expansions": 210,
+    "generated": 5464,
+    "incumbent_costs": [
+      882.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.626401237999744
+  },
+  "iterated_wa_ff|organic-synthesis-split|p02.pddl": {
+    "coverage": 0,
+    "initial_h_value": 921,
+    "returncode": 23,
+    "wall_time": 59.71108942800038
+  },
+  "iterated_wa_ff|organic-synthesis-split|p03.pddl": {
+    "cost": 504.0,
+    "coverage": 1,
+    "evaluations": 5887,
+    "expansions": 801,
+    "generated": 17329,
+    "incumbent_costs": [
+      504.0
+    ],
+    "returncode": 23,
+    "wall_time": 60.04876760000025
+  },
+  "iterated_wa_ff|organic-synthesis-split|p04.pddl": {
+    "coverage": 0,
+    "initial_h_value": 641,
+    "returncode": 23,
+    "wall_time": 60.05594172200017
+  },
+  "iterated_wa_ff|organic-synthesis-split|p05.pddl": {
+    "coverage": 0,
+    "initial_h_value": 826,
+    "returncode": 23,
+    "wall_time": 59.46531388499989
+  },
+  "iterated_wa_ff|parcprinter|p01.pddl": {
+    "cost": 375821.0,
+    "coverage": 1,
+    "evaluations": 37,
+    "expansions": 30,
+    "generated": 94,
+    "incumbent_costs": [
+      375821.0
+    ],
+    "returncode": 0,
+    "search_time": 0.015999,
+    "total_time": 0.019,
+    "wall_time": 0.20000612100011494
+  },
+  "iterated_wa_ff|parcprinter|p02.pddl": {
+    "cost": 143411.0,
+    "coverage": 1,
+    "evaluations": 9,
+    "expansions": 8,
+    "generated": 14,
+    "incumbent_costs": [
+      143411.0
+    ],
+    "returncode": 0,
+    "search_time": 0.005999,
+    "total_time": 0.008999,
+    "wall_time": 0.1798813479999808
+  },
+  "iterated_wa_ff|parcprinter|p03.pddl": {
+    "cost": 510256.0,
+    "coverage": 1,
+    "evaluations": 47,
+    "expansions": 44,
+    "generated": 137,
+    "incumbent_costs": [
+      510256.0
+    ],
+    "returncode": 0,
+    "search_time": 0.068,
+    "total_time": 0.072,
+    "wall_time": 0.2560155440005474
+  },
+  "iterated_wa_ff|parcprinter|p04.pddl": {
+    "cost": 807114.0,
+    "coverage": 1,
+    "evaluations": 25,
+    "expansions": 22,
+    "generated": 64,
+    "incumbent_costs": [
+      807114.0
+    ],
+    "returncode": 0,
+    "search_time": 0.020998,
+    "total_time": 0.024,
+    "wall_time": 0.19087801899968326
+  },
+  "iterated_wa_ff|parcprinter|p05.pddl": {
+    "cost": 693064.0,
+    "coverage": 1,
+    "evaluations": 196,
+    "expansions": 180,
+    "generated": 836,
+    "incumbent_costs": [
+      693064.0
+    ],
+    "returncode": 0,
+    "search_time": 5.895652,
+    "total_time": 5.900652,
+    "wall_time": 6.106969037000454
+  },
+  "iterated_wa_ff|parking|p01.pddl": {
+    "cost": 18.0,
+    "coverage": 1,
+    "evaluations": 842,
+    "expansions": 841,
+    "generated": 11544,
+    "incumbent_costs": [
+      35.0,
+      33.0,
+      31.0,
+      23.0,
+      21.0,
+      20.0,
+      19.0,
+      18.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.20277891799924
+  },
+  "iterated_wa_ff|parking|p02.pddl": {
+    "cost": 33.0,
+    "coverage": 1,
+    "evaluations": 1789,
+    "expansions": 1788,
+    "generated": 28314,
+    "incumbent_costs": [
+      76.0,
+      66.0,
+      54.0,
+      47.0,
+      37.0,
+      36.0,
+      34.0,
+      33.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.63821338099933
+  },
+  "iterated_wa_ff|parking|p03.pddl": {
+    "cost": 35.0,
+    "coverage": 1,
+    "evaluations": 14464,
+    "expansions": 14463,
+    "generated": 261840,
+    "incumbent_costs": [
+      81.0,
+      62.0,
+      55.0,
+      47.0,
+      35.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.978576094000346
+  },
+  "iterated_wa_ff|parking|p04.pddl": {
+    "cost": 65.0,
+    "coverage": 1,
+    "evaluations": 3473,
+    "expansions": 3472,
+    "generated": 69575,
+    "incumbent_costs": [
+      65.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.709222823000346
+  },
+  "iterated_wa_ff|parking|p05.pddl": {
+    "cost": 44.0,
+    "coverage": 1,
+    "evaluations": 4067,
+    "expansions": 4066,
+    "generated": 88692,
+    "incumbent_costs": [
+      86.0,
+      78.0,
+      74.0,
+      60.0,
+      44.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.3155171340004
+  },
+  "iterated_wa_ff|pathways|p01.pddl": {
+    "cost": 6.0,
+    "coverage": 1,
+    "evaluations": 8,
+    "expansions": 7,
+    "generated": 114,
+    "incumbent_costs": [
+      6.0
+    ],
+    "returncode": 0,
+    "search_time": 0.015999,
+    "total_time": 0.017999,
+    "wall_time": 0.14684413599934487
+  },
+  "iterated_wa_ff|pathways|p02.pddl": {
+    "cost": 12.0,
+    "coverage": 1,
+    "evaluations": 14,
+    "expansions": 13,
+    "generated": 115,
+    "incumbent_costs": [
+      12.0
+    ],
+    "returncode": 0,
+    "search_time": 0.028976,
+    "total_time": 0.030976,
+    "wall_time": 0.15758150999954523
+  },
+  "iterated_wa_ff|pathways|p03.pddl": {
+    "cost": 18.0,
+    "coverage": 1,
+    "evaluations": 39,
+    "expansions": 23,
+    "generated": 321,
+    "incumbent_costs": [
+      18.0
+    ],
+    "returncode": 0,
+    "search_time": 0.855949,
+    "total_time": 0.85895,
+    "wall_time": 1.005995385999995
+  },
+  "iterated_wa_ff|pathways|p04.pddl": {
+    "cost": 17.0,
+    "coverage": 1,
+    "evaluations": 19,
+    "expansions": 18,
+    "generated": 533,
+    "incumbent_costs": [
+      17.0
+    ],
+    "returncode": 0,
+    "search_time": 16.199654,
+    "total_time": 16.202654,
+    "wall_time": 16.350463300999763
+  },
+  "iterated_wa_ff|pathways|p05.pddl": {
+    "cost": 30.0,
+    "coverage": 1,
+    "evaluations": 45,
+    "expansions": 44,
+    "generated": 1470,
+    "incumbent_costs": [
+      30.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.235515285000474
+  },
+  "iterated_wa_ff|pegsol|p01.pddl": {
+    "cost": 6.0,
+    "coverage": 1,
+    "evaluations": 322,
+    "expansions": 251,
+    "generated": 642,
+    "incumbent_costs": [
+      7.0,
+      6.0
+    ],
+    "returncode": 0,
+    "search_time": 0.059952,
+    "total_time": 0.06295,
+    "wall_time": 0.23953467399951478
+  },
+  "iterated_wa_ff|pegsol|p02.pddl": {
+    "cost": 3.0,
+    "coverage": 1,
+    "evaluations": 26,
+    "expansions": 22,
+    "generated": 54,
+    "incumbent_costs": [
+      5.0,
+      3.0
+    ],
+    "returncode": 0,
+    "search_time": 0.00798,
+    "total_time": 0.01098,
+    "wall_time": 0.21438537499943777
+  },
+  "iterated_wa_ff|pegsol|p03.pddl": {
+    "cost": 3.0,
+    "coverage": 1,
+    "evaluations": 69,
+    "expansions": 54,
+    "generated": 111,
+    "incumbent_costs": [
+      3.0
+    ],
+    "returncode": 0,
+    "search_time": 0.008948,
+    "total_time": 0.013948,
+    "wall_time": 0.21472234799966827
+  },
+  "iterated_wa_ff|pegsol|p04.pddl": {
+    "cost": 7.0,
+    "coverage": 1,
+    "evaluations": 235,
+    "expansions": 195,
+    "generated": 604,
+    "incumbent_costs": [
+      7.0
+    ],
+    "returncode": 0,
+    "search_time": 0.146997,
+    "total_time": 0.150998,
+    "wall_time": 0.38172875700001896
+  },
+  "iterated_wa_ff|pegsol|p05.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 126,
+    "expansions": 97,
+    "generated": 278,
+    "incumbent_costs": [
+      6.0,
+      5.0
+    ],
+    "returncode": 0,
+    "search_time": 0.306958,
+    "total_time": 0.311957,
+    "wall_time": 0.5001396759998897
+  },
+  "iterated_wa_ff|pipesworld-notankage|p01.pddl": {
+    "cost": 14.0,
+    "coverage": 1,
+    "evaluations": 24,
+    "expansions": 23,
+    "generated": 128,
+    "incumbent_costs": [
+      18.0,
+      16.0,
+      14.0
+    ],
+    "returncode": 0,
+    "search_time": 20.522209,
+    "total_time": 20.542171,
+    "wall_time": 20.88711570600026
+  },
+  "iterated_wa_ff|pipesworld-notankage|p02.pddl": {
+    "coverage": 0,
+    "initial_h_value": 24,
+    "returncode": 23,
+    "wall_time": 59.269952849999754
+  },
+  "iterated_wa_ff|pipesworld-notankage|p03.pddl": {
+    "cost": 18.0,
+    "coverage": 1,
+    "evaluations": 324,
+    "expansions": 323,
+    "generated": 2353,
+    "incumbent_costs": [
+      19.0,
+      18.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.312705929
+  },
+  "iterated_wa_ff|pipesworld-notankage|p04.pddl": {
+    "cost": 24.0,
+    "coverage": 1,
+    "evaluations": 7981,
+    "expansions": 7980,
+    "generated": 50477,
+    "incumbent_costs": [
+      39.0,
+      33.0,
+      28.0,
+      24.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.306199509999715
+  },
+  "iterated_wa_ff|pipesworld-notankage|p05.pddl": {
+    "cost": 32.0,
+    "coverage": 1,
+    "evaluations": 474,
+    "expansions": 473,
+    "generated": 5319,
+    "incumbent_costs": [
+      46.0,
+      42.0,
+      38.0,
+      36.0,
+      32.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.376752013999976
+  },
+  "iterated_wa_ff|pipesworld-tankage|p01.pddl": {
+    "cost": 22.0,
+    "coverage": 1,
+    "evaluations": 571,
+    "expansions": 560,
+    "generated": 2994,
+    "incumbent_costs": [
+      38.0,
+      30.0,
+      28.0,
+      26.0,
+      22.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.322944356000335
+  },
+  "iterated_wa_ff|pipesworld-tankage|p02.pddl": {
+    "cost": 24.0,
+    "coverage": 1,
+    "evaluations": 298,
+    "expansions": 297,
+    "generated": 2359,
+    "incumbent_costs": [
+      48.0,
+      32.0,
+      28.0,
+      24.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.36740153400024
+  },
+  "iterated_wa_ff|pipesworld-tankage|p03.pddl": {
+    "cost": 16.0,
+    "coverage": 1,
+    "evaluations": 98,
+    "expansions": 97,
+    "generated": 927,
+    "incumbent_costs": [
+      26.0,
+      18.0,
+      16.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.48768796600052
+  },
+  "iterated_wa_ff|pipesworld-tankage|p04.pddl": {
+    "cost": 42.0,
+    "coverage": 1,
+    "evaluations": 3918,
+    "expansions": 3862,
+    "generated": 23387,
+    "incumbent_costs": [
+      86.0,
+      64.0,
+      50.0,
+      42.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.32215944199925
+  },
+  "iterated_wa_ff|pipesworld-tankage|p05.pddl": {
+    "cost": 30.0,
+    "coverage": 1,
+    "evaluations": 3209,
+    "expansions": 3022,
+    "generated": 17924,
+    "incumbent_costs": [
+      70.0,
+      42.0,
+      38.0,
+      34.0,
+      30.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.318819527000414
+  },
+  "iterated_wa_ff|rovers|p01.pddl": {
+    "cost": 30.0,
+    "coverage": 1,
+    "evaluations": 76,
+    "expansions": 75,
+    "generated": 1219,
+    "incumbent_costs": [
+      30.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.1703175169996
+  },
+  "iterated_wa_ff|rovers|p02.pddl": {
+    "cost": 41.0,
+    "coverage": 1,
+    "evaluations": 131,
+    "expansions": 130,
+    "generated": 1583,
+    "incumbent_costs": [
+      43.0,
+      42.0,
+      41.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.18494195099993
+  },
+  "iterated_wa_ff|rovers|p03.pddl": {
+    "cost": 43.0,
+    "coverage": 1,
+    "evaluations": 177,
+    "expansions": 176,
+    "generated": 2940,
+    "incumbent_costs": [
+      47.0,
+      46.0,
+      45.0,
+      43.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.22833615299987
+  },
+  "iterated_wa_ff|rovers|p04.pddl": {
+    "cost": 43.0,
+    "coverage": 1,
+    "evaluations": 123,
+    "expansions": 122,
+    "generated": 2126,
+    "incumbent_costs": [
+      43.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.20094169799995
+  },
+  "iterated_wa_ff|rovers|p05.pddl": {
+    "cost": 48.0,
+    "coverage": 1,
+    "evaluations": 162,
+    "expansions": 161,
+    "generated": 3177,
+    "incumbent_costs": [
+      52.0,
+      51.0,
+      50.0,
+      48.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.22998207399996
+  },
+  "iterated_wa_ff|satellite|p01.pddl": {
+    "cost": 13.0,
+    "coverage": 1,
+    "evaluations": 25,
+    "expansions": 24,
+    "generated": 876,
+    "incumbent_costs": [
+      15.0,
+      13.0
+    ],
+    "returncode": 0,
+    "search_time": 11.111231,
+    "total_time": 11.115232,
+    "wall_time": 11.235721625000224
+  },
+  "iterated_wa_ff|satellite|p02.pddl": {
+    "cost": 14.0,
+    "coverage": 1,
+    "evaluations": 15,
+    "expansions": 14,
+    "generated": 1176,
+    "incumbent_costs": [
+      14.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.19769980000001
+  },
+  "iterated_wa_ff|satellite|p03.pddl": {
+    "cost": 18.0,
+    "coverage": 1,
+    "evaluations": 20,
+    "expansions": 19,
+    "generated": 3743,
+    "incumbent_costs": [
+      18.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.43288737900002
+  },
+  "iterated_wa_ff|satellite|p04.pddl": {
+    "cost": 30.0,
+    "coverage": 1,
+    "evaluations": 97,
+    "expansions": 96,
+    "generated": 33736,
+    "incumbent_costs": [
+      37.0,
+      30.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.77016954800001
+  },
+  "iterated_wa_ff|satellite|p05.pddl": {
+    "cost": 29.0,
+    "coverage": 1,
+    "evaluations": 40,
+    "expansions": 39,
+    "generated": 21563,
+    "incumbent_costs": [
+      32.0,
+      29.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.35181628200007
+  },
+  "iterated_wa_ff|scanalyzer|p01.pddl": {
+    "cost": 30.0,
+    "coverage": 1,
+    "evaluations": 103,
+    "expansions": 102,
+    "generated": 2040,
+    "incumbent_costs": [
+      36.0,
+      34.0,
+      32.0,
+      30.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.200500019000174
+  },
+  "iterated_wa_ff|scanalyzer|p02.pddl": {
+    "cost": 44.0,
+    "coverage": 1,
+    "evaluations": 305,
+    "expansions": 304,
+    "generated": 9120,
+    "incumbent_costs": [
+      46.0,
+      44.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.27650015200015
+  },
+  "iterated_wa_ff|scanalyzer|p03.pddl": {
+    "cost": 54.0,
+    "coverage": 1,
+    "evaluations": 791,
+    "expansions": 790,
+    "generated": 33180,
+    "incumbent_costs": [
+      56.0,
+      54.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.48121674000049
+  },
+  "iterated_wa_ff|scanalyzer|p04.pddl": {
+    "cost": 64.0,
+    "coverage": 1,
+    "evaluations": 1811,
+    "expansions": 1810,
+    "generated": 101360,
+    "incumbent_costs": [
+      66.0,
+      64.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.71754531199986
+  },
+  "iterated_wa_ff|scanalyzer|p05.pddl": {
+    "cost": 74.0,
+    "coverage": 1,
+    "evaluations": 3735,
+    "expansions": 3734,
+    "generated": 268848,
+    "incumbent_costs": [
+      76.0,
+      74.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.22597607099942
+  },
+  "iterated_wa_ff|snake|p01.pddl": {
+    "cost": 15.0,
+    "coverage": 1,
+    "evaluations": 58,
+    "expansions": 57,
+    "generated": 136,
+    "incumbent_costs": [
+      20.0,
+      17.0,
+      15.0
+    ],
+    "returncode": 0,
+    "search_time": 4.976856,
+    "total_time": 5.121775,
+    "wall_time": 6.053356084999905
+  },
+  "iterated_wa_ff|snake|p02.pddl": {
+    "cost": 21.0,
+    "coverage": 1,
+    "evaluations": 428,
+    "expansions": 424,
+    "generated": 995,
+    "incumbent_costs": [
+      28.0,
+      27.0,
+      25.0,
+      23.0,
+      21.0
+    ],
+    "returncode": 0,
+    "search_time": 33.499018,
+    "total_time": 33.663982,
+    "wall_time": 34.9206795909995
+  },
+  "iterated_wa_ff|snake|p03.pddl": {
+    "cost": 23.0,
+    "coverage": 1,
+    "evaluations": 248,
+    "expansions": 247,
+    "generated": 587,
+    "incumbent_costs": [
+      27.0,
+      25.0,
+      23.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.83940965700003
+  },
+  "iterated_wa_ff|snake|p04.pddl": {
+    "cost": 31.0,
+    "coverage": 1,
+    "evaluations": 567,
+    "expansions": 559,
+    "generated": 1280,
+    "incumbent_costs": [
+      33.0,
+      31.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.66629340399959
+  },
+  "iterated_wa_ff|snake|p05.pddl": {
+    "cost": 48.0,
+    "coverage": 1,
+    "evaluations": 4455,
+    "expansions": 4432,
+    "generated": 10835,
+    "incumbent_costs": [
+      52.0,
+      48.0
+    ],
+    "returncode": 23,
+    "wall_time": 60.02094236600078
+  },
+  "iterated_wa_ff|sokoban|p01.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 37,
+    "expansions": 30,
+    "generated": 78,
+    "incumbent_costs": [
+      5.0
+    ],
+    "returncode": 0,
+    "search_time": 0.006,
+    "total_time": 0.009999,
+    "wall_time": 0.15367515399975673
+  },
+  "iterated_wa_ff|sokoban|p02.pddl": {
+    "cost": 9.0,
+    "coverage": 1,
+    "evaluations": 105,
+    "expansions": 91,
+    "generated": 265,
+    "incumbent_costs": [
+      9.0
+    ],
+    "returncode": 0,
+    "search_time": 0.012998,
+    "total_time": 0.015999,
+    "wall_time": 0.15250885400018888
+  },
+  "iterated_wa_ff|sokoban|p03.pddl": {
+    "cost": 6.0,
+    "coverage": 1,
+    "evaluations": 242,
+    "expansions": 212,
+    "generated": 720,
+    "incumbent_costs": [
+      10.0,
+      8.0,
+      6.0
+    ],
+    "returncode": 0,
+    "search_time": 0.37595,
+    "total_time": 0.381949,
+    "wall_time": 0.5573506649998308
+  },
+  "iterated_wa_ff|sokoban|p04.pddl": {
+    "cost": 34.0,
+    "coverage": 1,
+    "evaluations": 16522,
+    "expansions": 15014,
+    "generated": 42399,
+    "incumbent_costs": [
+      34.0
+    ],
+    "returncode": 0,
+    "search_time": 6.170671,
+    "total_time": 6.174671,
+    "wall_time": 6.3453219610000815
+  },
+  "iterated_wa_ff|sokoban|p05.pddl": {
+    "cost": 27.0,
+    "coverage": 1,
+    "evaluations": 5194,
+    "expansions": 4918,
+    "generated": 13155,
+    "incumbent_costs": [
+      29.0,
+      27.0
+    ],
+    "returncode": 0,
+    "search_time": 0.801965,
+    "total_time": 0.805964,
+    "wall_time": 0.9602247409993652
+  },
+  "iterated_wa_ff|storage|p01.pddl": {
+    "cost": 15.0,
+    "coverage": 1,
+    "evaluations": 3164,
+    "expansions": 3163,
+    "generated": 50165,
+    "incumbent_costs": [
+      17.0,
+      16.0,
+      15.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.3168881900001
+  },
+  "iterated_wa_ff|storage|p02.pddl": {
+    "cost": 15.0,
+    "coverage": 1,
+    "evaluations": 3068,
+    "expansions": 3067,
+    "generated": 43448,
+    "incumbent_costs": [
+      17.0,
+      16.0,
+      15.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.57853606000026
+  },
+  "iterated_wa_ff|storage|p03.pddl": {
+    "cost": 19.0,
+    "coverage": 1,
+    "evaluations": 2842,
+    "expansions": 2841,
+    "generated": 68453,
+    "incumbent_costs": [
+      20.0,
+      19.0
+    ],
+    "returncode": 23,
+    "wall_time": 60.0346505589996
+  },
+  "iterated_wa_ff|storage|p04.pddl": {
+    "cost": 29.0,
+    "coverage": 1,
+    "evaluations": 5650,
+    "expansions": 5649,
+    "generated": 181606,
+    "incumbent_costs": [
+      29.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.683125563999965
+  },
+  "iterated_wa_ff|storage|p05.pddl": {
+    "cost": 30.0,
+    "coverage": 1,
+    "evaluations": 2970,
+    "expansions": 2969,
+    "generated": 204015,
+    "incumbent_costs": [
+      36.0,
+      34.0,
+      30.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.11818781999955
+  },
+  "iterated_wa_ff|termes|p01.pddl": {
+    "cost": 133.0,
+    "coverage": 1,
+    "evaluations": 23328,
+    "expansions": 23327,
+    "generated": 112095,
+    "incumbent_costs": [
+      203.0,
+      153.0,
+      133.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.27631612700043
+  },
+  "iterated_wa_ff|termes|p02.pddl": {
+    "cost": 163.0,
+    "coverage": 1,
+    "evaluations": 17753,
+    "expansions": 17752,
+    "generated": 86357,
+    "incumbent_costs": [
+      269.0,
+      163.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.25119052300033
+  },
+  "iterated_wa_ff|termes|p03.pddl": {
+    "cost": 410.0,
+    "coverage": 1,
+    "evaluations": 1091926,
+    "expansions": 1091925,
+    "generated": 5118639,
+    "incumbent_costs": [
+      410.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.29343905299993
+  },
+  "iterated_wa_ff|termes|p04.pddl": {
+    "coverage": 0,
+    "initial_h_value": 82,
+    "returncode": 23,
+    "wall_time": 59.328745265999714
+  },
+  "iterated_wa_ff|termes|p05.pddl": {
+    "cost": 252.0,
+    "coverage": 1,
+    "evaluations": 16553,
+    "expansions": 16552,
+    "generated": 79402,
+    "incumbent_costs": [
+      344.0,
+      252.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.30678506699951
+  },
+  "iterated_wa_ff|tetris|p01.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 988,
+    "expansions": 987,
+    "generated": 9273,
+    "incumbent_costs": [
+      5.0
+    ],
+    "returncode": 0,
+    "search_time": 0.018993,
+    "total_time": 0.021993,
+    "wall_time": 0.1607397409998157
+  },
+  "iterated_wa_ff|tetris|p02.pddl": {
+    "cost": 0.0,
+    "coverage": 1,
+    "evaluations": 1,
+    "expansions": 0,
+    "generated": 0,
+    "incumbent_costs": [
+      0.0
+    ],
+    "returncode": 0,
+    "search_time": 0.002022,
+    "total_time": 0.006022,
+    "wall_time": 0.1661093249995247
+  },
+  "iterated_wa_ff|tetris|p03.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 20,
+    "expansions": 19,
+    "generated": 46,
+    "incumbent_costs": [
+      5.0
+    ],
+    "returncode": 0,
+    "search_time": 0.003999,
+    "total_time": 0.008999,
+    "wall_time": 0.1963603950007382
+  },
+  "iterated_wa_ff|tetris|p04.pddl": {
+    "cost": 21.0,
+    "coverage": 1,
+    "evaluations": 1665,
+    "expansions": 1664,
+    "generated": 14072,
+    "incumbent_costs": [
+      28.0,
+      24.0,
+      22.0,
+      21.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.37658018900038
+  },
+  "iterated_wa_ff|tetris|p05.pddl": {
+    "cost": 22.0,
+    "coverage": 1,
+    "evaluations": 7394,
+    "expansions": 7393,
+    "generated": 59355,
+    "incumbent_costs": [
+      24.0,
+      22.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.4031498760005
+  },
+  "iterated_wa_ff|thoughtful|p01.pddl": {
+    "cost": 98.0,
+    "coverage": 1,
+    "evaluations": 443,
+    "expansions": 442,
+    "generated": 2234,
+    "incumbent_costs": [
+      98.0
+    ],
+    "returncode": 23,
+    "wall_time": 60.009780815999875
+  },
+  "iterated_wa_ff|thoughtful|p02.pddl": {
+    "cost": 105.0,
+    "coverage": 1,
+    "evaluations": 725,
+    "expansions": 724,
+    "generated": 4044,
+    "incumbent_costs": [
+      107.0,
+      106.0,
+      105.0
+    ],
+    "returncode": 23,
+    "wall_time": 60.035035643999436
+  },
+  "iterated_wa_ff|thoughtful|p03.pddl": {
+    "cost": 94.0,
+    "coverage": 1,
+    "evaluations": 507,
+    "expansions": 506,
+    "generated": 2654,
+    "incumbent_costs": [
+      94.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.23863190999964
+  },
+  "iterated_wa_ff|thoughtful|p04.pddl": {
+    "coverage": 0,
+    "initial_h_value": 89,
+    "returncode": 23,
+    "wall_time": 59.10283987999992
+  },
+  "iterated_wa_ff|thoughtful|p05.pddl": {
+    "cost": 114.0,
+    "coverage": 1,
+    "evaluations": 420,
+    "expansions": 419,
+    "generated": 2188,
+    "incumbent_costs": [
+      115.0,
+      114.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.311289577000025
+  },
+  "iterated_wa_ff|tidybot|p01.pddl": {
+    "cost": 22.0,
+    "coverage": 1,
+    "evaluations": 92,
+    "expansions": 91,
+    "generated": 278,
+    "incumbent_costs": [
+      26.0,
+      24.0,
+      23.0,
+      22.0
+    ],
+    "returncode": 0,
+    "search_time": 14.574628,
+    "total_time": 14.69161,
+    "wall_time": 15.710648844000389
+  },
+  "iterated_wa_ff|tidybot|p02.pddl": {
+    "cost": 17.0,
+    "coverage": 1,
+    "evaluations": 175,
+    "expansions": 164,
+    "generated": 507,
+    "incumbent_costs": [
+      27.0,
+      21.0,
+      18.0,
+      17.0
+    ],
+    "returncode": 0,
+    "search_time": 11.858029,
+    "total_time": 12.199019,
+    "wall_time": 13.932687174999955
+  },
+  "iterated_wa_ff|tidybot|p03.pddl": {
+    "cost": 38.0,
+    "coverage": 1,
+    "evaluations": 193,
+    "expansions": 192,
+    "generated": 619,
+    "incumbent_costs": [
+      40.0,
+      38.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.96450724399983
+  },
+  "iterated_wa_ff|tidybot|p04.pddl": {
+    "cost": 76.0,
+    "coverage": 1,
+    "evaluations": 629,
+    "expansions": 628,
+    "generated": 2191,
+    "incumbent_costs": [
+      82.0,
+      76.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.40811421700073
+  },
+  "iterated_wa_ff|tidybot|p05.pddl": {
+    "coverage": 0,
+    "initial_h_value": 30,
+    "returncode": 23,
+    "wall_time": 59.19429053699969
+  },
+  "iterated_wa_ff|tpp|p01.pddl": {
+    "cost": 19.0,
+    "coverage": 1,
+    "evaluations": 58,
+    "expansions": 57,
+    "generated": 209,
+    "incumbent_costs": [
+      27.0,
+      24.0,
+      23.0,
+      22.0,
+      21.0,
+      20.0,
+      19.0
+    ],
+    "returncode": 0,
+    "search_time": 2.524469,
+    "total_time": 2.532459,
+    "wall_time": 2.723248127000261
+  },
+  "iterated_wa_ff|tpp|p02.pddl": {
+    "cost": 18.0,
+    "coverage": 1,
+    "evaluations": 40,
+    "expansions": 39,
+    "generated": 178,
+    "incumbent_costs": [
+      22.0,
+      21.0,
+      20.0,
+      19.0,
+      18.0
+    ],
+    "returncode": 0,
+    "search_time": 55.942161,
+    "total_time": 55.95316,
+    "wall_time": 56.25550989200019
+  },
+  "iterated_wa_ff|tpp|p03.pddl": {
+    "cost": 55.0,
+    "coverage": 1,
+    "evaluations": 254,
+    "expansions": 253,
+    "generated": 1203,
+    "incumbent_costs": [
+      66.0,
+      64.0,
+      55.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.47180729899992
+  },
+  "iterated_wa_ff|tpp|p04.pddl": {
+    "cost": 79.0,
+    "coverage": 1,
+    "evaluations": 227,
+    "expansions": 226,
+    "generated": 1468,
+    "incumbent_costs": [
+      80.0,
+      79.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.845451594000224
+  },
+  "iterated_wa_ff|tpp|p05.pddl": {
+    "cost": 98.0,
+    "coverage": 1,
+    "evaluations": 589,
+    "expansions": 588,
+    "generated": 4786,
+    "incumbent_costs": [
+      100.0,
+      98.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.12122771900067
+  },
+  "iterated_wa_ff|transport|p01.pddl": {
+    "cost": 908.0,
+    "coverage": 1,
+    "evaluations": 117,
+    "expansions": 116,
+    "generated": 1519,
+    "incumbent_costs": [
+      1225.0,
+      1173.0,
+      1164.0,
+      1060.0,
+      909.0,
+      908.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.77034071900016
+  },
+  "iterated_wa_ff|transport|p02.pddl": {
+    "cost": 838.0,
+    "coverage": 1,
+    "evaluations": 145,
+    "expansions": 144,
+    "generated": 1848,
+    "incumbent_costs": [
+      1473.0,
+      1380.0,
+      1207.0,
+      1127.0,
+      949.0,
+      900.0,
+      838.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.80970086600064
+  },
+  "iterated_wa_ff|transport|p03.pddl": {
+    "cost": 1845.0,
+    "coverage": 1,
+    "evaluations": 999,
+    "expansions": 998,
+    "generated": 11581,
+    "incumbent_costs": [
+      2430.0,
+      1896.0,
+      1876.0,
+      1845.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.10396561200014
+  },
+  "iterated_wa_ff|transport|p04.pddl": {
+    "cost": 2061.0,
+    "coverage": 1,
+    "evaluations": 6944,
+    "expansions": 6943,
+    "generated": 72231,
+    "incumbent_costs": [
+      2316.0,
+      2259.0,
+      2061.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.14604757899997
+  },
+  "iterated_wa_ff|transport|p05.pddl": {
+    "coverage": 0,
+    "initial_h_value": 1530,
+    "returncode": 23,
+    "wall_time": 59.441921264000484
+  },
+  "iterated_wa_ff|visitall|p01.pddl": {
+    "cost": 44.0,
+    "coverage": 1,
+    "evaluations": 1226,
+    "expansions": 1225,
+    "generated": 4597,
+    "incumbent_costs": [
+      112.0,
+      100.0,
+      82.0,
+      68.0,
+      46.0,
+      45.0,
+      44.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.23151857999983
+  },
+  "iterated_wa_ff|visitall|p02.pddl": {
+    "cost": 135.0,
+    "coverage": 1,
+    "evaluations": 13086,
+    "expansions": 13085,
+    "generated": 50727,
+    "incumbent_costs": [
+      200.0,
+      163.0,
+      157.0,
+      135.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.2157676099996
+  },
+  "iterated_wa_ff|visitall|p03.pddl": {
+    "cost": 303.0,
+    "coverage": 1,
+    "evaluations": 120373,
+    "expansions": 120372,
+    "generated": 456381,
+    "incumbent_costs": [
+      488.0,
+      446.0,
+      303.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.25952445300027
+  },
+  "iterated_wa_ff|visitall|p04.pddl": {
+    "coverage": 0,
+    "initial_h_value": 240,
+    "returncode": 23,
+    "wall_time": 59.224137257999246
+  },
+  "iterated_wa_ff|visitall|p05.pddl": {
+    "coverage": 0,
+    "initial_h_value": 346,
+    "returncode": 23,
+    "wall_time": 59.299747199000194
+  },
+  "iterated_wa_ff|woodworking|p01.pddl": {
+    "cost": 85.0,
+    "coverage": 1,
+    "evaluations": 7,
+    "expansions": 6,
+    "generated": 26,
+    "incumbent_costs": [
+      85.0
+    ],
+    "returncode": 0,
+    "search_time": 0.005009,
+    "total_time": 0.009008,
+    "wall_time": 0.18248681099976238
+  },
+  "iterated_wa_ff|woodworking|p02.pddl": {
+    "cost": 505.0,
+    "coverage": 1,
+    "evaluations": 67,
+    "expansions": 62,
+    "generated": 3132,
+    "incumbent_costs": [
+      545.0,
+      525.0,
+      515.0,
+      505.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.448021340000196
+  },
+  "iterated_wa_ff|woodworking|p03.pddl": {
+    "cost": 1010.0,
+    "coverage": 1,
+    "evaluations": 428,
+    "expansions": 392,
+    "generated": 45788,
+    "incumbent_costs": [
+      1030.0,
+      1020.0,
+      1010.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.140331524999056
+  },
+  "iterated_wa_ff|woodworking|p04.pddl": {
+    "cost": 1520.0,
+    "coverage": 1,
+    "evaluations": 21155,
+    "expansions": 21133,
+    "generated": 2681847,
+    "incumbent_costs": [
+      1520.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.99315975200079
+  },
+  "iterated_wa_ff|woodworking|p05.pddl": {
+    "coverage": 0,
+    "initial_h_value": 3045,
+    "returncode": 23,
+    "wall_time": 59.27824985799998
+  },
+  "iterated_wa_ff|zenotravel|p01.pddl": {
+    "cost": 26.0,
+    "coverage": 1,
+    "evaluations": 84,
+    "expansions": 83,
+    "generated": 1695,
+    "incumbent_costs": [
+      28.0,
+      27.0,
+      26.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.68298786500054
+  },
+  "iterated_wa_ff|zenotravel|p02.pddl": {
+    "cost": 28.0,
+    "coverage": 1,
+    "evaluations": 93,
+    "expansions": 92,
+    "generated": 1783,
+    "incumbent_costs": [
+      31.0,
+      30.0,
+      28.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.31485751599939
+  },
+  "iterated_wa_ff|zenotravel|p03.pddl": {
+    "cost": 46.0,
+    "coverage": 1,
+    "evaluations": 362,
+    "expansions": 361,
+    "generated": 13797,
+    "incumbent_costs": [
+      46.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.36189505099901
+  },
+  "iterated_wa_ff|zenotravel|p04.pddl": {
+    "cost": 52.0,
+    "coverage": 1,
+    "evaluations": 342,
+    "expansions": 341,
+    "generated": 9996,
+    "incumbent_costs": [
+      52.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.20194053799969
+  },
+  "iterated_wa_ff|zenotravel|p05.pddl": {
+    "cost": 52.0,
+    "coverage": 1,
+    "evaluations": 280,
+    "expansions": 279,
+    "generated": 8165,
+    "incumbent_costs": [
+      52.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.37255228699905
+  },
+  "lama|agricola|p01.pddl": {
+    "cost": 1115.0,
+    "coverage": 1,
+    "evaluations": 136,
+    "expansions": 124,
+    "generated": 563,
+    "incumbent_costs": [
+      1115.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.824482017000264
+  },
+  "lama|agricola|p02.pddl": {
+    "cost": 995.0,
+    "coverage": 1,
+    "evaluations": 127,
+    "expansions": 113,
+    "generated": 468,
+    "incumbent_costs": [
+      1115.0,
+      1085.0,
+      995.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.56232484999964
+  },
+  "lama|agricola|p03.pddl": {
+    "cost": 1364.0,
+    "coverage": 1,
+    "evaluations": 142,
+    "expansions": 128,
+    "generated": 530,
+    "incumbent_costs": [
+      1364.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.390246967001076
+  },
+  "lama|agricola|p04.pddl": {
+    "cost": 1994.0,
+    "coverage": 1,
+    "evaluations": 272,
+    "expansions": 244,
+    "generated": 1139,
+    "incumbent_costs": [
+      1994.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.28278196300016
+  },
+  "lama|agricola|p05.pddl": {
+    "cost": 2117.0,
+    "coverage": 1,
+    "evaluations": 4834,
+    "expansions": 2887,
+    "generated": 8722,
+    "incumbent_costs": [
+      2117.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.20160785299959
+  },
+  "lama|airport|p01.pddl": {
+    "cost": 101.0,
+    "coverage": 1,
+    "evaluations": 661,
+    "expansions": 329,
+    "generated": 1163,
+    "incumbent_costs": [
+      101.0
+    ],
+    "returncode": 0,
+    "search_time": 5.346072,
+    "total_time": 5.543044,
+    "wall_time": 6.762919259999762
+  },
+  "lama|airport|p02.pddl": {
+    "cost": 148.0,
+    "coverage": 1,
+    "evaluations": 86987,
+    "expansions": 38235,
+    "generated": 199437,
+    "incumbent_costs": [
+      148.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.60393768299946
+  },
+  "lama|airport|p03.pddl": {
+    "cost": 168.0,
+    "coverage": 1,
+    "evaluations": 122487,
+    "expansions": 51666,
+    "generated": 313309,
+    "incumbent_costs": [
+      168.0
+    ],
+    "returncode": 23,
+    "wall_time": 60.02724454100098
+  },
+  "lama|airport|p04.pddl": {
+    "cost": 164.0,
+    "coverage": 1,
+    "evaluations": 103239,
+    "expansions": 30311,
+    "generated": 248178,
+    "incumbent_costs": [
+      164.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.437801398000374
+  },
+  "lama|airport|p05.pddl": {
+    "coverage": 0,
+    "returncode": 23,
+    "wall_time": 59.73437222300163
+  },
+  "lama|barman|p01.pddl": {
+    "cost": 101.0,
+    "coverage": 1,
+    "evaluations": 470,
+    "expansions": 469,
+    "generated": 5596,
+    "incumbent_costs": [
+      101.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.37739137099925
+  },
+  "lama|barman|p02.pddl": {
+    "cost": 155.0,
+    "coverage": 1,
+    "evaluations": 576,
+    "expansions": 575,
+    "generated": 9507,
+    "incumbent_costs": [
+      155.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.41356243900009
+  },
+  "lama|barman|p03.pddl": {
+    "cost": 221.0,
+    "coverage": 1,
+    "evaluations": 948,
+    "expansions": 947,
+    "generated": 20413,
+    "incumbent_costs": [
+      221.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.552322892999655
+  },
+  "lama|barman|p04.pddl": {
+    "cost": 289.0,
+    "coverage": 1,
+    "evaluations": 2297,
+    "expansions": 2296,
+    "generated": 52973,
+    "incumbent_costs": [
+      289.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.70845387999907
+  },
+  "lama|barman|p05.pddl": {
+    "cost": 376.0,
+    "coverage": 1,
+    "evaluations": 4199,
+    "expansions": 4198,
+    "generated": 124766,
+    "incumbent_costs": [
+      376.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.93576365499939
+  },
+  "lama|blocksworld|p01.pddl": {
+    "cost": 32.0,
+    "coverage": 1,
+    "evaluations": 75,
+    "expansions": 74,
+    "generated": 367,
+    "incumbent_costs": [
+      36.0,
+      32.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.23570116399969
+  },
+  "lama|blocksworld|p02.pddl": {
+    "cost": 36.0,
+    "coverage": 1,
+    "evaluations": 154,
+    "expansions": 153,
+    "generated": 1306,
+    "incumbent_costs": [
+      40.0,
+      36.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.23323350999999
+  },
+  "lama|blocksworld|p03.pddl": {
+    "cost": 46.0,
+    "coverage": 1,
+    "evaluations": 405,
+    "expansions": 404,
+    "generated": 3472,
+    "incumbent_costs": [
+      114.0,
+      76.0,
+      72.0,
+      52.0,
+      46.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.27004678400044
+  },
+  "lama|blocksworld|p04.pddl": {
+    "cost": 102.0,
+    "coverage": 1,
+    "evaluations": 306,
+    "expansions": 305,
+    "generated": 2734,
+    "incumbent_costs": [
+      102.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.32276041700061
+  },
+  "lama|blocksworld|p05.pddl": {
+    "cost": 82.0,
+    "coverage": 1,
+    "evaluations": 1095,
+    "expansions": 1094,
+    "generated": 12440,
+    "incumbent_costs": [
+      160.0,
+      128.0,
+      112.0,
+      82.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.36289727199983
+  },
+  "lama|childsnack|p01.pddl": {
+    "cost": 29.0,
+    "coverage": 1,
+    "evaluations": 5962,
+    "expansions": 4889,
+    "generated": 102302,
+    "incumbent_costs": [
+      31.0,
+      29.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.36019027899965
+  },
+  "lama|childsnack|p02.pddl": {
+    "cost": 33.0,
+    "coverage": 1,
+    "evaluations": 212,
+    "expansions": 197,
+    "generated": 23888,
+    "incumbent_costs": [
+      35.0,
+      33.0
+    ],
+    "returncode": 22,
+    "wall_time": 54.462676465000186
+  },
+  "lama|childsnack|p03.pddl": {
+    "cost": 34.0,
+    "coverage": 1,
+    "evaluations": 196,
+    "expansions": 183,
+    "generated": 33292,
+    "incumbent_costs": [
+      34.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.391682147999745
+  },
+  "lama|childsnack|p04.pddl": {
+    "cost": 43.0,
+    "coverage": 1,
+    "evaluations": 191,
+    "expansions": 184,
+    "generated": 79631,
+    "incumbent_costs": [
+      45.0,
+      43.0
+    ],
+    "returncode": 22,
+    "wall_time": 40.45273207500031
+  },
+  "lama|childsnack|p05.pddl": {
+    "cost": 57.0,
+    "coverage": 1,
+    "evaluations": 8858,
+    "expansions": 6880,
+    "generated": 396588,
+    "incumbent_costs": [
+      57.0
+    ],
+    "returncode": 22,
+    "wall_time": 47.1121705810001
+  },
+  "lama|data-network|p01.pddl": {
+    "cost": 73.0,
+    "coverage": 1,
+    "evaluations": 15,
+    "expansions": 14,
+    "generated": 213,
+    "incumbent_costs": [
+      73.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.827903179000714
+  },
+  "lama|data-network|p02.pddl": {
+    "cost": 358.0,
+    "coverage": 1,
+    "evaluations": 116,
+    "expansions": 115,
+    "generated": 6167,
+    "incumbent_costs": [
+      538.0,
+      458.0,
+      369.0,
+      358.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.92739376700047
+  },
+  "lama|data-network|p03.pddl": {
+    "cost": 1114.0,
+    "coverage": 1,
+    "evaluations": 774,
+    "expansions": 773,
+    "generated": 48137,
+    "incumbent_costs": [
+      1380.0,
+      1114.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.98073035000016
+  },
+  "lama|data-network|p04.pddl": {
+    "cost": 332.0,
+    "coverage": 1,
+    "evaluations": 88,
+    "expansions": 87,
+    "generated": 4888,
+    "incumbent_costs": [
+      566.0,
+      514.0,
+      494.0,
+      390.0,
+      332.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.13694184999986
+  },
+  "lama|data-network|p05.pddl": {
+    "cost": 173.0,
+    "coverage": 1,
+    "evaluations": 540,
+    "expansions": 539,
+    "generated": 24592,
+    "incumbent_costs": [
+      173.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.32903667299979
+  },
+  "lama|depots|p01.pddl": {
+    "cost": 12.0,
+    "coverage": 1,
+    "evaluations": 31,
+    "expansions": 30,
+    "generated": 704,
+    "incumbent_costs": [
+      15.0,
+      14.0,
+      12.0
+    ],
+    "returncode": 0,
+    "search_time": 19.866801,
+    "total_time": 19.886555,
+    "wall_time": 20.136476934998427
+  },
+  "lama|depots|p02.pddl": {
+    "cost": 24.0,
+    "coverage": 1,
+    "evaluations": 142,
+    "expansions": 141,
+    "generated": 4526,
+    "incumbent_costs": [
+      24.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.41245856599926
+  },
+  "lama|depots|p03.pddl": {
+    "cost": 24.0,
+    "coverage": 1,
+    "evaluations": 81,
+    "expansions": 80,
+    "generated": 3397,
+    "incumbent_costs": [
+      25.0,
+      24.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.71768945999975
+  },
+  "lama|depots|p04.pddl": {
+    "cost": 37.0,
+    "coverage": 1,
+    "evaluations": 180,
+    "expansions": 179,
+    "generated": 9423,
+    "incumbent_costs": [
+      37.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.1121231369998
+  },
+  "lama|depots|p05.pddl": {
+    "cost": 36.0,
+    "coverage": 1,
+    "evaluations": 215,
+    "expansions": 214,
+    "generated": 13763,
+    "incumbent_costs": [
+      36.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.840522778999
+  },
+  "lama|driverlog|p01.pddl": {
+    "cost": 66.0,
+    "coverage": 1,
+    "evaluations": 25028,
+    "expansions": 25027,
+    "generated": 640177,
+    "incumbent_costs": [
+      230.0,
+      85.0,
+      67.0,
+      66.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.36128497299978
+  },
+  "lama|driverlog|p02.pddl": {
+    "cost": 88.0,
+    "coverage": 1,
+    "evaluations": 1528,
+    "expansions": 1527,
+    "generated": 45099,
+    "incumbent_costs": [
+      119.0,
+      97.0,
+      96.0,
+      88.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.4353810399989
+  },
+  "lama|driverlog|p03.pddl": {
+    "cost": 89.0,
+    "coverage": 1,
+    "evaluations": 2218,
+    "expansions": 2217,
+    "generated": 53714,
+    "incumbent_costs": [
+      151.0,
+      119.0,
+      100.0,
+      89.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.468732778999765
+  },
+  "lama|driverlog|p04.pddl": {
+    "cost": 105.0,
+    "coverage": 1,
+    "evaluations": 3819,
+    "expansions": 3818,
+    "generated": 98949,
+    "incumbent_costs": [
+      181.0,
+      118.0,
+      113.0,
+      105.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.63315750300171
+  },
+  "lama|driverlog|p05.pddl": {
+    "cost": 102.0,
+    "coverage": 1,
+    "evaluations": 1846,
+    "expansions": 1845,
+    "generated": 55138,
+    "incumbent_costs": [
+      135.0,
+      124.0,
+      119.0,
+      102.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.61597462300051
+  },
+  "lama|elevators|p01.pddl": {
+    "cost": 76.0,
+    "coverage": 1,
+    "evaluations": 95,
+    "expansions": 94,
+    "generated": 2420,
+    "incumbent_costs": [
+      165.0,
+      141.0,
+      132.0,
+      108.0,
+      96.0,
+      80.0,
+      78.0,
+      76.0
+    ],
+    "returncode": 0,
+    "search_time": 52.586357,
+    "total_time": 52.593357,
+    "wall_time": 52.760762498000986
+  },
+  "lama|elevators|p02.pddl": {
+    "cost": 172.0,
+    "coverage": 1,
+    "evaluations": 184,
+    "expansions": 183,
+    "generated": 6071,
+    "incumbent_costs": [
+      283.0,
+      279.0,
+      272.0,
+      256.0,
+      180.0,
+      177.0,
+      175.0,
+      172.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.22706623299928
+  },
+  "lama|elevators|p03.pddl": {
+    "cost": 410.0,
+    "coverage": 1,
+    "evaluations": 739,
+    "expansions": 738,
+    "generated": 25414,
+    "incumbent_costs": [
+      410.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.2229507789998
+  },
+  "lama|elevators|p04.pddl": {
+    "cost": 397.0,
+    "coverage": 1,
+    "evaluations": 1075,
+    "expansions": 1074,
+    "generated": 42438,
+    "incumbent_costs": [
+      604.0,
+      560.0,
+      477.0,
+      397.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.33847004200106
+  },
+  "lama|elevators|p05.pddl": {
+    "cost": 848.0,
+    "coverage": 1,
+    "evaluations": 2168,
+    "expansions": 2167,
+    "generated": 93946,
+    "incumbent_costs": [
+      848.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.29219906599974
+  },
+  "lama|floortile|p01.pddl": {
+    "cost": 17.0,
+    "coverage": 1,
+    "evaluations": 47,
+    "expansions": 36,
+    "generated": 240,
+    "incumbent_costs": [
+      35.0,
+      23.0,
+      21.0,
+      17.0
+    ],
+    "returncode": 0,
+    "search_time": 0.012009,
+    "total_time": 0.016009,
+    "wall_time": 0.11722771499989904
+  },
+  "lama|floortile|p02.pddl": {
+    "cost": 134.0,
+    "coverage": 1,
+    "evaluations": 4418293,
+    "expansions": 1677134,
+    "generated": 13141083,
+    "incumbent_costs": [
+      134.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.13721455599989
+  },
+  "lama|floortile|p03.pddl": {
+    "coverage": 0,
+    "returncode": 23,
+    "wall_time": 59.1871546880011
+  },
+  "lama|floortile|p04.pddl": {
+    "coverage": 0,
+    "returncode": 23,
+    "wall_time": 59.22811946299953
+  },
+  "lama|floortile|p05.pddl": {
+    "coverage": 0,
+    "returncode": 23,
+    "wall_time": 59.24986057099886
+  },
+  "lama|freecell|p01.pddl": {
+    "cost": 16.0,
+    "coverage": 1,
+    "evaluations": 18,
+    "expansions": 17,
+    "generated": 96,
+    "incumbent_costs": [
+      17.0,
+      16.0
+    ],
+    "returncode": 0,
+    "search_time": 6.437271,
+    "total_time": 6.44927,
+    "wall_time": 6.617123812999125
+  },
+  "lama|freecell|p02.pddl": {
+    "cost": 20.0,
+    "coverage": 1,
+    "evaluations": 24,
+    "expansions": 23,
+    "generated": 148,
+    "incumbent_costs": [
+      20.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.18777571499959
+  },
+  "lama|freecell|p03.pddl": {
+    "cost": 23.0,
+    "coverage": 1,
+    "evaluations": 32,
+    "expansions": 31,
+    "generated": 248,
+    "incumbent_costs": [
+      23.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.22921707500063
+  },
+  "lama|freecell|p04.pddl": {
+    "cost": 41.0,
+    "coverage": 1,
+    "evaluations": 55,
+    "expansions": 54,
+    "generated": 286,
+    "incumbent_costs": [
+      41.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.24296881900045
+  },
+  "lama|freecell|p05.pddl": {
+    "cost": 36.0,
+    "coverage": 1,
+    "evaluations": 89,
+    "expansions": 76,
+    "generated": 277,
+    "incumbent_costs": [
+      45.0,
+      42.0,
+      40.0,
+      38.0,
+      36.0
+    ],
+    "returncode": 0,
+    "search_time": 3.519596,
+    "total_time": 3.546596,
+    "wall_time": 3.7850278570003866
+  },
+  "lama|ged|p01.pddl": {
+    "cost": 3.0,
+    "coverage": 1,
+    "evaluations": 15,
+    "expansions": 14,
+    "generated": 45,
+    "incumbent_costs": [
+      3.0
+    ],
+    "returncode": 0,
+    "search_time": 0.646936,
+    "total_time": 0.654935,
+    "wall_time": 0.8557593360001192
+  },
+  "lama|ged|p02.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 26,
+    "expansions": 25,
+    "generated": 115,
+    "incumbent_costs": [
+      5.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.281330271000115
+  },
+  "lama|ged|p03.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 25,
+    "expansions": 24,
+    "generated": 112,
+    "incumbent_costs": [
+      5.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.26867420599956
+  },
+  "lama|ged|p04.pddl": {
+    "cost": 33.0,
+    "coverage": 1,
+    "evaluations": 1041,
+    "expansions": 1040,
+    "generated": 4123,
+    "incumbent_costs": [
+      35.0,
+      33.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.82657190499958
+  },
+  "lama|ged|p05.pddl": {
+    "cost": 29.0,
+    "coverage": 1,
+    "evaluations": 1375,
+    "expansions": 1374,
+    "generated": 5296,
+    "incumbent_costs": [
+      35.0,
+      29.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.8446584839985
+  },
+  "lama|grid|p01.pddl": {
+    "cost": 27.0,
+    "coverage": 1,
+    "evaluations": 74,
+    "expansions": 73,
+    "generated": 323,
+    "incumbent_costs": [
+      37.0,
+      27.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.202776825999536
+  },
+  "lama|grid|p02.pddl": {
+    "cost": 38.0,
+    "coverage": 1,
+    "evaluations": 56,
+    "expansions": 55,
+    "generated": 208,
+    "incumbent_costs": [
+      38.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.286232752001524
+  },
+  "lama|grid|p03.pddl": {
+    "cost": 35.0,
+    "coverage": 1,
+    "evaluations": 71,
+    "expansions": 70,
+    "generated": 302,
+    "incumbent_costs": [
+      39.0,
+      37.0,
+      36.0,
+      35.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.49803254499966
+  },
+  "lama|grid|p04.pddl": {
+    "cost": 15.0,
+    "coverage": 1,
+    "evaluations": 17,
+    "expansions": 16,
+    "generated": 58,
+    "incumbent_costs": [
+      15.0
+    ],
+    "returncode": 0,
+    "search_time": 1.695931,
+    "total_time": 1.752929,
+    "wall_time": 2.4261319440010993
+  },
+  "lama|grid|p05.pddl": {
+    "cost": 167.0,
+    "coverage": 1,
+    "evaluations": 435,
+    "expansions": 434,
+    "generated": 1802,
+    "incumbent_costs": [
+      229.0,
+      175.0,
+      173.0,
+      167.0
+    ],
+    "returncode": 23,
+    "wall_time": 60.000991568000245
+  },
+  "lama|gripper|p01.pddl": {
+    "cost": 59.0,
+    "coverage": 1,
+    "evaluations": 89,
+    "expansions": 88,
+    "generated": 1055,
+    "incumbent_costs": [
+      59.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.16402674300116
+  },
+  "lama|gripper|p02.pddl": {
+    "cost": 75.0,
+    "coverage": 1,
+    "evaluations": 113,
+    "expansions": 112,
+    "generated": 1628,
+    "incumbent_costs": [
+      75.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.159814176999134
+  },
+  "lama|gripper|p03.pddl": {
+    "cost": 89.0,
+    "coverage": 1,
+    "evaluations": 134,
+    "expansions": 133,
+    "generated": 2260,
+    "incumbent_costs": [
+      89.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.1768283299989
+  },
+  "lama|gripper|p04.pddl": {
+    "cost": 105.0,
+    "coverage": 1,
+    "evaluations": 158,
+    "expansions": 157,
+    "generated": 3068,
+    "incumbent_costs": [
+      105.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.15916140899935
+  },
+  "lama|gripper|p05.pddl": {
+    "cost": 119.0,
+    "coverage": 1,
+    "evaluations": 179,
+    "expansions": 178,
+    "generated": 3915,
+    "incumbent_costs": [
+      119.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.168916312000874
+  },
+  "lama|hiking|p01.pddl": {
+    "cost": 69.0,
+    "coverage": 1,
+    "evaluations": 73827,
+    "expansions": 73665,
+    "generated": 1222404,
+    "incumbent_costs": [
+      95.0,
+      91.0,
+      79.0,
+      69.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.348719032999725
+  },
+  "lama|hiking|p02.pddl": {
+    "cost": 90.0,
+    "coverage": 1,
+    "evaluations": 103273,
+    "expansions": 103088,
+    "generated": 1821029,
+    "incumbent_costs": [
+      106.0,
+      96.0,
+      90.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.39444960400033
+  },
+  "lama|hiking|p03.pddl": {
+    "cost": 100.0,
+    "coverage": 1,
+    "evaluations": 141851,
+    "expansions": 141638,
+    "generated": 2669010,
+    "incumbent_costs": [
+      125.0,
+      122.0,
+      100.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.464642426000864
+  },
+  "lama|hiking|p04.pddl": {
+    "cost": 108.0,
+    "coverage": 1,
+    "evaluations": 184891,
+    "expansions": 184651,
+    "generated": 3680549,
+    "incumbent_costs": [
+      136.0,
+      133.0,
+      108.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.49259754100058
+  },
+  "lama|hiking|p05.pddl": {
+    "cost": 117.0,
+    "coverage": 1,
+    "evaluations": 239073,
+    "expansions": 238811,
+    "generated": 5020290,
+    "incumbent_costs": [
+      148.0,
+      145.0,
+      117.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.543090943001516
+  },
+  "lama|logistics|p01.pddl": {
+    "cost": 32.0,
+    "coverage": 1,
+    "evaluations": 92,
+    "expansions": 91,
+    "generated": 13760,
+    "incumbent_costs": [
+      32.0
+    ],
+    "returncode": 22,
+    "wall_time": 52.95960499499961
+  },
+  "lama|logistics|p02.pddl": {
+    "cost": 50.0,
+    "coverage": 1,
+    "evaluations": 322,
+    "expansions": 321,
+    "generated": 63492,
+    "incumbent_costs": [
+      51.0,
+      50.0
+    ],
+    "returncode": 22,
+    "wall_time": 58.308338200000435
+  },
+  "lama|logistics|p03.pddl": {
+    "cost": 77.0,
+    "coverage": 1,
+    "evaluations": 578,
+    "expansions": 577,
+    "generated": 152192,
+    "incumbent_costs": [
+      77.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.60451195999849
+  },
+  "lama|logistics|p04.pddl": {
+    "cost": 118.0,
+    "coverage": 1,
+    "evaluations": 2017,
+    "expansions": 2016,
+    "generated": 653467,
+    "incumbent_costs": [
+      118.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.759815831001106
+  },
+  "lama|logistics|p05.pddl": {
+    "cost": 158.0,
+    "coverage": 1,
+    "evaluations": 3837,
+    "expansions": 3836,
+    "generated": 1557639,
+    "incumbent_costs": [
+      161.0,
+      160.0,
+      159.0,
+      158.0
+    ],
+    "returncode": 23,
+    "wall_time": 60.1346892549991
+  },
+  "lama|miconic|p01.pddl": {
+    "cost": 56.0,
+    "coverage": 1,
+    "evaluations": 174,
+    "expansions": 173,
+    "generated": 2189,
+    "incumbent_costs": [
+      56.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.16642078299992
+  },
+  "lama|miconic|p02.pddl": {
+    "cost": 72.0,
+    "coverage": 1,
+    "evaluations": 247,
+    "expansions": 246,
+    "generated": 3749,
+    "incumbent_costs": [
+      72.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.18400745299914
+  },
+  "lama|miconic|p03.pddl": {
+    "cost": 84.0,
+    "coverage": 1,
+    "evaluations": 349,
+    "expansions": 348,
+    "generated": 6889,
+    "incumbent_costs": [
+      89.0,
+      84.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.19936411299932
+  },
+  "lama|miconic|p04.pddl": {
+    "cost": 104.0,
+    "coverage": 1,
+    "evaluations": 462,
+    "expansions": 461,
+    "generated": 10854,
+    "incumbent_costs": [
+      106.0,
+      104.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.22263693900095
+  },
+  "lama|miconic|p05.pddl": {
+    "cost": 116.0,
+    "coverage": 1,
+    "evaluations": 543,
+    "expansions": 542,
+    "generated": 14904,
+    "incumbent_costs": [
+      117.0,
+      116.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.225039443999776
+  },
+  "lama|mprime|p01.pddl": {
+    "cost": 28.0,
+    "coverage": 1,
+    "evaluations": 191,
+    "expansions": 190,
+    "generated": 13267,
+    "incumbent_costs": [
+      37.0,
+      35.0,
+      34.0,
+      33.0,
+      28.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.50711999399937
+  },
+  "lama|mprime|p02.pddl": {
+    "cost": 26.0,
+    "coverage": 1,
+    "evaluations": 161,
+    "expansions": 160,
+    "generated": 8129,
+    "incumbent_costs": [
+      30.0,
+      29.0,
+      27.0,
+      26.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.49771631200019
+  },
+  "lama|mprime|p03.pddl": {
+    "cost": 34.0,
+    "coverage": 1,
+    "evaluations": 488,
+    "expansions": 485,
+    "generated": 15278,
+    "incumbent_costs": [
+      46.0,
+      38.0,
+      35.0,
+      34.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.35481814599916
+  },
+  "lama|mprime|p04.pddl": {
+    "cost": 20.0,
+    "coverage": 1,
+    "evaluations": 96,
+    "expansions": 95,
+    "generated": 4481,
+    "incumbent_costs": [
+      27.0,
+      22.0,
+      21.0,
+      20.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.339694303000215
+  },
+  "lama|mprime|p05.pddl": {
+    "cost": 27.0,
+    "coverage": 1,
+    "evaluations": 145,
+    "expansions": 144,
+    "generated": 4943,
+    "incumbent_costs": [
+      30.0,
+      29.0,
+      28.0,
+      27.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.30837272299868
+  },
+  "lama|nomystery|p01.pddl": {
+    "cost": 38.0,
+    "coverage": 1,
+    "evaluations": 135,
+    "expansions": 134,
+    "generated": 811,
+    "incumbent_costs": [
+      39.0,
+      38.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.932596046999606
+  },
+  "lama|nomystery|p02.pddl": {
+    "cost": 39.0,
+    "coverage": 1,
+    "evaluations": 127,
+    "expansions": 126,
+    "generated": 925,
+    "incumbent_costs": [
+      40.0,
+      39.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.3351278629998
+  },
+  "lama|nomystery|p03.pddl": {
+    "cost": 50.0,
+    "coverage": 1,
+    "evaluations": 193,
+    "expansions": 192,
+    "generated": 1547,
+    "incumbent_costs": [
+      51.0,
+      50.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.89398143899962
+  },
+  "lama|nomystery|p04.pddl": {
+    "cost": 54.0,
+    "coverage": 1,
+    "evaluations": 271,
+    "expansions": 270,
+    "generated": 2023,
+    "incumbent_costs": [
+      55.0,
+      54.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.87882282099963
+  },
+  "lama|nomystery|p05.pddl": {
+    "cost": 50.0,
+    "coverage": 1,
+    "evaluations": 223,
+    "expansions": 222,
+    "generated": 1927,
+    "incumbent_costs": [
+      63.0,
+      61.0,
+      50.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.31567186999928
+  },
+  "lama|openstacks|p01.pddl": {
+    "cost": 2.0,
+    "coverage": 1,
+    "evaluations": 19,
+    "expansions": 18,
+    "generated": 49,
+    "incumbent_costs": [
+      3.0,
+      2.0
+    ],
+    "returncode": 0,
+    "search_time": 0.008,
+    "total_time": 0.011999,
+    "wall_time": 0.13991269600046508
+  },
+  "lama|openstacks|p02.pddl": {
+    "cost": 21.0,
+    "coverage": 1,
+    "evaluations": 162,
+    "expansions": 161,
+    "generated": 1434,
+    "incumbent_costs": [
+      36.0,
+      35.0,
+      34.0,
+      21.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.422310223999375
+  },
+  "lama|openstacks|p03.pddl": {
+    "cost": 55.0,
+    "coverage": 1,
+    "evaluations": 305,
+    "expansions": 304,
+    "generated": 4454,
+    "incumbent_costs": [
+      67.0,
+      66.0,
+      65.0,
+      55.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.400118327999735
+  },
+  "lama|openstacks|p04.pddl": {
+    "cost": 103.0,
+    "coverage": 1,
+    "evaluations": 455,
+    "expansions": 454,
+    "generated": 9198,
+    "incumbent_costs": [
+      105.0,
+      104.0,
+      103.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.64022400399881
+  },
+  "lama|openstacks|p05.pddl": {
+    "cost": 143.0,
+    "coverage": 1,
+    "evaluations": 606,
+    "expansions": 605,
+    "generated": 15464,
+    "incumbent_costs": [
+      145.0,
+      144.0,
+      143.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.409589385999425
+  },
+  "lama|organic-synthesis-split|p01.pddl": {
+    "cost": 882.0,
+    "coverage": 1,
+    "evaluations": 1069,
+    "expansions": 309,
+    "generated": 14467,
+    "incumbent_costs": [
+      882.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.77032829700147
+  },
+  "lama|organic-synthesis-split|p02.pddl": {
+    "coverage": 0,
+    "returncode": 23,
+    "wall_time": 59.25284794400068
+  },
+  "lama|organic-synthesis-split|p03.pddl": {
+    "cost": 504.0,
+    "coverage": 1,
+    "evaluations": 5469,
+    "expansions": 598,
+    "generated": 15834,
+    "incumbent_costs": [
+      504.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.67240221599968
+  },
+  "lama|organic-synthesis-split|p04.pddl": {
+    "coverage": 0,
+    "returncode": 23,
+    "wall_time": 59.38684599499902
+  },
+  "lama|organic-synthesis-split|p05.pddl": {
+    "coverage": 0,
+    "returncode": 23,
+    "wall_time": 59.37012393900113
+  },
+  "lama|parcprinter|p01.pddl": {
+    "cost": 464820.0,
+    "coverage": 1,
+    "evaluations": 16,
+    "expansions": 15,
+    "generated": 43,
+    "incumbent_costs": [
+      464820.0
+    ],
+    "returncode": 0,
+    "search_time": 0.024958,
+    "total_time": 0.028959,
+    "wall_time": 0.24745214300128282
+  },
+  "lama|parcprinter|p02.pddl": {
+    "cost": 232410.0,
+    "coverage": 1,
+    "evaluations": 9,
+    "expansions": 8,
+    "generated": 14,
+    "incumbent_costs": [
+      232410.0
+    ],
+    "returncode": 0,
+    "search_time": 0.007,
+    "total_time": 0.01,
+    "wall_time": 0.20116928500101494
+  },
+  "lama|parcprinter|p03.pddl": {
+    "cost": 520125.0,
+    "coverage": 1,
+    "evaluations": 19,
+    "expansions": 18,
+    "generated": 49,
+    "incumbent_costs": [
+      520125.0
+    ],
+    "returncode": 0,
+    "search_time": 0.072001,
+    "total_time": 0.077001,
+    "wall_time": 0.25784162800118793
+  },
+  "lama|parcprinter|p04.pddl": {
+    "cost": 807114.0,
+    "coverage": 1,
+    "evaluations": 25,
+    "expansions": 22,
+    "generated": 64,
+    "incumbent_costs": [
+      807114.0
+    ],
+    "returncode": 0,
+    "search_time": 0.029,
+    "total_time": 0.034,
+    "wall_time": 0.22945809700104292
+  },
+  "lama|parcprinter|p05.pddl": {
+    "cost": 702933.0,
+    "coverage": 1,
+    "evaluations": 29,
+    "expansions": 27,
+    "generated": 101,
+    "incumbent_costs": [
+      702933.0
+    ],
+    "returncode": 0,
+    "search_time": 5.973705,
+    "total_time": 5.981705,
+    "wall_time": 6.177159915998345
+  },
+  "lama|parking|p01.pddl": {
+    "cost": 17.0,
+    "coverage": 1,
+    "evaluations": 132,
+    "expansions": 131,
+    "generated": 1816,
+    "incumbent_costs": [
+      31.0,
+      29.0,
+      27.0,
+      25.0,
+      17.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.2384856940007
+  },
+  "lama|parking|p02.pddl": {
+    "cost": 32.0,
+    "coverage": 1,
+    "evaluations": 533,
+    "expansions": 532,
+    "generated": 8856,
+    "incumbent_costs": [
+      64.0,
+      60.0,
+      52.0,
+      42.0,
+      34.0,
+      33.0,
+      32.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.503694957000334
+  },
+  "lama|parking|p03.pddl": {
+    "cost": 35.0,
+    "coverage": 1,
+    "evaluations": 790,
+    "expansions": 789,
+    "generated": 14690,
+    "incumbent_costs": [
+      71.0,
+      63.0,
+      51.0,
+      45.0,
+      35.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.46815461699953
+  },
+  "lama|parking|p04.pddl": {
+    "cost": 42.0,
+    "coverage": 1,
+    "evaluations": 621,
+    "expansions": 620,
+    "generated": 12705,
+    "incumbent_costs": [
+      77.0,
+      67.0,
+      65.0,
+      55.0,
+      42.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.45352804899994
+  },
+  "lama|parking|p05.pddl": {
+    "cost": 42.0,
+    "coverage": 1,
+    "evaluations": 1086,
+    "expansions": 1085,
+    "generated": 24204,
+    "incumbent_costs": [
+      84.0,
+      80.0,
+      65.0,
+      57.0,
+      42.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.445374966999225
+  },
+  "lama|pathways|p01.pddl": {
+    "cost": 6.0,
+    "coverage": 1,
+    "evaluations": 11,
+    "expansions": 10,
+    "generated": 162,
+    "incumbent_costs": [
+      6.0
+    ],
+    "returncode": 0,
+    "search_time": 0.019973,
+    "total_time": 0.023974,
+    "wall_time": 0.1910249209995527
+  },
+  "lama|pathways|p02.pddl": {
+    "cost": 12.0,
+    "coverage": 1,
+    "evaluations": 14,
+    "expansions": 13,
+    "generated": 115,
+    "incumbent_costs": [
+      12.0
+    ],
+    "returncode": 0,
+    "search_time": 0.035928,
+    "total_time": 0.039928,
+    "wall_time": 0.179889995000849
+  },
+  "lama|pathways|p03.pddl": {
+    "cost": 18.0,
+    "coverage": 1,
+    "evaluations": 65,
+    "expansions": 49,
+    "generated": 793,
+    "incumbent_costs": [
+      18.0
+    ],
+    "returncode": 0,
+    "search_time": 1.078713,
+    "total_time": 1.082713,
+    "wall_time": 1.2376778189991455
+  },
+  "lama|pathways|p04.pddl": {
+    "cost": 17.0,
+    "coverage": 1,
+    "evaluations": 23,
+    "expansions": 22,
+    "generated": 621,
+    "incumbent_costs": [
+      17.0
+    ],
+    "returncode": 0,
+    "search_time": 23.585887,
+    "total_time": 23.589887,
+    "wall_time": 23.751563994999742
+  },
+  "lama|pathways|p05.pddl": {
+    "cost": 30.0,
+    "coverage": 1,
+    "evaluations": 45,
+    "expansions": 44,
+    "generated": 1286,
+    "incumbent_costs": [
+      30.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.29822891800177
+  },
+  "lama|pegsol|p01.pddl": {
+    "cost": 7.0,
+    "coverage": 1,
+    "evaluations": 41,
+    "expansions": 37,
+    "generated": 89,
+    "incumbent_costs": [
+      10.0,
+      7.0
+    ],
+    "returncode": 0,
+    "search_time": 0.070009,
+    "total_time": 0.074009,
+    "wall_time": 0.19960912299939082
+  },
+  "lama|pegsol|p02.pddl": {
+    "cost": 4.0,
+    "coverage": 1,
+    "evaluations": 41,
+    "expansions": 33,
+    "generated": 69,
+    "incumbent_costs": [
+      9.0,
+      8.0,
+      4.0
+    ],
+    "returncode": 0,
+    "search_time": 0.015982,
+    "total_time": 0.021982,
+    "wall_time": 0.1522896460010088
+  },
+  "lama|pegsol|p03.pddl": {
+    "cost": 3.0,
+    "coverage": 1,
+    "evaluations": 103,
+    "expansions": 71,
+    "generated": 163,
+    "incumbent_costs": [
+      8.0,
+      6.0,
+      3.0
+    ],
+    "returncode": 0,
+    "search_time": 0.015979,
+    "total_time": 0.021979,
+    "wall_time": 0.15336631900026987
+  },
+  "lama|pegsol|p04.pddl": {
+    "cost": 7.0,
+    "coverage": 1,
+    "evaluations": 750,
+    "expansions": 523,
+    "generated": 1308,
+    "incumbent_costs": [
+      9.0,
+      8.0,
+      7.0
+    ],
+    "returncode": 0,
+    "search_time": 0.19099,
+    "total_time": 0.196989,
+    "wall_time": 0.33268196400058514
+  },
+  "lama|pegsol|p05.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 123,
+    "expansions": 90,
+    "generated": 246,
+    "incumbent_costs": [
+      9.0,
+      7.0,
+      6.0,
+      5.0
+    ],
+    "returncode": 0,
+    "search_time": 0.110963,
+    "total_time": 0.116963,
+    "wall_time": 0.25266609199934464
+  },
+  "lama|pipesworld-notankage|p01.pddl": {
+    "cost": 14.0,
+    "coverage": 1,
+    "evaluations": 34,
+    "expansions": 33,
+    "generated": 169,
+    "incumbent_costs": [
+      18.0,
+      16.0,
+      14.0
+    ],
+    "returncode": 0,
+    "search_time": 17.868085,
+    "total_time": 17.887011,
+    "wall_time": 18.13267647199973
+  },
+  "lama|pipesworld-notankage|p02.pddl": {
+    "cost": 30.0,
+    "coverage": 1,
+    "evaluations": 53601,
+    "expansions": 53600,
+    "generated": 351657,
+    "incumbent_costs": [
+      58.0,
+      38.0,
+      32.0,
+      30.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.25031954300175
+  },
+  "lama|pipesworld-notankage|p03.pddl": {
+    "cost": 18.0,
+    "coverage": 1,
+    "evaluations": 338,
+    "expansions": 337,
+    "generated": 2455,
+    "incumbent_costs": [
+      21.0,
+      19.0,
+      18.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.303011927000625
+  },
+  "lama|pipesworld-notankage|p04.pddl": {
+    "cost": 24.0,
+    "coverage": 1,
+    "evaluations": 21570,
+    "expansions": 21569,
+    "generated": 155581,
+    "incumbent_costs": [
+      45.0,
+      28.0,
+      26.0,
+      25.0,
+      24.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.30313435900098
+  },
+  "lama|pipesworld-notankage|p05.pddl": {
+    "cost": 38.0,
+    "coverage": 1,
+    "evaluations": 277,
+    "expansions": 276,
+    "generated": 2875,
+    "incumbent_costs": [
+      48.0,
+      46.0,
+      42.0,
+      38.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.355502022999644
+  },
+  "lama|pipesworld-tankage|p01.pddl": {
+    "cost": 22.0,
+    "coverage": 1,
+    "evaluations": 423,
+    "expansions": 407,
+    "generated": 2386,
+    "incumbent_costs": [
+      42.0,
+      38.0,
+      26.0,
+      22.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.271273193000525
+  },
+  "lama|pipesworld-tankage|p02.pddl": {
+    "cost": 24.0,
+    "coverage": 1,
+    "evaluations": 331,
+    "expansions": 330,
+    "generated": 2816,
+    "incumbent_costs": [
+      44.0,
+      40.0,
+      36.0,
+      32.0,
+      24.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.35835488500015
+  },
+  "lama|pipesworld-tankage|p03.pddl": {
+    "cost": 18.0,
+    "coverage": 1,
+    "evaluations": 119,
+    "expansions": 118,
+    "generated": 1250,
+    "incumbent_costs": [
+      26.0,
+      24.0,
+      18.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.45841492600084
+  },
+  "lama|pipesworld-tankage|p04.pddl": {
+    "cost": 46.0,
+    "coverage": 1,
+    "evaluations": 640,
+    "expansions": 605,
+    "generated": 4146,
+    "incumbent_costs": [
+      66.0,
+      62.0,
+      54.0,
+      46.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.3186307019987
+  },
+  "lama|pipesworld-tankage|p05.pddl": {
+    "cost": 30.0,
+    "coverage": 1,
+    "evaluations": 1581,
+    "expansions": 1502,
+    "generated": 9268,
+    "incumbent_costs": [
+      50.0,
+      46.0,
+      38.0,
+      34.0,
+      30.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.32998582100117
+  },
+  "lama|rovers|p01.pddl": {
+    "cost": 30.0,
+    "coverage": 1,
+    "evaluations": 56,
+    "expansions": 55,
+    "generated": 921,
+    "incumbent_costs": [
+      30.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.19531429500057
+  },
+  "lama|rovers|p02.pddl": {
+    "cost": 41.0,
+    "coverage": 1,
+    "evaluations": 115,
+    "expansions": 114,
+    "generated": 1164,
+    "incumbent_costs": [
+      42.0,
+      41.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.212829517999126
+  },
+  "lama|rovers|p03.pddl": {
+    "cost": 41.0,
+    "coverage": 1,
+    "evaluations": 148,
+    "expansions": 147,
+    "generated": 2459,
+    "incumbent_costs": [
+      43.0,
+      41.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.228626985999654
+  },
+  "lama|rovers|p04.pddl": {
+    "cost": 43.0,
+    "coverage": 1,
+    "evaluations": 136,
+    "expansions": 135,
+    "generated": 2208,
+    "incumbent_costs": [
+      45.0,
+      43.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.23756701699858
+  },
+  "lama|rovers|p05.pddl": {
+    "cost": 46.0,
+    "coverage": 1,
+    "evaluations": 177,
+    "expansions": 176,
+    "generated": 3186,
+    "incumbent_costs": [
+      50.0,
+      49.0,
+      47.0,
+      46.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.274577570000474
+  },
+  "lama|satellite|p01.pddl": {
+    "cost": 13.0,
+    "coverage": 1,
+    "evaluations": 25,
+    "expansions": 24,
+    "generated": 876,
+    "incumbent_costs": [
+      15.0,
+      13.0
+    ],
+    "returncode": 0,
+    "search_time": 11.612444,
+    "total_time": 11.617444,
+    "wall_time": 11.741016838999712
+  },
+  "lama|satellite|p02.pddl": {
+    "cost": 14.0,
+    "coverage": 1,
+    "evaluations": 15,
+    "expansions": 14,
+    "generated": 1176,
+    "incumbent_costs": [
+      14.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.26405184899886
+  },
+  "lama|satellite|p03.pddl": {
+    "cost": 18.0,
+    "coverage": 1,
+    "evaluations": 22,
+    "expansions": 21,
+    "generated": 4137,
+    "incumbent_costs": [
+      18.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.53001869699983
+  },
+  "lama|satellite|p04.pddl": {
+    "cost": 26.0,
+    "coverage": 1,
+    "evaluations": 116,
+    "expansions": 115,
+    "generated": 40405,
+    "incumbent_costs": [
+      26.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.881082795998736
+  },
+  "lama|satellite|p05.pddl": {
+    "cost": 29.0,
+    "coverage": 1,
+    "evaluations": 43,
+    "expansions": 42,
+    "generated": 23224,
+    "incumbent_costs": [
+      32.0,
+      29.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.40802256100142
+  },
+  "lama|scanalyzer|p01.pddl": {
+    "cost": 36.0,
+    "coverage": 1,
+    "evaluations": 54,
+    "expansions": 53,
+    "generated": 1060,
+    "incumbent_costs": [
+      36.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.260371852999015
+  },
+  "lama|scanalyzer|p02.pddl": {
+    "cost": 46.0,
+    "coverage": 1,
+    "evaluations": 83,
+    "expansions": 82,
+    "generated": 2460,
+    "incumbent_costs": [
+      46.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.308860266999545
+  },
+  "lama|scanalyzer|p03.pddl": {
+    "cost": 56.0,
+    "coverage": 1,
+    "evaluations": 118,
+    "expansions": 117,
+    "generated": 4914,
+    "incumbent_costs": [
+      56.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.50053220399968
+  },
+  "lama|scanalyzer|p04.pddl": {
+    "cost": 66.0,
+    "coverage": 1,
+    "evaluations": 159,
+    "expansions": 158,
+    "generated": 8848,
+    "incumbent_costs": [
+      66.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.7673596279983
+  },
+  "lama|scanalyzer|p05.pddl": {
+    "cost": 76.0,
+    "coverage": 1,
+    "evaluations": 206,
+    "expansions": 205,
+    "generated": 14760,
+    "incumbent_costs": [
+      76.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.293109717000334
+  },
+  "lama|snake|p01.pddl": {
+    "cost": 15.0,
+    "coverage": 1,
+    "evaluations": 26,
+    "expansions": 25,
+    "generated": 57,
+    "incumbent_costs": [
+      15.0
+    ],
+    "returncode": 0,
+    "search_time": 8.344034,
+    "total_time": 8.477031,
+    "wall_time": 9.338793035998606
+  },
+  "lama|snake|p02.pddl": {
+    "cost": 22.0,
+    "coverage": 1,
+    "evaluations": 57,
+    "expansions": 55,
+    "generated": 113,
+    "incumbent_costs": [
+      26.0,
+      25.0,
+      24.0,
+      23.0,
+      22.0
+    ],
+    "returncode": 0,
+    "search_time": 45.244384,
+    "total_time": 45.50032,
+    "wall_time": 46.76176325300003
+  },
+  "lama|snake|p03.pddl": {
+    "cost": 23.0,
+    "coverage": 1,
+    "evaluations": 92,
+    "expansions": 90,
+    "generated": 209,
+    "incumbent_costs": [
+      26.0,
+      23.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.82808821399885
+  },
+  "lama|snake|p04.pddl": {
+    "cost": 31.0,
+    "coverage": 1,
+    "evaluations": 980,
+    "expansions": 969,
+    "generated": 2224,
+    "incumbent_costs": [
+      33.0,
+      31.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.554055227999925
+  },
+  "lama|snake|p05.pddl": {
+    "cost": 38.0,
+    "coverage": 1,
+    "evaluations": 2549,
+    "expansions": 2535,
+    "generated": 5695,
+    "incumbent_costs": [
+      42.0,
+      41.0,
+      38.0
+    ],
+    "returncode": 23,
+    "wall_time": 60.022725512999386
+  },
+  "lama|sokoban|p01.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 50,
+    "expansions": 37,
+    "generated": 97,
+    "incumbent_costs": [
+      5.0
+    ],
+    "returncode": 0,
+    "search_time": 0.007981,
+    "total_time": 0.014977,
+    "wall_time": 0.16547312100010458
+  },
+  "lama|sokoban|p02.pddl": {
+    "cost": 11.0,
+    "coverage": 1,
+    "evaluations": 318,
+    "expansions": 279,
+    "generated": 763,
+    "incumbent_costs": [
+      11.0
+    ],
+    "returncode": 0,
+    "search_time": 0.02,
+    "total_time": 0.024,
+    "wall_time": 0.17628769500151975
+  },
+  "lama|sokoban|p03.pddl": {
+    "cost": 6.0,
+    "coverage": 1,
+    "evaluations": 6594,
+    "expansions": 4922,
+    "generated": 16834,
+    "incumbent_costs": [
+      14.0,
+      8.0,
+      6.0
+    ],
+    "returncode": 0,
+    "search_time": 1.645367,
+    "total_time": 1.652366,
+    "wall_time": 1.8542186150007183
+  },
+  "lama|sokoban|p04.pddl": {
+    "cost": 34.0,
+    "coverage": 1,
+    "evaluations": 8876,
+    "expansions": 7672,
+    "generated": 22103,
+    "incumbent_costs": [
+      40.0,
+      34.0
+    ],
+    "returncode": 0,
+    "search_time": 6.559218,
+    "total_time": 6.566217,
+    "wall_time": 6.733245448998787
+  },
+  "lama|sokoban|p05.pddl": {
+    "cost": 31.0,
+    "coverage": 1,
+    "evaluations": 2378,
+    "expansions": 2129,
+    "generated": 5723,
+    "incumbent_costs": [
+      45.0,
+      33.0,
+      31.0
+    ],
+    "returncode": 0,
+    "search_time": 0.890939,
+    "total_time": 0.896938,
+    "wall_time": 1.0608457010002894
+  },
+  "lama|storage|p01.pddl": {
+    "cost": 16.0,
+    "coverage": 1,
+    "evaluations": 2868,
+    "expansions": 2867,
+    "generated": 45977,
+    "incumbent_costs": [
+      17.0,
+      16.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.35372429199924
+  },
+  "lama|storage|p02.pddl": {
+    "cost": 15.0,
+    "coverage": 1,
+    "evaluations": 2698,
+    "expansions": 2697,
+    "generated": 37830,
+    "incumbent_costs": [
+      17.0,
+      15.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.629439319000085
+  },
+  "lama|storage|p03.pddl": {
+    "cost": 20.0,
+    "coverage": 1,
+    "evaluations": 3289,
+    "expansions": 3288,
+    "generated": 78759,
+    "incumbent_costs": [
+      20.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.062125063001076
+  },
+  "lama|storage|p04.pddl": {
+    "cost": 23.0,
+    "coverage": 1,
+    "evaluations": 5736,
+    "expansions": 5735,
+    "generated": 182310,
+    "incumbent_costs": [
+      31.0,
+      27.0,
+      23.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.686473828998714
+  },
+  "lama|storage|p05.pddl": {
+    "cost": 32.0,
+    "coverage": 1,
+    "evaluations": 229,
+    "expansions": 228,
+    "generated": 14727,
+    "incumbent_costs": [
+      34.0,
+      32.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.10751176699887
+  },
+  "lama|termes|p01.pddl": {
+    "cost": 153.0,
+    "coverage": 1,
+    "evaluations": 5516,
+    "expansions": 5515,
+    "generated": 25990,
+    "incumbent_costs": [
+      189.0,
+      153.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.28810022399921
+  },
+  "lama|termes|p02.pddl": {
+    "cost": 167.0,
+    "coverage": 1,
+    "evaluations": 13259,
+    "expansions": 13258,
+    "generated": 65298,
+    "incumbent_costs": [
+      255.0,
+      167.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.26675288200022
+  },
+  "lama|termes|p03.pddl": {
+    "cost": 734.0,
+    "coverage": 1,
+    "evaluations": 67960,
+    "expansions": 67959,
+    "generated": 307320,
+    "incumbent_costs": [
+      734.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.28975274500044
+  },
+  "lama|termes|p04.pddl": {
+    "cost": 765.0,
+    "coverage": 1,
+    "evaluations": 49882,
+    "expansions": 49881,
+    "generated": 228293,
+    "incumbent_costs": [
+      765.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.29357083300056
+  },
+  "lama|termes|p05.pddl": {
+    "cost": 464.0,
+    "coverage": 1,
+    "evaluations": 21303,
+    "expansions": 21302,
+    "generated": 102699,
+    "incumbent_costs": [
+      464.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.304774208998424
+  },
+  "lama|tetris|p01.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 1075,
+    "expansions": 1074,
+    "generated": 10140,
+    "incumbent_costs": [
+      5.0
+    ],
+    "returncode": 0,
+    "search_time": 0.022995,
+    "total_time": 0.028999,
+    "wall_time": 0.17558233899944753
+  },
+  "lama|tetris|p02.pddl": {
+    "cost": 0.0,
+    "coverage": 1,
+    "evaluations": 1,
+    "expansions": 0,
+    "generated": 0,
+    "incumbent_costs": [
+      0.0
+    ],
+    "returncode": 0,
+    "search_time": 0.002009,
+    "total_time": 0.007009,
+    "wall_time": 0.16254272400146874
+  },
+  "lama|tetris|p03.pddl": {
+    "cost": 5.0,
+    "coverage": 1,
+    "evaluations": 13,
+    "expansions": 12,
+    "generated": 30,
+    "incumbent_costs": [
+      5.0
+    ],
+    "returncode": 0,
+    "search_time": 0.004,
+    "total_time": 0.011999,
+    "wall_time": 0.2025859869991109
+  },
+  "lama|tetris|p04.pddl": {
+    "cost": 20.0,
+    "coverage": 1,
+    "evaluations": 2501,
+    "expansions": 2500,
+    "generated": 19591,
+    "incumbent_costs": [
+      31.0,
+      28.0,
+      22.0,
+      20.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.39029321199996
+  },
+  "lama|tetris|p05.pddl": {
+    "cost": 18.0,
+    "coverage": 1,
+    "evaluations": 4609,
+    "expansions": 4608,
+    "generated": 39921,
+    "incumbent_costs": [
+      31.0,
+      22.0,
+      21.0,
+      18.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.3960366579995
+  },
+  "lama|thoughtful|p01.pddl": {
+    "cost": 103.0,
+    "coverage": 1,
+    "evaluations": 535,
+    "expansions": 534,
+    "generated": 2431,
+    "incumbent_costs": [
+      109.0,
+      103.0
+    ],
+    "returncode": 23,
+    "wall_time": 60.01473609200002
+  },
+  "lama|thoughtful|p02.pddl": {
+    "cost": 113.0,
+    "coverage": 1,
+    "evaluations": 664,
+    "expansions": 663,
+    "generated": 3156,
+    "incumbent_costs": [
+      113.0
+    ],
+    "returncode": 23,
+    "wall_time": 60.03341381899918
+  },
+  "lama|thoughtful|p03.pddl": {
+    "cost": 91.0,
+    "coverage": 1,
+    "evaluations": 498,
+    "expansions": 497,
+    "generated": 2219,
+    "incumbent_costs": [
+      110.0,
+      91.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.22205618299995
+  },
+  "lama|thoughtful|p04.pddl": {
+    "cost": 108.0,
+    "coverage": 1,
+    "evaluations": 1606,
+    "expansions": 1605,
+    "generated": 7156,
+    "incumbent_costs": [
+      155.0,
+      113.0,
+      109.0,
+      108.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.10729023800013
+  },
+  "lama|thoughtful|p05.pddl": {
+    "cost": 120.0,
+    "coverage": 1,
+    "evaluations": 433,
+    "expansions": 432,
+    "generated": 2144,
+    "incumbent_costs": [
+      120.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.31267571100034
+  },
+  "lama|tidybot|p01.pddl": {
+    "cost": 22.0,
+    "coverage": 1,
+    "evaluations": 92,
+    "expansions": 91,
+    "generated": 279,
+    "incumbent_costs": [
+      28.0,
+      26.0,
+      24.0,
+      22.0
+    ],
+    "returncode": 0,
+    "search_time": 28.811427,
+    "total_time": 28.985406,
+    "wall_time": 30.02430902499873
+  },
+  "lama|tidybot|p02.pddl": {
+    "cost": 21.0,
+    "coverage": 1,
+    "evaluations": 653,
+    "expansions": 604,
+    "generated": 1673,
+    "incumbent_costs": [
+      27.0,
+      21.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.697271971999726
+  },
+  "lama|tidybot|p03.pddl": {
+    "cost": 38.0,
+    "coverage": 1,
+    "evaluations": 353,
+    "expansions": 352,
+    "generated": 1091,
+    "incumbent_costs": [
+      42.0,
+      38.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.05703283799994
+  },
+  "lama|tidybot|p04.pddl": {
+    "coverage": 0,
+    "returncode": 23,
+    "wall_time": 59.450480440998945
+  },
+  "lama|tidybot|p05.pddl": {
+    "coverage": 0,
+    "returncode": 23,
+    "wall_time": 59.574546449999616
+  },
+  "lama|tpp|p01.pddl": {
+    "cost": 19.0,
+    "coverage": 1,
+    "evaluations": 52,
+    "expansions": 51,
+    "generated": 191,
+    "incumbent_costs": [
+      27.0,
+      24.0,
+      23.0,
+      21.0,
+      19.0
+    ],
+    "returncode": 0,
+    "search_time": 2.283115,
+    "total_time": 2.291116,
+    "wall_time": 2.5166973800005508
+  },
+  "lama|tpp|p02.pddl": {
+    "cost": 20.0,
+    "coverage": 1,
+    "evaluations": 61,
+    "expansions": 60,
+    "generated": 305,
+    "incumbent_costs": [
+      22.0,
+      20.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.31094566200045
+  },
+  "lama|tpp|p03.pddl": {
+    "cost": 62.0,
+    "coverage": 1,
+    "evaluations": 248,
+    "expansions": 247,
+    "generated": 1296,
+    "incumbent_costs": [
+      66.0,
+      62.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.399032044000705
+  },
+  "lama|tpp|p04.pddl": {
+    "cost": 79.0,
+    "coverage": 1,
+    "evaluations": 403,
+    "expansions": 402,
+    "generated": 3003,
+    "incumbent_costs": [
+      80.0,
+      79.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.846609529999114
+  },
+  "lama|tpp|p05.pddl": {
+    "cost": 104.0,
+    "coverage": 1,
+    "evaluations": 800,
+    "expansions": 799,
+    "generated": 7092,
+    "incumbent_costs": [
+      106.0,
+      104.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.08003003500016
+  },
+  "lama|transport|p01.pddl": {
+    "cost": 935.0,
+    "coverage": 1,
+    "evaluations": 128,
+    "expansions": 127,
+    "generated": 1582,
+    "incumbent_costs": [
+      1206.0,
+      1153.0,
+      1002.0,
+      935.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.754308262999984
+  },
+  "lama|transport|p02.pddl": {
+    "cost": 954.0,
+    "coverage": 1,
+    "evaluations": 110,
+    "expansions": 109,
+    "generated": 1622,
+    "incumbent_costs": [
+      995.0,
+      989.0,
+      960.0,
+      954.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.74864084000001
+  },
+  "lama|transport|p03.pddl": {
+    "cost": 1915.0,
+    "coverage": 1,
+    "evaluations": 245,
+    "expansions": 244,
+    "generated": 3274,
+    "incumbent_costs": [
+      1915.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.94993460899968
+  },
+  "lama|transport|p04.pddl": {
+    "cost": 1698.0,
+    "coverage": 1,
+    "evaluations": 474,
+    "expansions": 473,
+    "generated": 6095,
+    "incumbent_costs": [
+      2636.0,
+      2167.0,
+      1860.0,
+      1698.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.98593330199947
+  },
+  "lama|transport|p05.pddl": {
+    "cost": 1893.0,
+    "coverage": 1,
+    "evaluations": 468,
+    "expansions": 467,
+    "generated": 6967,
+    "incumbent_costs": [
+      1925.0,
+      1893.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.326349269000275
+  },
+  "lama|visitall|p01.pddl": {
+    "cost": 45.0,
+    "coverage": 1,
+    "evaluations": 151,
+    "expansions": 150,
+    "generated": 551,
+    "incumbent_costs": [
+      60.0,
+      58.0,
+      57.0,
+      54.0,
+      46.0,
+      45.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.18772716499916
+  },
+  "lama|visitall|p02.pddl": {
+    "cost": 109.0,
+    "coverage": 1,
+    "evaluations": 322,
+    "expansions": 321,
+    "generated": 1219,
+    "incumbent_costs": [
+      109.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.166023485999176
+  },
+  "lama|visitall|p03.pddl": {
+    "cost": 182.0,
+    "coverage": 1,
+    "evaluations": 752,
+    "expansions": 751,
+    "generated": 2907,
+    "incumbent_costs": [
+      209.0,
+      184.0,
+      182.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.19904920799854
+  },
+  "lama|visitall|p04.pddl": {
+    "cost": 286.0,
+    "coverage": 1,
+    "evaluations": 1020,
+    "expansions": 1019,
+    "generated": 3973,
+    "incumbent_costs": [
+      286.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.195916095999564
+  },
+  "lama|visitall|p05.pddl": {
+    "cost": 404.0,
+    "coverage": 1,
+    "evaluations": 1701,
+    "expansions": 1700,
+    "generated": 6613,
+    "incumbent_costs": [
+      435.0,
+      404.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.220186665001165
+  },
+  "lama|woodworking|p01.pddl": {
+    "cost": 85.0,
+    "coverage": 1,
+    "evaluations": 7,
+    "expansions": 6,
+    "generated": 30,
+    "incumbent_costs": [
+      95.0,
+      85.0
+    ],
+    "returncode": 0,
+    "search_time": 0.00501,
+    "total_time": 0.010009,
+    "wall_time": 0.13697370900081296
+  },
+  "lama|woodworking|p02.pddl": {
+    "cost": 585.0,
+    "coverage": 1,
+    "evaluations": 4585,
+    "expansions": 4584,
+    "generated": 210843,
+    "incumbent_costs": [
+      585.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.375673311000355
+  },
+  "lama|woodworking|p03.pddl": {
+    "cost": 1055.0,
+    "coverage": 1,
+    "evaluations": 8288,
+    "expansions": 8285,
+    "generated": 664764,
+    "incumbent_costs": [
+      1115.0,
+      1075.0,
+      1055.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.84157287400012
+  },
+  "lama|woodworking|p04.pddl": {
+    "cost": 1680.0,
+    "coverage": 1,
+    "evaluations": 26516,
+    "expansions": 26494,
+    "generated": 3344268,
+    "incumbent_costs": [
+      1680.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.064486448000025
+  },
+  "lama|woodworking|p05.pddl": {
+    "cost": 1920.0,
+    "coverage": 1,
+    "evaluations": 31409,
+    "expansions": 31404,
+    "generated": 6618175,
+    "incumbent_costs": [
+      1920.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.293436643998575
+  },
+  "lama|zenotravel|p01.pddl": {
+    "cost": 32.0,
+    "coverage": 1,
+    "evaluations": 175,
+    "expansions": 174,
+    "generated": 2531,
+    "incumbent_costs": [
+      32.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.26805063400025
+  },
+  "lama|zenotravel|p02.pddl": {
+    "cost": 28.0,
+    "coverage": 1,
+    "evaluations": 108,
+    "expansions": 107,
+    "generated": 1940,
+    "incumbent_costs": [
+      30.0,
+      28.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.656327356000475
+  },
+  "lama|zenotravel|p03.pddl": {
+    "cost": 44.0,
+    "coverage": 1,
+    "evaluations": 538,
+    "expansions": 537,
+    "generated": 12765,
+    "incumbent_costs": [
+      46.0,
+      45.0,
+      44.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.13300681600049
+  },
+  "lama|zenotravel|p04.pddl": {
+    "cost": 48.0,
+    "coverage": 1,
+    "evaluations": 790,
+    "expansions": 789,
+    "generated": 19982,
+    "incumbent_costs": [
+      62.0,
+      52.0,
+      48.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.912997645998985
+  },
+  "lama|zenotravel|p05.pddl": {
+    "cost": 52.0,
+    "coverage": 1,
+    "evaluations": 676,
+    "expansions": 675,
+    "generated": 19621,
+    "incumbent_costs": [
+      52.0
+    ],
+    "returncode": 23,
+    "wall_time": 59.288470576999316
+  }
+}
