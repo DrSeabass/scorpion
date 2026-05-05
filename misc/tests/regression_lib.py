@@ -314,37 +314,35 @@ def run_experiment(
 # Baseline filtering
 # ---------------------------------------------------------------------------
 
-def filter_baseline(baseline: dict, configs: set, instances: list) -> dict:
-    """Return only entries whose config is in *configs* and instance is in *instances*.
+def filter_baseline(baseline: dict, configs: set,
+                    instance_ids: list[int]) -> dict:
+    """Return only entries whose config is in *configs* and whose problem
+    is `p{N:02d}.pddl` for some *N* in *instance_ids*.
 
-    Keys have the form "config|domain|instance.pddl" where instance is e.g. "p01.pddl".
-    Each *instances* element is either int N (matches any "p0N.pddl" across
-    domains) or str "domain/problem.pddl" (exact match).
+    Keys have the form "config|domain|instance.pddl" where instance is
+    e.g. "p01.pddl".  *instance_ids* is a list of integers; non-integer
+    entries (including bools) raise `TypeError`.
     """
-    int_set = {n for n in instances
-               if isinstance(n, int) and not isinstance(n, bool)}
-    str_set = set()
-    for s in instances:
-        if isinstance(s, str):
-            d, p = s.split("/", 1)
-            str_set.add((d, p))
+    for n in instance_ids:
+        if not isinstance(n, int) or isinstance(n, bool):
+            raise TypeError(
+                f"Instance ids must be integers; got "
+                f"{type(n).__name__}: {n!r}"
+            )
+    id_set = set(instance_ids)
 
     result = {}
     for key, value in baseline.items():
         parts = key.split("|")
         if len(parts) != 3:
             continue
-        config, domain, instance = parts
+        config, _domain, instance = parts
         if config not in configs:
             continue
         stem = Path(instance).stem
-        is_int_match = (
-            stem.startswith("p")
-            and stem[1:].isdigit()
-            and int(stem[1:]) in int_set
-        )
-        is_str_match = (domain, instance) in str_set
-        if is_int_match or is_str_match:
+        if (stem.startswith("p")
+                and stem[1:].isdigit()
+                and int(stem[1:]) in id_set):
             result[key] = value
     return result
 
