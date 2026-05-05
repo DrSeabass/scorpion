@@ -91,62 +91,51 @@ def find_domain_file(problem_path: Path) -> Path:
     raise FileNotFoundError(f"No domain file for {problem_path}")
 
 
-def resolve_instances(benchmark_subdir: Path, instances: list) -> list[dict]:
-    """Resolve a heterogeneous instance spec to discovered instance dicts.
+def resolve_instances(domain_dir: Path, instance_ids: list[int]) -> list[dict]:
+    """Resolve integer instance ids to discovered instance dicts.
 
-    Each list element is one of:
-      - int N: expand to "p0N.pddl" across every domain that has one.
-      - str "domain/problem.pddl": one exact instance.
+    *domain_dir* may point at either:
+      - a benchmark **set** — a directory containing per-domain
+        subdirectories, each holding p01.pddl, p02.pddl, ...; or
+      - a single **domain** — a directory containing p01.pddl, p02.pddl,
+        ... files directly.
 
-    Duplicates (same domain, same problem) are deduplicated; the result is
-    sorted by (domain, problem) for stable iteration.
+    The two layouts are distinguished by whether p01.pddl exists directly
+    in *domain_dir*.  For each id *N* in *instance_ids*, this function
+    locates p{N:02d}.pddl across all relevant domains, finds its companion
+    domain file via `find_domain_file`, and returns one dict per instance.
+    The result is sorted by (domain, problem) for stable iteration.
 
     Returns dicts with keys: domain, problem (filename), domain_file (path),
     problem_file (path).
     """
+    for item in instance_ids:
+        if not isinstance(item, int) or isinstance(item, bool):
+            raise TypeError(
+                f"Instance ids must be integers; got "
+                f"{type(item).__name__}: {item!r}"
+            )
+
+    if (domain_dir / "p01.pddl").exists():
+        domain_dirs = [domain_dir]
+    else:
+        domain_dirs = sorted(d for d in domain_dir.iterdir() if d.is_dir())
+
     seen = set()
     result = []
-
-    for item in instances:
-        if isinstance(item, bool):
-            # bool is a subclass of int; reject before the int branch swallows it.
-            raise TypeError(f"Invalid instance entry: {item!r}")
-        if isinstance(item, int):
-            for domain_dir in sorted(benchmark_subdir.iterdir()):
-                if not domain_dir.is_dir():
-                    continue
-                domain = domain_dir.name
-                prob = domain_dir / f"p{item:02d}.pddl"
-                if not prob.exists():
-                    continue
-                key = (domain, prob.name)
-                if key in seen:
-                    continue
-                try:
-                    dom = find_domain_file(prob)
-                except FileNotFoundError:
-                    continue
-                seen.add(key)
-                result.append({
-                    "domain": domain,
-                    "problem": prob.name,
-                    "domain_file": dom,
-                    "problem_file": prob,
-                })
-        elif isinstance(item, str):
-            if "/" not in item:
-                raise ValueError(
-                    f"Invalid instance string {item!r}; "
-                    f"expected 'domain/problem.pddl'"
-                )
-            domain, problem = item.split("/", 1)
-            prob = benchmark_subdir / domain / problem
+    for d in domain_dirs:
+        domain = d.name
+        for n in instance_ids:
+            prob = d / f"p{n:02d}.pddl"
             if not prob.exists():
-                raise FileNotFoundError(f"Instance not found: {prob}")
+                continue
             key = (domain, prob.name)
             if key in seen:
                 continue
-            dom = find_domain_file(prob)
+            try:
+                dom = find_domain_file(prob)
+            except FileNotFoundError:
+                continue
             seen.add(key)
             result.append({
                 "domain": domain,
@@ -154,11 +143,6 @@ def resolve_instances(benchmark_subdir: Path, instances: list) -> list[dict]:
                 "domain_file": dom,
                 "problem_file": prob,
             })
-        else:
-            raise TypeError(
-                f"Instance entry must be int or str, got "
-                f"{type(item).__name__}: {item!r}"
-            )
 
     result.sort(key=lambda d: (d["domain"], d["problem"]))
     return result
