@@ -26,12 +26,14 @@ from regression_lib import (
     DEFAULT_LIGHT_INSTANCES,
     baseline_missing_error,
     build_iteration_payload,
+    compare_dev_iterations,
     compare_results,
     drop_invalid_runs,
     filter_baseline,
     is_full_default_instances,
     is_single_domain_layout,
     load_baseline,
+    load_previous_iteration,
     resolve_configs,
     resolve_instances,
     run_experiment,
@@ -135,20 +137,33 @@ def dev_anytime(domain_dir: Path, baseline_dir: Path, workers: int,
                 instances: list = None,
                 validate: bool = True,
                 validate_bin: Path = None) -> dict:
-    """Run one dev iteration: experiments + write `anytime-NNNN.json`.
+    """Run one dev iteration: experiments + compare against the previous
+    iteration in *baseline_dir* + write `anytime-NNNN.json`.
 
     Anytime planners always run to the full TIME_LIMIT regardless of
     light/full scope — the budget itself is the planner's input — so
     the per-instance time limit does not change between dev modes.
     Invalid plans are kept in the `runs` dict so the driver can see them.
+
+    Comparison uses `wall_time` (not `search_time`): iterated search
+    does not emit a `Search time:` line, so `search_time` is absent
+    from the runs dict.  The driver already needs domain-specific
+    judgment for anytime — the time component of `improved` is mostly
+    a "did the planner stay within budget" sanity check; algorithm
+    quality lives in `cost_geomean_ratio` and the raw
+    `incumbent_costs` sequences in `runs`.
     """
     print("Running anytime search experiments (dev iteration)...")
     resolved_configs = resolve_configs(CONFIGS, configs, extra_configs)
     resolved_instances = (
         list(instances) if instances is not None else list(DEFAULT_LIGHT_INSTANCES)
     )
+    prev_n, prev_runs = load_previous_iteration(baseline_dir, TRACK_NAME)
     _discovered, results = _run(domain_dir, workers, resolved_configs,
                                 resolved_instances, validate, validate_bin)
+    per_config = compare_dev_iterations(
+        results, prev_runs, set(resolved_configs), time_key="wall_time"
+    )
     payload = build_iteration_payload(
         track_name=TRACK_NAME,
         baseline_dir=baseline_dir,
@@ -157,6 +172,8 @@ def dev_anytime(domain_dir: Path, baseline_dir: Path, workers: int,
         time_limit=TIME_LIMIT,
         configs=resolved_configs,
         runs=results,
+        previous_iteration_number=prev_n,
+        per_config=per_config,
     )
     save_iteration(baseline_dir, TRACK_NAME, payload)
     return payload

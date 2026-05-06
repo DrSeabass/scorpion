@@ -13,11 +13,13 @@ from regression_lib import (
     DEFAULT_LIGHT_INSTANCES,
     baseline_missing_error,
     build_iteration_payload,
+    compare_dev_iterations,
     compare_results,
     filter_baseline,
     is_full_default_instances,
     is_single_domain_layout,
     load_baseline,
+    load_previous_iteration,
     resolve_configs,
     resolve_instances,
     run_experiment,
@@ -105,11 +107,12 @@ def dev_heuristics(domain_dir: Path, baseline_dir: Path, workers: int,
                    instances: list = None,
                    validate: bool = True,
                    validate_bin: Path = None) -> dict:
-    """Run one dev iteration: experiments + write `heuristics-NNNN.json`.
+    """Run one dev iteration: experiments + compare against the previous
+    iteration in *baseline_dir* + write `heuristics-NNNN.json`.
 
-    Returns the iteration payload.  Self-comparison against the prior
-    iteration is layered on by a follow-on bullet; this writer leaves
-    `previous_iteration_number` and `per_config` empty.
+    Returns the iteration payload.  On the first iteration there is no
+    prior to compare against, so `improved` is unconditionally true for
+    every config and the geomean ratios are null.
     """
     print("Running heuristic experiments (dev iteration)...")
     resolved_configs = resolve_configs(CONFIGS, configs, extra_configs)
@@ -119,8 +122,12 @@ def dev_heuristics(domain_dir: Path, baseline_dir: Path, workers: int,
     time_limit = (
         LIGHT_TIME_LIMIT if resolved_instances == DEFAULT_LIGHT_INSTANCES else TIME_LIMIT
     )
+    prev_n, prev_runs = load_previous_iteration(baseline_dir, TRACK_NAME)
     _discovered, results = _run(domain_dir, workers, time_limit,
                                 resolved_configs, resolved_instances)
+    per_config = compare_dev_iterations(
+        results, prev_runs, set(resolved_configs), time_key="search_time"
+    )
     payload = build_iteration_payload(
         track_name=TRACK_NAME,
         baseline_dir=baseline_dir,
@@ -129,6 +136,8 @@ def dev_heuristics(domain_dir: Path, baseline_dir: Path, workers: int,
         time_limit=time_limit,
         configs=resolved_configs,
         runs=results,
+        previous_iteration_number=prev_n,
+        per_config=per_config,
     )
     save_iteration(baseline_dir, TRACK_NAME, payload)
     return payload

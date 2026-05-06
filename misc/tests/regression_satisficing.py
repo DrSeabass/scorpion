@@ -26,12 +26,14 @@ from regression_lib import (
     DEFAULT_LIGHT_INSTANCES,
     baseline_missing_error,
     build_iteration_payload,
+    compare_dev_iterations,
     compare_results,
     drop_invalid_runs,
     filter_baseline,
     is_full_default_instances,
     is_single_domain_layout,
     load_baseline,
+    load_previous_iteration,
     resolve_configs,
     resolve_instances,
     run_experiment,
@@ -130,7 +132,8 @@ def dev_satisficing(domain_dir: Path, baseline_dir: Path, workers: int,
                     instances: list = None,
                     validate: bool = True,
                     validate_bin: Path = None) -> dict:
-    """Run one dev iteration: experiments + write `satisficing-NNNN.json`.
+    """Run one dev iteration: experiments + compare against the previous
+    iteration in *baseline_dir* + write `satisficing-NNNN.json`.
 
     Returns the iteration payload.  Invalid plans are kept in the
     `runs` dict (with `plan_valid: false`) so the driver can see them.
@@ -143,8 +146,12 @@ def dev_satisficing(domain_dir: Path, baseline_dir: Path, workers: int,
     time_limit = (
         LIGHT_TIME_LIMIT if resolved_instances == DEFAULT_LIGHT_INSTANCES else TIME_LIMIT
     )
+    prev_n, prev_runs = load_previous_iteration(baseline_dir, TRACK_NAME)
     _discovered, results = _run(domain_dir, workers, time_limit, resolved_configs,
                                 resolved_instances, validate, validate_bin)
+    per_config = compare_dev_iterations(
+        results, prev_runs, set(resolved_configs), time_key="search_time"
+    )
     payload = build_iteration_payload(
         track_name=TRACK_NAME,
         baseline_dir=baseline_dir,
@@ -153,6 +160,8 @@ def dev_satisficing(domain_dir: Path, baseline_dir: Path, workers: int,
         time_limit=time_limit,
         configs=resolved_configs,
         runs=results,
+        previous_iteration_number=prev_n,
+        per_config=per_config,
     )
     save_iteration(baseline_dir, TRACK_NAME, payload)
     return payload

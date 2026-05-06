@@ -367,8 +367,20 @@ def main():
                              validate_bin=validate_bin)
             dev_iterations[track_name] = payload
             n = payload["iteration_number"]
+            prev_n = payload.get("previous_iteration_number")
             run_count = len(payload.get("runs", {}))
-            print(f"  iteration {n:04d} written  ({run_count} run(s))")
+            if prev_n is None:
+                print(f"  iteration {n:04d} written  ({run_count} run(s); "
+                      f"first iteration — no prior to compare)")
+            else:
+                improved_configs = [
+                    cfg for cfg, agg in payload.get("per_config", {}).items()
+                    if agg.get("improved")
+                ]
+                total = len(payload.get("per_config", {}))
+                print(f"  iteration {n:04d} written  ({run_count} run(s); "
+                      f"vs iter {prev_n:04d}: {len(improved_configs)}/{total} "
+                      f"config(s) improved)")
 
     if args.check and args.json_output:
         # `messages` is a stdout-only convenience field; strip it from the

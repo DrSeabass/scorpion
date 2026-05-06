@@ -406,20 +406,162 @@ def worktree_dirty_flag(repo_root: Path) -> bool:
     return bool(r.stdout.strip())
 
 
+def load_previous_iteration(baseline_dir: Path,
+                            track_name: str) -> tuple[int | None, dict]:
+    """Return `(previous_iteration_number, previous_runs_dict)` for the
+    latest iteration file in *baseline_dir*, or `(None, {})` if none
+    exists.
+
+    The driver compares the *runs* dict by config|domain|problem keys
+    against the current run's results.  Other fields (per_config,
+    metadata) from the previous iteration are not used for
+    comparison and are not returned.
+    """
+    n = latest_iteration_number(baseline_dir, track_name)
+    if n == 0:
+        return None, {}
+    path = iteration_path(baseline_dir, track_name, n)
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None, {}
+    return n, data.get("runs", {})
+
+
+def _geomean(values: list[float]) -> float | None:
+    if not values:
+        return None
+    return math.exp(sum(math.log(v) for v in values) / len(values))
+
+
+def compare_dev_iterations(current_runs: dict, previous_runs: dict,
+                           configs, *,
+                           time_key: str = "search_time") -> dict:
+    """Compute per-config direction-aware aggregates comparing
+    *current_runs* (this iteration) to *previous_runs* (the prior
+    iteration).
+
+    Returns a dict keyed by config name.  Each entry has:
+      - `improved`: bool — true iff `expansions`, `generated`, and
+        `<time_key>` all decreased on the geomean over instances solved
+        in both runs.  On the first iteration (no prior data),
+        unconditionally true ("extant > nothing").
+      - `expansions_geomean_ratio`, `generated_geomean_ratio`,
+        `time_geomean_ratio`, `cost_geomean_ratio`: float | null.
+        Geomean of `current_value / previous_value` over instances
+        solved (`coverage == 1`) by the same config in both runs.
+        `null` when no shared solved instances exist for that metric.
+      - `cost_changed`: bool — any shared solved instance has a
+        different `cost` in the two runs.  Reported separately because
+        cost direction depends on algorithm class.
+      - `coverage`: int — number of instances this config solved in
+        the current run.
+      - `coverage_delta`: int — `current - previous` solved counts
+        (= `coverage` on the first iteration, since previous = 0).
+      - `compared_count`: int — instances counted in the geomean
+        ratios for the time/expansion/generated metrics; 0 means we
+        had no usable shared solves.
+
+    *time_key* selects the runtime metric to use for `time_geomean_ratio`
+    and the `improved` flag.  Heuristic / optimal / satisficing tracks
+    pass `"search_time"`; the anytime track passes `"wall_time"` because
+    iterated search does not emit a `Search time:` line.
+    """
+    is_first = not previous_runs
+    per_config = {}
+
+    for config in sorted(configs):
+        cur_for_config = {
+            k: v for k, v in current_runs.items()
+            if k.split("|", 1)[0] == config
+        }
+        prev_for_config = {
+            k: v for k, v in previous_runs.items()
+            if k.split("|", 1)[0] == config
+        }
+
+        cur_solved = sum(
+            1 for v in cur_for_config.values() if v.get("coverage") == 1
+        )
+        prev_solved = sum(
+            1 for v in prev_for_config.values() if v.get("coverage") == 1
+        )
+        coverage_delta = cur_solved if is_first else cur_solved - prev_solved
+
+        ratios = {
+            "expansions": [],
+            "generated": [],
+            time_key: [],
+            "cost": [],
+        }
+        cost_changed = False
+        compared = 0
+        for run_id, cur in cur_for_config.items():
+            prev = prev_for_config.get(run_id, {})
+            if cur.get("coverage") != 1 or prev.get("coverage") != 1:
+                continue
+            compared += 1
+            for key in ratios:
+                cv = cur.get(key)
+                pv = prev.get(key)
+                if (
+                    cv is not None and pv is not None
+                    and isinstance(cv, (int, float))
+                    and isinstance(pv, (int, float))
+                    and pv > 0 and cv > 0
+                ):
+                    ratios[key].append(cv / pv)
+            if (
+                cur.get("cost") is not None and prev.get("cost") is not None
+                and cur.get("cost") != prev.get("cost")
+            ):
+                cost_changed = True
+
+        e_ratio = _geomean(ratios["expansions"])
+        g_ratio = _geomean(ratios["generated"])
+        t_ratio = _geomean(ratios[time_key])
+        c_ratio = _geomean(ratios["cost"])
+
+        if is_first:
+            improved = True
+        else:
+            improved = (
+                e_ratio is not None and e_ratio < 1.0
+                and g_ratio is not None and g_ratio < 1.0
+                and t_ratio is not None and t_ratio < 1.0
+            )
+
+        per_config[config] = {
+            "improved": improved,
+            "expansions_geomean_ratio": e_ratio,
+            "generated_geomean_ratio": g_ratio,
+            "time_geomean_ratio": t_ratio,
+            "cost_geomean_ratio": c_ratio,
+            "cost_changed": cost_changed,
+            "coverage": cur_solved,
+            "coverage_delta": coverage_delta,
+            "compared_count": compared,
+        }
+
+    return per_config
+
+
 def build_iteration_payload(*, track_name: str, baseline_dir: Path,
                             domain_dir: Path, instances: list,
                             time_limit: int, configs: dict,
-                            runs: dict) -> dict:
+                            runs: dict,
+                            previous_iteration_number: int | None = None,
+                            per_config: dict | None = None) -> dict:
     """Assemble a `<track>-NNNN.json` payload.
 
     Picks the next iteration number from the existing files in
     *baseline_dir*, captures the scorpion commit + worktree-dirty flag,
     and returns a dict ready for `save_iteration`.
 
-    `previous_iteration_number` and `per_config` are populated by the
-    self-comparison step (a follow-on bullet); this helper leaves them
-    as `null` and `{}` respectively so the file is structurally valid
-    on a first dev run.
+    *previous_iteration_number* and *per_config* are produced by
+    `compare_dev_iterations`; pass `None` and `{}` for a first
+    iteration (or when the caller chooses to skip comparison).
     """
     n = latest_iteration_number(baseline_dir, track_name) + 1
     started_at = datetime.datetime.now(datetime.timezone.utc).isoformat(
@@ -438,7 +580,7 @@ def build_iteration_payload(*, track_name: str, baseline_dir: Path,
         "schema_version": ITERATION_SCHEMA_VERSION,
         "track": track_name,
         "iteration_number": n,
-        "previous_iteration_number": None,
+        "previous_iteration_number": previous_iteration_number,
         "scorpion_commit": commit,
         "worktree_dirty": worktree_dirty_flag(REPO_ROOT),
         "started_at": started_at,
@@ -447,7 +589,7 @@ def build_iteration_payload(*, track_name: str, baseline_dir: Path,
         "time_limit": time_limit,
         "configs": dict(configs),
         "runs": runs,
-        "per_config": {},
+        "per_config": dict(per_config) if per_config else {},
     }
 
 
