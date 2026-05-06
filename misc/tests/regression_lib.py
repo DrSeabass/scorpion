@@ -5,6 +5,7 @@ Handles instance discovery, FD invocation, output parsing,
 baseline I/O, and metric comparison.
 """
 
+import datetime
 import json
 import math
 import os
@@ -22,6 +23,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 FAST_DOWNWARD = REPO_ROOT / "fast-downward.py"
 MEM_LIMIT_MB = 2048
 RUNTIME_REGRESSION_THRESHOLD = 2.0  # geo-mean ratio that triggers a failure
+ITERATION_SCHEMA_VERSION = 1
 
 
 # ---------------------------------------------------------------------------
@@ -352,6 +354,121 @@ def filter_baseline(baseline: dict, configs: set,
 
 def baseline_path(baseline_dir: Path, track_name: str) -> Path:
     return baseline_dir / f"{track_name}.json"
+
+
+# ---------------------------------------------------------------------------
+# Dev-mode iteration files
+#
+# In `--dev` mode the harness writes one versioned iteration file per
+# track per invocation: `<baseline_dir>/<track>-NNNN.json`.  The 4-digit
+# zero-padded suffix orders iterations; "latest" = highest NNNN.  These
+# helpers handle naming, scanning, and writing.
+# ---------------------------------------------------------------------------
+
+ITERATION_SUFFIX_RE = re.compile(r"-(\d{4})\.json$")
+
+
+def iteration_path(baseline_dir: Path, track_name: str, n: int) -> Path:
+    """Return the path to iteration *n* of *track_name* in *baseline_dir*."""
+    return baseline_dir / f"{track_name}-{n:04d}.json"
+
+
+def latest_iteration_number(baseline_dir: Path, track_name: str) -> int:
+    """Return the highest existing iteration number for *track_name*, or 0
+    if no iteration file exists yet."""
+    if not baseline_dir.is_dir():
+        return 0
+    prefix = f"{track_name}-"
+    highest = 0
+    for entry in baseline_dir.iterdir():
+        if not entry.is_file() or not entry.name.startswith(prefix):
+            continue
+        m = ITERATION_SUFFIX_RE.search(entry.name)
+        if m:
+            highest = max(highest, int(m.group(1)))
+    return highest
+
+
+def worktree_dirty_flag(repo_root: Path) -> bool:
+    """Return True if the scorpion worktree at *repo_root* has any
+    uncommitted changes.  Returns False if the directory is not a git
+    checkout or git is unavailable — the recorded `scorpion_commit` is
+    None in that case anyway, and the driver can detect the dirty/no-git
+    situation itself.
+    """
+    try:
+        r = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=str(repo_root), capture_output=True, text=True, check=True,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return False
+    return bool(r.stdout.strip())
+
+
+def build_iteration_payload(*, track_name: str, baseline_dir: Path,
+                            domain_dir: Path, instances: list,
+                            time_limit: int, configs: dict,
+                            runs: dict) -> dict:
+    """Assemble a `<track>-NNNN.json` payload.
+
+    Picks the next iteration number from the existing files in
+    *baseline_dir*, captures the scorpion commit + worktree-dirty flag,
+    and returns a dict ready for `save_iteration`.
+
+    `previous_iteration_number` and `per_config` are populated by the
+    self-comparison step (a follow-on bullet); this helper leaves them
+    as `null` and `{}` respectively so the file is structurally valid
+    on a first dev run.
+    """
+    n = latest_iteration_number(baseline_dir, track_name) + 1
+    started_at = datetime.datetime.now(datetime.timezone.utc).isoformat(
+        timespec="seconds"
+    )
+    commit = None
+    try:
+        r = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(REPO_ROOT), capture_output=True, text=True, check=True,
+        )
+        commit = r.stdout.strip() or None
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        commit = None
+    return {
+        "schema_version": ITERATION_SCHEMA_VERSION,
+        "track": track_name,
+        "iteration_number": n,
+        "previous_iteration_number": None,
+        "scorpion_commit": commit,
+        "worktree_dirty": worktree_dirty_flag(REPO_ROOT),
+        "started_at": started_at,
+        "domain_dir": str(domain_dir),
+        "instances": list(instances),
+        "time_limit": time_limit,
+        "configs": dict(configs),
+        "runs": runs,
+        "per_config": {},
+    }
+
+
+def save_iteration(baseline_dir: Path, track_name: str, payload: dict) -> Path:
+    """Write *payload* as the next iteration file for *track_name*.
+
+    *payload* must already contain `iteration_number` matching the file
+    suffix this function picks.  The caller computes that number (so it
+    can be threaded into the payload before any per-iteration
+    bookkeeping like comparison vs the previous iteration); this helper
+    only handles I/O.
+
+    Creates *baseline_dir* if missing.  Returns the written path.
+    """
+    baseline_dir.mkdir(parents=True, exist_ok=True)
+    n = payload["iteration_number"]
+    path = iteration_path(baseline_dir, track_name, n)
+    with open(path, "w") as f:
+        json.dump(payload, f, indent=2, sort_keys=True)
+    print(f"  Saved iteration: {path}")
+    return path
 
 
 def drop_invalid_runs(results: dict) -> list[str]:

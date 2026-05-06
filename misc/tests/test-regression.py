@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
 """
-Check or update scorpion search regression baselines.
+Check, update, or iterate (dev mode) scorpion search regression baselines.
 
   --check          Run registered tracks and compare against committed baselines.
   --update         Regenerate committed baselines from current results.
+  --dev            Run + write a versioned iteration file under --baseline-dir,
+                   for the LLM-driven algorithm-development loop.  Always exits 0;
+                   the iteration file is the structured output.  Self-comparison
+                   against the previous iteration is layered on by a follow-on
+                   step.
   --domain-dir     (required) Path to a benchmark *set* (parent of per-domain
                    dirs, each holding p01.pddl, ...) or a single *domain* folder
                    (p01.pddl, ... directly).  Auto-detected.
+  --baseline-dir   Read/write baselines under PATH instead of the default
+                   misc/tests/regression-baselines/.  Required when --dev is
+                   set; optional otherwise.  --check requires it to exist;
+                   --update and --dev create it.
   --full           instances=[1,2,3,4,5]; mutually exclusive with --instances.
   --instances      Run only these instances, by integer id; each ITEM is an
                    integer N meaning p0N.pddl in every domain under --domain-dir.
@@ -42,14 +51,14 @@ JSON_SCHEMA_VERSION = 1
 # Add tests dir to path so track modules can import regression_lib.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from regression_heuristic import check_heuristics, update_heuristics  # noqa: E402
-from regression_optimal import check_optimal, update_optimal  # noqa: E402
-from regression_satisficing import check_satisficing, update_satisficing  # noqa: E402
-from regression_anytime import check_anytime, update_anytime  # noqa: E402
+from regression_heuristic import check_heuristics, dev_heuristics, update_heuristics  # noqa: E402
+from regression_optimal import check_optimal, dev_optimal, update_optimal  # noqa: E402
+from regression_satisficing import check_satisficing, dev_satisficing, update_satisficing  # noqa: E402
+from regression_anytime import check_anytime, dev_anytime, update_anytime  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 TESTS_DIR = Path(__file__).resolve().parent
-BASELINE_DIR = TESTS_DIR / "regression-baselines"
+DEFAULT_BASELINE_DIR = TESTS_DIR / "regression-baselines"
 DEFAULT_WORKERS = 4
 
 
@@ -120,15 +129,16 @@ def _validate_domain_dir(path: Path) -> Path:
 # ---------------------------------------------------------------------------
 # Track registry.
 #
-# Each entry is (name, check_fn, update_fn).
+# Each entry is (name, check_fn, update_fn, dev_fn).
 #   check_fn(domain_dir, baseline_dir, workers, **kwargs) -> dict (comparison)
 #   update_fn(domain_dir, baseline_dir, workers, **kwargs) -> list[str]  (errs)
+#   dev_fn(domain_dir, baseline_dir, workers, **kwargs)    -> dict (iteration)
 # ---------------------------------------------------------------------------
 TRACKS = [
-    ("heuristics",  check_heuristics,  update_heuristics),
-    ("optimal",     check_optimal,     update_optimal),
-    ("satisficing", check_satisficing, update_satisficing),
-    ("anytime",     check_anytime,     update_anytime),
+    ("heuristics",  check_heuristics,  update_heuristics,  dev_heuristics),
+    ("optimal",     check_optimal,     update_optimal,     dev_optimal),
+    ("satisficing", check_satisficing, update_satisficing, dev_satisficing),
+    ("anytime",     check_anytime,     update_anytime,     dev_anytime),
 ]
 
 
@@ -147,6 +157,13 @@ def main():
         action="store_true",
         help="Regenerate committed baselines from current results",
     )
+    mode.add_argument(
+        "--dev",
+        action="store_true",
+        help="Dev iteration: run + write a versioned <track>-NNNN.json under "
+             "--baseline-dir (required).  Always exits 0; the iteration file "
+             "is the structured output for the algorithm-development loop.",
+    )
     parser.add_argument(
         "--workers",
         type=int,
@@ -163,6 +180,13 @@ def main():
              "single domain folder; auto-detected by checking for p01.pddl "
              "directly in PATH",
     )
+    parser.add_argument(
+        "--baseline-dir",
+        metavar="PATH",
+        type=Path,
+        help="Read/write baselines under PATH instead of the default "
+             "misc/tests/regression-baselines/.  Required when --dev is set.",
+    )
     instance_group = parser.add_mutually_exclusive_group()
     instance_group.add_argument(
         "--full",
@@ -176,7 +200,7 @@ def main():
         help="Run only on these instance ids; each ID is integer N meaning "
              "p0N.pddl in every domain under --domain-dir",
     )
-    track_names = [name for name, _, _ in TRACKS]
+    track_names = [name for name, *_ in TRACKS]
     parser.add_argument(
         "--track",
         nargs="+",
@@ -215,6 +239,13 @@ def main():
     domain_dir = _validate_domain_dir(args.domain_dir)
     configs_override = _load_config_file(args.config_file)
 
+    if args.dev and args.baseline_dir is None:
+        parser.error("--dev requires --baseline-dir PATH")
+    baseline_dir = (
+        args.baseline_dir.resolve() if args.baseline_dir
+        else DEFAULT_BASELINE_DIR
+    )
+
     if args.instances:
         instances_arg = [_parse_instance_id(x) for x in args.instances]
     elif args.full:
@@ -229,11 +260,11 @@ def main():
             "--config-file ... (regenerate specific configs)"
         )
 
-    if args.json_output and args.update:
+    if args.json_output and not args.check:
         parser.error(
-            "--json-output is only valid in --check mode; the updated "
-            "regression-baselines/*.json files are the structured output "
-            "for --update"
+            "--json-output is only valid in --check mode; --update writes "
+            "the regression-baselines/*.json files and --dev writes the "
+            "<track>-NNNN.json iteration files"
         )
 
     validate = not args.skip_validate
@@ -245,13 +276,13 @@ def main():
             "--validate-bin PATH, or disable validation with --skip-validate."
         )
 
-    if args.check and not BASELINE_DIR.is_dir():
+    if args.check and not baseline_dir.is_dir():
         sys.exit(
-            f"ERROR: Baseline directory not found: {BASELINE_DIR}\n"
+            f"ERROR: Baseline directory not found: {baseline_dir}\n"
             "  Run  python misc/tests/generate_baseline.py  to create it."
         )
-    if args.update:
-        BASELINE_DIR.mkdir(parents=True, exist_ok=True)
+    if args.update or args.dev:
+        baseline_dir.mkdir(parents=True, exist_ok=True)
 
     if instances_arg is None:
         scope = "instances=[1] (default)"
@@ -269,27 +300,35 @@ def main():
         f"on  ({validate_bin})" if validate else "off (--skip-validate)"
     )
 
+    if args.check:
+        mode_str = "CHECK"
+    elif args.update:
+        mode_str = "UPDATE"
+    else:
+        mode_str = "DEV"
+
     print(f"Repository root: {REPO_ROOT}")
     print(f"Domain dir:      {domain_dir}")
-    print(f"Baselines:       {BASELINE_DIR}")
+    print(f"Baselines:       {baseline_dir}")
     print(f"Workers:         {args.workers}")
-    print(f"Mode:            {'CHECK' if args.check else 'UPDATE'}  ({scope})")
+    print(f"Mode:            {mode_str}  ({scope})")
     print(f"Validation:      {validate_str}")
     print()
 
     selected = (
-        [(n, c, u) for n, c, u in TRACKS if n in args.track]
+        [(n, c, u, d) for n, c, u, d in TRACKS if n in args.track]
         if args.track else TRACKS
     )
 
     all_failures = []
     track_comparisons = {}
     update_errors = []
+    dev_iterations = {}
     any_error = False
-    for track_name, check_fn, update_fn in selected:
+    for track_name, check_fn, update_fn, dev_fn in selected:
         print(f"--- {track_name} ---")
         if args.check:
-            comp = check_fn(domain_dir, BASELINE_DIR, args.workers,
+            comp = check_fn(domain_dir, baseline_dir, args.workers,
                             configs=configs_override,
                             instances=instances_arg,
                             validate=validate,
@@ -309,8 +348,8 @@ def main():
                 print(f"    * {msg}")
             if outcome != "pass":
                 all_failures.extend(msgs)
-        else:
-            errors = update_fn(domain_dir, BASELINE_DIR, args.workers,
+        elif args.update:
+            errors = update_fn(domain_dir, baseline_dir, args.workers,
                                configs=configs_override,
                                instances=instances_arg,
                                validate=validate,
@@ -320,6 +359,16 @@ def main():
                 print(f"  updated  ({len(errors)} validation error(s); see above)")
             else:
                 print("  updated")
+        else:
+            payload = dev_fn(domain_dir, baseline_dir, args.workers,
+                             configs=configs_override,
+                             instances=instances_arg,
+                             validate=validate,
+                             validate_bin=validate_bin)
+            dev_iterations[track_name] = payload
+            n = payload["iteration_number"]
+            run_count = len(payload.get("runs", {}))
+            print(f"  iteration {n:04d} written  ({run_count} run(s))")
 
     if args.check and args.json_output:
         # `messages` is a stdout-only convenience field; strip it from the
@@ -364,12 +413,19 @@ def main():
             sys.exit(1)
         else:
             print("SUCCESS: all tracks passed.")
-    else:
+    elif args.update:
         if update_errors:
             print(f"FAILURE: {len(update_errors)} run(s) had invalid plans "
                   "and were not written to the baseline.")
             sys.exit(1)
         print("Baselines updated.")
+    else:
+        # Dev mode: the iteration file is the structured output.  Always
+        # exit 0 — the driver reads the JSON and decides next steps.
+        for track_name, payload in dev_iterations.items():
+            n = payload["iteration_number"]
+            print(f"  {track_name}: iteration {n:04d}")
+        print("Dev iteration written.")
 
 
 if __name__ == "__main__":

@@ -23,6 +23,7 @@ from regression_lib import (
     DEFAULT_FULL_INSTANCES,
     DEFAULT_LIGHT_INSTANCES,
     baseline_missing_error,
+    build_iteration_payload,
     compare_results,
     drop_invalid_runs,
     filter_baseline,
@@ -33,6 +34,7 @@ from regression_lib import (
     resolve_instances,
     run_experiment,
     save_baseline,
+    save_iteration,
 )
 
 TRACK_NAME = "optimal"
@@ -122,3 +124,39 @@ def update_optimal(domain_dir: Path, baseline_dir: Path, workers: int,
     )
     save_baseline(baseline_dir, TRACK_NAME, results, merge=has_override)
     return errors
+
+
+def dev_optimal(domain_dir: Path, baseline_dir: Path, workers: int,
+                *, configs: dict = None,
+                extra_configs: dict = None,
+                instances: list = None,
+                validate: bool = True,
+                validate_bin: Path = None) -> dict:
+    """Run one dev iteration: experiments + write `optimal-NNNN.json`.
+
+    Returns the iteration payload.  Invalid plans are kept in the
+    `runs` dict (with `plan_valid: false`) so the driver can see them;
+    we do not call `drop_invalid_runs` in dev mode.
+    """
+    print("Running optimal search experiments (dev iteration)...")
+    resolved_configs = resolve_configs(CONFIGS, configs, extra_configs)
+    resolved_instances = (
+        list(instances) if instances is not None else list(DEFAULT_LIGHT_INSTANCES)
+    )
+    time_limit = (
+        LIGHT_TIME_LIMIT if resolved_instances == DEFAULT_LIGHT_INSTANCES else TIME_LIMIT
+    )
+    _discovered, results = _run(domain_dir, workers, time_limit,
+                                resolved_configs, resolved_instances,
+                                validate, validate_bin)
+    payload = build_iteration_payload(
+        track_name=TRACK_NAME,
+        baseline_dir=baseline_dir,
+        domain_dir=domain_dir,
+        instances=resolved_instances,
+        time_limit=time_limit,
+        configs=resolved_configs,
+        runs=results,
+    )
+    save_iteration(baseline_dir, TRACK_NAME, payload)
+    return payload

@@ -12,4 +12,5 @@ __pycache__/
 /misc/.tox/
 /misc/autodoc/downward-xmlrpc.secret
 /misc/tests/output.sas
+/misc/tests/regression-baselines/dev/
 .venv/
