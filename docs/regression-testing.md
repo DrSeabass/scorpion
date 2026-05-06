@@ -4,6 +4,11 @@ The regression test suite checks that search metrics (plan cost, node counts,
 heuristic values, anytime incumbent sequences) reproduce exactly after a code
 change, and that runtime does not degrade by more than 2× geo-mean.
 
+For iterating on an *in-development* algorithm against its own previous
+iteration (rather than a committed baseline), see
+[Algorithm Development Loop](algorithm-dev-loop.md), which uses the same
+harness in `--dev` mode.
+
 ## Prerequisites
 
 Set `AUTOSCALE_BENCHMARKS` to the root of the autoscale-benchmarks repository:
