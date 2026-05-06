@@ -25,15 +25,20 @@ from regression_lib import (
     DEFAULT_FULL_INSTANCES,
     DEFAULT_LIGHT_INSTANCES,
     baseline_missing_error,
+    build_iteration_payload,
+    compare_dev_iterations,
     compare_results,
     drop_invalid_runs,
     filter_baseline,
     is_full_default_instances,
+    is_single_domain_layout,
     load_baseline,
+    load_previous_iteration,
     resolve_configs,
     resolve_instances,
     run_experiment,
     save_baseline,
+    save_iteration,
 )
 
 TRACK_NAME = "anytime"
@@ -66,19 +71,19 @@ CONFIGS = {
 EXACT_KEYS = ["incumbent_costs"]
 
 
-def _run(benchmarks: Path, workers: int,
+def _run(domain_dir: Path, workers: int,
          configs: dict, instances: list,
-         validate: bool, validate_bin) -> dict:
-    agile_strips = benchmarks / "21.11-agile-strips"
-    discovered = resolve_instances(agile_strips, instances)
+         validate: bool, validate_bin) -> tuple[list[dict], dict]:
+    discovered = resolve_instances(domain_dir, instances)
     print(f"  Instances: {len(discovered)} | configs: {len(configs)} | "
           f"time limit: {TIME_LIMIT}s | workers: {workers} | "
           f"validate: {'on' if validate else 'off'} (final plan only)")
-    return run_experiment(discovered, configs, TIME_LIMIT, workers,
-                          validate=validate, validate_bin=validate_bin)
+    results = run_experiment(discovered, configs, TIME_LIMIT, workers,
+                             validate=validate, validate_bin=validate_bin)
+    return discovered, results
 
 
-def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
+def check_anytime(domain_dir: Path, baseline_dir: Path, workers: int,
                   *, configs: dict = None,
                   extra_configs: dict = None,
                   instances: list = None,
@@ -89,12 +94,12 @@ def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
     resolved_instances = (
         list(instances) if instances is not None else list(DEFAULT_LIGHT_INSTANCES)
     )
-    current = _run(benchmarks, workers, resolved_configs, resolved_instances,
-                   validate, validate_bin)
+    discovered, current = _run(domain_dir, workers, resolved_configs,
+                               resolved_instances, validate, validate_bin)
     baseline = load_baseline(baseline_dir, TRACK_NAME)
     if not baseline:
         return baseline_missing_error(baseline_dir, TRACK_NAME)
-    baseline = filter_baseline(baseline, set(resolved_configs), resolved_instances)
+    baseline = filter_baseline(baseline, set(resolved_configs), discovered)
     # wall_time: iterated search does not emit "Search time:".
     # time_limit=None: disables the coverage-stability threshold — anytime
     # wall_time is always ~60s so the threshold would skip every coverage loss.
@@ -103,7 +108,7 @@ def check_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
                            prefix_keys=EXACT_KEYS)
 
 
-def update_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
+def update_anytime(domain_dir: Path, baseline_dir: Path, workers: int,
                    *, configs: dict = None,
                    extra_configs: dict = None,
                    instances: list = None,
@@ -114,12 +119,61 @@ def update_anytime(benchmarks: Path, baseline_dir: Path, workers: int,
     resolved_instances = (
         list(instances) if instances is not None else list(DEFAULT_FULL_INSTANCES)
     )
-    results = _run(benchmarks, workers, resolved_configs, resolved_instances,
-                   validate, validate_bin)
+    _discovered, results = _run(domain_dir, workers, resolved_configs,
+                                resolved_instances, validate, validate_bin)
     errors = drop_invalid_runs(results)
     has_override = (
         configs is not None or extra_configs is not None
         or not is_full_default_instances(resolved_instances)
+        or is_single_domain_layout(domain_dir)
     )
     save_baseline(baseline_dir, TRACK_NAME, results, merge=has_override)
     return errors
+
+
+def dev_anytime(domain_dir: Path, baseline_dir: Path, workers: int,
+                *, configs: dict = None,
+                extra_configs: dict = None,
+                instances: list = None,
+                validate: bool = True,
+                validate_bin: Path = None) -> dict:
+    """Run one dev iteration: experiments + compare against the previous
+    iteration in *baseline_dir* + write `anytime-NNNN.json`.
+
+    Anytime planners always run to the full TIME_LIMIT regardless of
+    light/full scope — the budget itself is the planner's input — so
+    the per-instance time limit does not change between dev modes.
+    Invalid plans are kept in the `runs` dict so the driver can see them.
+
+    Comparison uses `wall_time` (not `search_time`): iterated search
+    does not emit a `Search time:` line, so `search_time` is absent
+    from the runs dict.  The driver already needs domain-specific
+    judgment for anytime — the time component of `improved` is mostly
+    a "did the planner stay within budget" sanity check; algorithm
+    quality lives in `cost_geomean_ratio` and the raw
+    `incumbent_costs` sequences in `runs`.
+    """
+    print("Running anytime search experiments (dev iteration)...")
+    resolved_configs = resolve_configs(CONFIGS, configs, extra_configs)
+    resolved_instances = (
+        list(instances) if instances is not None else list(DEFAULT_LIGHT_INSTANCES)
+    )
+    prev_n, prev_runs = load_previous_iteration(baseline_dir, TRACK_NAME)
+    _discovered, results = _run(domain_dir, workers, resolved_configs,
+                                resolved_instances, validate, validate_bin)
+    per_config = compare_dev_iterations(
+        results, prev_runs, set(resolved_configs), time_key="wall_time"
+    )
+    payload = build_iteration_payload(
+        track_name=TRACK_NAME,
+        baseline_dir=baseline_dir,
+        domain_dir=domain_dir,
+        instances=resolved_instances,
+        time_limit=TIME_LIMIT,
+        configs=resolved_configs,
+        runs=results,
+        previous_iteration_number=prev_n,
+        per_config=per_config,
+    )
+    save_iteration(baseline_dir, TRACK_NAME, payload)
+    return payload

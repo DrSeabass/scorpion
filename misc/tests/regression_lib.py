@@ -5,6 +5,7 @@ Handles instance discovery, FD invocation, output parsing,
 baseline I/O, and metric comparison.
 """
 
+import datetime
 import json
 import math
 import os
@@ -22,6 +23,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 FAST_DOWNWARD = REPO_ROOT / "fast-downward.py"
 MEM_LIMIT_MB = 2048
 RUNTIME_REGRESSION_THRESHOLD = 2.0  # geo-mean ratio that triggers a failure
+ITERATION_SCHEMA_VERSION = 1
 
 
 # ---------------------------------------------------------------------------
@@ -91,62 +93,58 @@ def find_domain_file(problem_path: Path) -> Path:
     raise FileNotFoundError(f"No domain file for {problem_path}")
 
 
-def resolve_instances(benchmark_subdir: Path, instances: list) -> list[dict]:
-    """Resolve a heterogeneous instance spec to discovered instance dicts.
+def is_single_domain_layout(domain_dir: Path) -> bool:
+    """True if *domain_dir* points at a single domain (p01.pddl directly
+    under it); False if it's a benchmark set (parent of per-domain dirs).
+    Same rule resolve_instances uses to decide its iteration shape."""
+    return (domain_dir / "p01.pddl").exists()
 
-    Each list element is one of:
-      - int N: expand to "p0N.pddl" across every domain that has one.
-      - str "domain/problem.pddl": one exact instance.
 
-    Duplicates (same domain, same problem) are deduplicated; the result is
-    sorted by (domain, problem) for stable iteration.
+def resolve_instances(domain_dir: Path, instance_ids: list[int]) -> list[dict]:
+    """Resolve integer instance ids to discovered instance dicts.
+
+    *domain_dir* may point at either:
+      - a benchmark **set** — a directory containing per-domain
+        subdirectories, each holding p01.pddl, p02.pddl, ...; or
+      - a single **domain** — a directory containing p01.pddl, p02.pddl,
+        ... files directly.
+
+    The two layouts are distinguished by whether p01.pddl exists directly
+    in *domain_dir*.  For each id *N* in *instance_ids*, this function
+    locates p{N:02d}.pddl across all relevant domains, finds its companion
+    domain file via `find_domain_file`, and returns one dict per instance.
+    The result is sorted by (domain, problem) for stable iteration.
 
     Returns dicts with keys: domain, problem (filename), domain_file (path),
     problem_file (path).
     """
+    for item in instance_ids:
+        if not isinstance(item, int) or isinstance(item, bool):
+            raise TypeError(
+                f"Instance ids must be integers; got "
+                f"{type(item).__name__}: {item!r}"
+            )
+
+    if is_single_domain_layout(domain_dir):
+        domain_dirs = [domain_dir]
+    else:
+        domain_dirs = sorted(d for d in domain_dir.iterdir() if d.is_dir())
+
     seen = set()
     result = []
-
-    for item in instances:
-        if isinstance(item, bool):
-            # bool is a subclass of int; reject before the int branch swallows it.
-            raise TypeError(f"Invalid instance entry: {item!r}")
-        if isinstance(item, int):
-            for domain_dir in sorted(benchmark_subdir.iterdir()):
-                if not domain_dir.is_dir():
-                    continue
-                domain = domain_dir.name
-                prob = domain_dir / f"p{item:02d}.pddl"
-                if not prob.exists():
-                    continue
-                key = (domain, prob.name)
-                if key in seen:
-                    continue
-                try:
-                    dom = find_domain_file(prob)
-                except FileNotFoundError:
-                    continue
-                seen.add(key)
-                result.append({
-                    "domain": domain,
-                    "problem": prob.name,
-                    "domain_file": dom,
-                    "problem_file": prob,
-                })
-        elif isinstance(item, str):
-            if "/" not in item:
-                raise ValueError(
-                    f"Invalid instance string {item!r}; "
-                    f"expected 'domain/problem.pddl'"
-                )
-            domain, problem = item.split("/", 1)
-            prob = benchmark_subdir / domain / problem
+    for d in domain_dirs:
+        domain = d.name
+        for n in instance_ids:
+            prob = d / f"p{n:02d}.pddl"
             if not prob.exists():
-                raise FileNotFoundError(f"Instance not found: {prob}")
+                continue
             key = (domain, prob.name)
             if key in seen:
                 continue
-            dom = find_domain_file(prob)
+            try:
+                dom = find_domain_file(prob)
+            except FileNotFoundError:
+                continue
             seen.add(key)
             result.append({
                 "domain": domain,
@@ -154,11 +152,6 @@ def resolve_instances(benchmark_subdir: Path, instances: list) -> list[dict]:
                 "domain_file": dom,
                 "problem_file": prob,
             })
-        else:
-            raise TypeError(
-                f"Instance entry must be int or str, got "
-                f"{type(item).__name__}: {item!r}"
-            )
 
     result.sort(key=lambda d: (d["domain"], d["problem"]))
     return result
@@ -330,37 +323,27 @@ def run_experiment(
 # Baseline filtering
 # ---------------------------------------------------------------------------
 
-def filter_baseline(baseline: dict, configs: set, instances: list) -> dict:
-    """Return only entries whose config is in *configs* and instance is in *instances*.
+def filter_baseline(baseline: dict, configs: set,
+                    instances: list[dict]) -> dict:
+    """Return only entries whose config is in *configs* and whose
+    `(domain, problem)` pair is in *instances*.
 
-    Keys have the form "config|domain|instance.pddl" where instance is e.g. "p01.pddl".
-    Each *instances* element is either int N (matches any "p0N.pddl" across
-    domains) or str "domain/problem.pddl" (exact match).
+    Keys have the form "config|domain|instance.pddl".  *instances* is a
+    list of resolved-instance dicts (as produced by `resolve_instances`)
+    each with 'domain' and 'problem' keys.  Matching is exact on the
+    pair, so callers that ran against a narrow `domain_dir` (e.g. a
+    single domain folder) get back a baseline slice covering only the
+    domains they actually ran — no false coverage_loss reports for the
+    un-run ones.
     """
-    int_set = {n for n in instances
-               if isinstance(n, int) and not isinstance(n, bool)}
-    str_set = set()
-    for s in instances:
-        if isinstance(s, str):
-            d, p = s.split("/", 1)
-            str_set.add((d, p))
-
+    pair_set = {(inst["domain"], inst["problem"]) for inst in instances}
     result = {}
     for key, value in baseline.items():
         parts = key.split("|")
         if len(parts) != 3:
             continue
-        config, domain, instance = parts
-        if config not in configs:
-            continue
-        stem = Path(instance).stem
-        is_int_match = (
-            stem.startswith("p")
-            and stem[1:].isdigit()
-            and int(stem[1:]) in int_set
-        )
-        is_str_match = (domain, instance) in str_set
-        if is_int_match or is_str_match:
+        config, domain, problem = parts
+        if config in configs and (domain, problem) in pair_set:
             result[key] = value
     return result
 
@@ -371,6 +354,263 @@ def filter_baseline(baseline: dict, configs: set, instances: list) -> dict:
 
 def baseline_path(baseline_dir: Path, track_name: str) -> Path:
     return baseline_dir / f"{track_name}.json"
+
+
+# ---------------------------------------------------------------------------
+# Dev-mode iteration files
+#
+# In `--dev` mode the harness writes one versioned iteration file per
+# track per invocation: `<baseline_dir>/<track>-NNNN.json`.  The 4-digit
+# zero-padded suffix orders iterations; "latest" = highest NNNN.  These
+# helpers handle naming, scanning, and writing.
+# ---------------------------------------------------------------------------
+
+ITERATION_SUFFIX_RE = re.compile(r"-(\d{4})\.json$")
+
+
+def iteration_path(baseline_dir: Path, track_name: str, n: int) -> Path:
+    """Return the path to iteration *n* of *track_name* in *baseline_dir*."""
+    return baseline_dir / f"{track_name}-{n:04d}.json"
+
+
+def latest_iteration_number(baseline_dir: Path, track_name: str) -> int:
+    """Return the highest existing iteration number for *track_name*, or 0
+    if no iteration file exists yet."""
+    if not baseline_dir.is_dir():
+        return 0
+    prefix = f"{track_name}-"
+    highest = 0
+    for entry in baseline_dir.iterdir():
+        if not entry.is_file() or not entry.name.startswith(prefix):
+            continue
+        m = ITERATION_SUFFIX_RE.search(entry.name)
+        if m:
+            highest = max(highest, int(m.group(1)))
+    return highest
+
+
+def worktree_dirty_flag(repo_root: Path) -> bool:
+    """Return True if the scorpion worktree at *repo_root* has any
+    uncommitted changes.  Returns False if the directory is not a git
+    checkout or git is unavailable — the recorded `scorpion_commit` is
+    None in that case anyway, and the driver can detect the dirty/no-git
+    situation itself.
+    """
+    try:
+        r = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=str(repo_root), capture_output=True, text=True, check=True,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return False
+    return bool(r.stdout.strip())
+
+
+def load_previous_iteration(baseline_dir: Path,
+                            track_name: str) -> tuple[int | None, dict]:
+    """Return `(previous_iteration_number, previous_runs_dict)` for the
+    latest iteration file in *baseline_dir*, or `(None, {})` if none
+    exists.
+
+    The driver compares the *runs* dict by config|domain|problem keys
+    against the current run's results.  Other fields (per_config,
+    metadata) from the previous iteration are not used for
+    comparison and are not returned.
+    """
+    n = latest_iteration_number(baseline_dir, track_name)
+    if n == 0:
+        return None, {}
+    path = iteration_path(baseline_dir, track_name, n)
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None, {}
+    return n, data.get("runs", {})
+
+
+def _geomean(values: list[float]) -> float | None:
+    if not values:
+        return None
+    return math.exp(sum(math.log(v) for v in values) / len(values))
+
+
+def compare_dev_iterations(current_runs: dict, previous_runs: dict,
+                           configs, *,
+                           time_key: str = "search_time") -> dict:
+    """Compute per-config direction-aware aggregates comparing
+    *current_runs* (this iteration) to *previous_runs* (the prior
+    iteration).
+
+    Returns a dict keyed by config name.  Each entry has:
+      - `improved`: bool — true iff `expansions`, `generated`, and
+        `<time_key>` all decreased on the geomean over instances solved
+        in both runs.  On the first iteration (no prior data),
+        unconditionally true ("extant > nothing").
+      - `expansions_geomean_ratio`, `generated_geomean_ratio`,
+        `time_geomean_ratio`, `cost_geomean_ratio`: float | null.
+        Geomean of `current_value / previous_value` over instances
+        solved (`coverage == 1`) by the same config in both runs.
+        `null` when no shared solved instances exist for that metric.
+      - `cost_changed`: bool — any shared solved instance has a
+        different `cost` in the two runs.  Reported separately because
+        cost direction depends on algorithm class.
+      - `coverage`: int — number of instances this config solved in
+        the current run.
+      - `coverage_delta`: int — `current - previous` solved counts
+        (= `coverage` on the first iteration, since previous = 0).
+      - `compared_count`: int — instances counted in the geomean
+        ratios for the time/expansion/generated metrics; 0 means we
+        had no usable shared solves.
+
+    *time_key* selects the runtime metric to use for `time_geomean_ratio`
+    and the `improved` flag.  Heuristic / optimal / satisficing tracks
+    pass `"search_time"`; the anytime track passes `"wall_time"` because
+    iterated search does not emit a `Search time:` line.
+    """
+    is_first = not previous_runs
+    per_config = {}
+
+    for config in sorted(configs):
+        cur_for_config = {
+            k: v for k, v in current_runs.items()
+            if k.split("|", 1)[0] == config
+        }
+        prev_for_config = {
+            k: v for k, v in previous_runs.items()
+            if k.split("|", 1)[0] == config
+        }
+
+        cur_solved = sum(
+            1 for v in cur_for_config.values() if v.get("coverage") == 1
+        )
+        prev_solved = sum(
+            1 for v in prev_for_config.values() if v.get("coverage") == 1
+        )
+        coverage_delta = cur_solved if is_first else cur_solved - prev_solved
+
+        ratios = {
+            "expansions": [],
+            "generated": [],
+            time_key: [],
+            "cost": [],
+        }
+        cost_changed = False
+        compared = 0
+        for run_id, cur in cur_for_config.items():
+            prev = prev_for_config.get(run_id, {})
+            if cur.get("coverage") != 1 or prev.get("coverage") != 1:
+                continue
+            compared += 1
+            for key in ratios:
+                cv = cur.get(key)
+                pv = prev.get(key)
+                if (
+                    cv is not None and pv is not None
+                    and isinstance(cv, (int, float))
+                    and isinstance(pv, (int, float))
+                    and pv > 0 and cv > 0
+                ):
+                    ratios[key].append(cv / pv)
+            if (
+                cur.get("cost") is not None and prev.get("cost") is not None
+                and cur.get("cost") != prev.get("cost")
+            ):
+                cost_changed = True
+
+        e_ratio = _geomean(ratios["expansions"])
+        g_ratio = _geomean(ratios["generated"])
+        t_ratio = _geomean(ratios[time_key])
+        c_ratio = _geomean(ratios["cost"])
+
+        if is_first:
+            improved = True
+        else:
+            improved = (
+                e_ratio is not None and e_ratio < 1.0
+                and g_ratio is not None and g_ratio < 1.0
+                and t_ratio is not None and t_ratio < 1.0
+            )
+
+        per_config[config] = {
+            "improved": improved,
+            "expansions_geomean_ratio": e_ratio,
+            "generated_geomean_ratio": g_ratio,
+            "time_geomean_ratio": t_ratio,
+            "cost_geomean_ratio": c_ratio,
+            "cost_changed": cost_changed,
+            "coverage": cur_solved,
+            "coverage_delta": coverage_delta,
+            "compared_count": compared,
+        }
+
+    return per_config
+
+
+def build_iteration_payload(*, track_name: str, baseline_dir: Path,
+                            domain_dir: Path, instances: list,
+                            time_limit: int, configs: dict,
+                            runs: dict,
+                            previous_iteration_number: int | None = None,
+                            per_config: dict | None = None) -> dict:
+    """Assemble a `<track>-NNNN.json` payload.
+
+    Picks the next iteration number from the existing files in
+    *baseline_dir*, captures the scorpion commit + worktree-dirty flag,
+    and returns a dict ready for `save_iteration`.
+
+    *previous_iteration_number* and *per_config* are produced by
+    `compare_dev_iterations`; pass `None` and `{}` for a first
+    iteration (or when the caller chooses to skip comparison).
+    """
+    n = latest_iteration_number(baseline_dir, track_name) + 1
+    started_at = datetime.datetime.now(datetime.timezone.utc).isoformat(
+        timespec="seconds"
+    )
+    commit = None
+    try:
+        r = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(REPO_ROOT), capture_output=True, text=True, check=True,
+        )
+        commit = r.stdout.strip() or None
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        commit = None
+    return {
+        "schema_version": ITERATION_SCHEMA_VERSION,
+        "track": track_name,
+        "iteration_number": n,
+        "previous_iteration_number": previous_iteration_number,
+        "scorpion_commit": commit,
+        "worktree_dirty": worktree_dirty_flag(REPO_ROOT),
+        "started_at": started_at,
+        "domain_dir": str(domain_dir),
+        "instances": list(instances),
+        "time_limit": time_limit,
+        "configs": dict(configs),
+        "runs": runs,
+        "per_config": dict(per_config) if per_config else {},
+    }
+
+
+def save_iteration(baseline_dir: Path, track_name: str, payload: dict) -> Path:
+    """Write *payload* as the next iteration file for *track_name*.
+
+    *payload* must already contain `iteration_number` matching the file
+    suffix this function picks.  The caller computes that number (so it
+    can be threaded into the payload before any per-iteration
+    bookkeeping like comparison vs the previous iteration); this helper
+    only handles I/O.
+
+    Creates *baseline_dir* if missing.  Returns the written path.
+    """
+    baseline_dir.mkdir(parents=True, exist_ok=True)
+    n = payload["iteration_number"]
+    path = iteration_path(baseline_dir, track_name, n)
+    with open(path, "w") as f:
+        json.dump(payload, f, indent=2, sort_keys=True)
+    print(f"  Saved iteration: {path}")
+    return path
 
 
 def drop_invalid_runs(results: dict) -> list[str]:
