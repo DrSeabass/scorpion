@@ -33,6 +33,13 @@ Default --check (no flags): instances=[1], 10 s limit (fast developer check).
 --check --full:              instances=[1,2,3,4,5], 60 s limit (CI gate).
 --check --instances ...:     custom subset, 60 s limit.
 
+--dev (no flags):            instances=[1], 10 s limit (fast iteration).
+--dev --full:                instances=[1,2,3,4,5], 60 s limit (promotion gate).
+--dev --instances ...:       custom subset, 60 s limit.
+
+The anytime track always uses its own 60 s budget regardless of light/full —
+the budget is the planner's input, not a wall-clock cap on the search.
+
 For an exact single-instance rerun: point --domain-dir at the domain folder
 and pass --instances <id> (e.g. --domain-dir .../airport --instances 3).
 """
