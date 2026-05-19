@@ -55,7 +55,8 @@ class GraphDiscrepancySearch : public SearchAlgorithm {
     std::vector<Evaluator *> path_dependent_evaluators;
     std::shared_ptr<PruningMethod> pruning_method;
 
-    std::priority_queue<OpenEntry, std::vector<OpenEntry>, OpenEntryCompare> open;
+    std::priority_queue<OpenEntry, std::vector<OpenEntry>, OpenEntryCompare>
+        open;
     PerStateInformation<int> state_discrepancy;
     unsigned long long next_insertion_id;
 
@@ -64,12 +65,8 @@ class GraphDiscrepancySearch : public SearchAlgorithm {
 
     void start_evaluator_statistics(EvaluationContext &eval_context);
     bool evaluate_successor(
-        const SearchNode &parent_node,
-        const OperatorProxy &op,
-        const State &state,
-        SearchNode &node,
-        int succ_g,
-        int &rank_h_out);
+        const SearchNode &parent_node, const OperatorProxy &op,
+        const State &state, SearchNode &node, int succ_g, int &rank_h_out);
     void push_open(const State &state, int total_discrepancy, int g);
     void update_incumbent(const State &goal_state);
 
@@ -80,13 +77,11 @@ protected:
 public:
     GraphDiscrepancySearch(
         const std::shared_ptr<Evaluator> &eval,
-        const std::shared_ptr<Evaluator> &prune_eval,
-        bool reopen_closed,
-        bool anytime,
-        const std::string &discrepancy_mode,
-        const std::shared_ptr<PruningMethod> &pruning,
-        OperatorCost cost_type, int bound, double max_time,
-        const std::string &description, utils::Verbosity verbosity);
+        const std::shared_ptr<Evaluator> &prune_eval, bool reopen_closed,
+        bool anytime, const std::string &discrepancy_mode,
+        const std::shared_ptr<PruningMethod> &pruning, OperatorCost cost_type,
+        int bound, double max_time, const std::string &description,
+        utils::Verbosity verbosity);
     virtual ~GraphDiscrepancySearch() = default;
 
     virtual void print_statistics() const override;

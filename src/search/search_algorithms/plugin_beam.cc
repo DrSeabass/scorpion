@@ -14,10 +14,8 @@ public:
 
         add_option<shared_ptr<Evaluator>>("eval", "ranking evaluator");
         add_option<int>(
-            "beam_width",
-            "maximum number of states kept in each beam layer",
-            "100",
-            plugins::Bounds("1", "infinity"));
+            "beam_width", "maximum number of states kept in each beam layer",
+            "100", plugins::Bounds("1", "infinity"));
         add_search_pruning_options_to_feature(*this);
         add_search_algorithm_options_to_feature(*this, "beam");
     }

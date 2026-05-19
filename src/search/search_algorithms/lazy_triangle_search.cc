@@ -2,13 +2,12 @@
 
 #include "../evaluation_context.h"
 #include "../evaluation_result.h"
-#include "../open_lists/best_first_open_list.h"
 #include "../plan_manager.h"
 #include "../pruning_method.h"
 
+#include "../open_lists/best_first_open_list.h"
 #include "../task_utils/successor_generator.h"
 #include "../task_utils/task_properties.h"
-
 #include "../utils/logging.h"
 #include "../utils/system.h"
 
@@ -20,11 +19,8 @@ using namespace std;
 namespace lazy_triangle_search {
 
 LazyTriangleSearch::LazyTriangleSearch(
-    const shared_ptr<Evaluator> &eval,
-    int slope,
-    bool reopen_closed,
-    bool anytime,
-    const shared_ptr<PruningMethod> &pruning,
+    const shared_ptr<Evaluator> &eval, int slope, bool reopen_closed,
+    bool anytime, const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
     const string &description, utils::Verbosity verbosity)
     : SearchAlgorithm(cost_type, bound, max_time, description, verbosity),
@@ -39,7 +35,8 @@ LazyTriangleSearch::LazyTriangleSearch(
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
     }
     open_list_factory =
-        make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(eval, false);
+        make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(
+            eval, false);
 }
 
 void LazyTriangleSearch::initialize() {
@@ -71,7 +68,8 @@ void LazyTriangleSearch::print_statistics() const {
     pruning_method->print_statistics();
 }
 
-void LazyTriangleSearch::start_evaluator_statistics(EvaluationContext &eval_context) {
+void LazyTriangleSearch::start_evaluator_statistics(
+    EvaluationContext &eval_context) {
     int value = eval_context.get_evaluator_value_or_infinity(eval.get());
     if (value != EvaluationResult::INFTY) {
         statistics.report_f_value_progress(value);
@@ -115,7 +113,8 @@ void LazyTriangleSearch::update_incumbent(const State &goal_state) {
     if (!found_solution() || candidate_cost < bound) {
         set_plan(candidate_plan);
         bound = candidate_cost;
-        log << "LazyTriangleSearch: improved incumbent with cost " << candidate_cost << endl;
+        log << "LazyTriangleSearch: improved incumbent with cost "
+            << candidate_cost << endl;
         if (anytime_search) {
             plan_manager.save_plan(candidate_plan, task_proxy, true);
         }
@@ -123,19 +122,15 @@ void LazyTriangleSearch::update_incumbent(const State &goal_state) {
 }
 
 LazyTriangleSearch::ExpansionOutcome LazyTriangleSearch::process_candidate(
-    const State &state,
-    StateID predecessor_id,
-    OperatorID operator_id,
-    int g,
-    int real_g,
-    int source_list_index,
-    bool is_root) {
+    const State &state, StateID predecessor_id, OperatorID operator_id, int g,
+    int real_g, int source_list_index, bool is_root) {
     SearchNode node = search_space.get_node(state);
 
     if (!reopen_closed_nodes && !node.is_new())
         return ExpansionOutcome::SKIPPED;
 
-    bool reopen = reopen_closed_nodes && node.is_closed() && !node.is_dead_end() && (g < node.get_g());
+    bool reopen = reopen_closed_nodes && node.is_closed() &&
+                  !node.is_dead_end() && (g < node.get_g());
 
     if (!(node.is_new() || reopen))
         return ExpansionOutcome::SKIPPED;
@@ -146,7 +141,8 @@ LazyTriangleSearch::ExpansionOutcome LazyTriangleSearch::process_candidate(
         if (!path_dependent_evaluators.empty()) {
             State parent_state = state_registry.lookup_state(predecessor_id);
             for (Evaluator *evaluator : path_dependent_evaluators) {
-                evaluator->notify_state_transition(parent_state, operator_id, state);
+                evaluator->notify_state_transition(
+                    parent_state, operator_id, state);
             }
         }
     }
@@ -179,7 +175,8 @@ LazyTriangleSearch::ExpansionOutcome LazyTriangleSearch::process_candidate(
 
     if (task_properties::is_goal_state(task_proxy, state)) {
         update_incumbent(state);
-        return anytime_search ? ExpansionOutcome::SKIPPED : ExpansionOutcome::SOLVED;
+        return anytime_search ? ExpansionOutcome::SKIPPED
+                              : ExpansionOutcome::SOLVED;
     }
 
     node.close();
@@ -206,7 +203,8 @@ LazyTriangleSearch::ExpansionOutcome LazyTriangleSearch::process_candidate(
         statistics.inc_generated();
 
         int succ_g = g + get_adjusted_cost(op);
-        EvaluationContext succ_eval_context(eval_context, succ_g, false, nullptr);
+        EvaluationContext succ_eval_context(
+            eval_context, succ_g, false, nullptr);
         open_lists[source_list_index + 1]->insert(
             succ_eval_context, make_pair(state.get_id(), op_id));
     }
@@ -235,10 +233,8 @@ SearchStatus LazyTriangleSearch::step() {
             root_pending = false;
             State initial_state = state_registry.get_initial_state();
             ExpansionOutcome outcome = process_candidate(
-                initial_state,
-                StateID::no_state,
-                OperatorID::no_operator,
-                0, 0, i, true);
+                initial_state, StateID::no_state, OperatorID::no_operator, 0, 0,
+                i, true);
             if (outcome == ExpansionOutcome::SOLVED)
                 return SOLVED;
             continue;
@@ -250,7 +246,8 @@ SearchStatus LazyTriangleSearch::step() {
 
             StateID predecessor_id = next.first;
             OperatorID operator_id = next.second;
-            if (predecessor_id == StateID::no_state || operator_id == OperatorID::no_operator)
+            if (predecessor_id == StateID::no_state ||
+                operator_id == OperatorID::no_operator)
                 continue;
 
             State predecessor = state_registry.lookup_state(predecessor_id);
@@ -260,7 +257,8 @@ SearchStatus LazyTriangleSearch::step() {
 
             SearchNode predecessor_node = search_space.get_node(predecessor);
             int g = predecessor_node.get_g() + get_adjusted_cost(op);
-            // Scorpion SearchNode lacks get_real_g(); get_g() equals real_g for NORMAL cost type.
+            // Scorpion SearchNode lacks get_real_g(); get_g() equals real_g for
+            // NORMAL cost type.
             int real_g = predecessor_node.get_g() + op.get_cost();
             State state = state_registry.get_successor_state(predecessor, op);
 

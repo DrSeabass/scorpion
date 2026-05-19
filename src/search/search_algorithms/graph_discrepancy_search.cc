@@ -8,7 +8,6 @@
 
 #include "../task_utils/successor_generator.h"
 #include "../task_utils/task_properties.h"
-
 #include "../utils/logging.h"
 
 #include <algorithm>
@@ -22,13 +21,10 @@ namespace graph_discrepancy_search {
 
 GraphDiscrepancySearch::GraphDiscrepancySearch(
     const shared_ptr<Evaluator> &eval,
-    const shared_ptr<Evaluator> &prune_eval_arg,
-    bool reopen_closed,
-    bool anytime,
-    const string &discrepancy_mode_str,
-    const shared_ptr<PruningMethod> &pruning,
-    OperatorCost cost_type, int bound, double max_time,
-    const string &description, utils::Verbosity verbosity)
+    const shared_ptr<Evaluator> &prune_eval_arg, bool reopen_closed,
+    bool anytime, const string &discrepancy_mode_str,
+    const shared_ptr<PruningMethod> &pruning, OperatorCost cost_type, int bound,
+    double max_time, const string &description, utils::Verbosity verbosity)
     : SearchAlgorithm(cost_type, bound, max_time, description, verbosity),
       reopen_closed_nodes(reopen_closed),
       anytime_search(anytime),
@@ -39,7 +35,8 @@ GraphDiscrepancySearch::GraphDiscrepancySearch(
               return DiscrepancyMode::CHILD_RANK;
           if (discrepancy_mode_str == "h_gap")
               return DiscrepancyMode::H_GAP;
-          cerr << "GraphDiscrepancySearch: unsupported discrepancy_mode '" << discrepancy_mode_str
+          cerr << "GraphDiscrepancySearch: unsupported discrepancy_mode '"
+               << discrepancy_mode_str
                << "'. Expected one of: binary, child_rank, h_gap." << endl;
           utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
       }()),
@@ -51,11 +48,14 @@ GraphDiscrepancySearch::GraphDiscrepancySearch(
       has_incumbent(false),
       incumbent_cost(numeric_limits<int>::max()) {
     if (!discrepancy_eval) {
-        cerr << "GraphDiscrepancySearch: an evaluator must be provided via option 'eval'." << endl;
+        cerr
+            << "GraphDiscrepancySearch: an evaluator must be provided via option 'eval'."
+            << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
     }
     if (!prune_eval_arg) {
-        log << "GDS: no prune_eval provided, using eval for incumbent pruning." << endl;
+        log << "GDS: no prune_eval provided, using eval for incumbent pruning."
+            << endl;
     }
 }
 
@@ -65,8 +65,10 @@ void GraphDiscrepancySearch::initialize() {
         << (reopen_closed_nodes ? " with" : " without")
         << " reopening closed nodes, discrepancy_mode = "
         << (discrepancy_mode == DiscrepancyMode::BINARY
-            ? "binary"
-            : (discrepancy_mode == DiscrepancyMode::CHILD_RANK ? "child_rank" : "h_gap"))
+                ? "binary"
+                : (discrepancy_mode == DiscrepancyMode::CHILD_RANK
+                       ? "child_rank"
+                       : "h_gap"))
         << ", (real) bound = " << bound << endl;
 
     set<Evaluator *> evals;
@@ -83,11 +85,15 @@ void GraphDiscrepancySearch::initialize() {
     statistics.inc_evaluated_states();
 
     bool dead_end = false;
-    int rank_h = eval_context.get_evaluator_value_or_infinity(discrepancy_eval.get());
-    if (rank_h == EvaluationResult::INFTY && discrepancy_eval->dead_ends_are_reliable())
+    int rank_h =
+        eval_context.get_evaluator_value_or_infinity(discrepancy_eval.get());
+    if (rank_h == EvaluationResult::INFTY &&
+        discrepancy_eval->dead_ends_are_reliable())
         dead_end = true;
-    int prune_h = eval_context.get_evaluator_value_or_infinity(prune_eval.get());
-    if (prune_h == EvaluationResult::INFTY && prune_eval->dead_ends_are_reliable())
+    int prune_h =
+        eval_context.get_evaluator_value_or_infinity(prune_eval.get());
+    if (prune_h == EvaluationResult::INFTY &&
+        prune_eval->dead_ends_are_reliable())
         dead_end = true;
 
     if (dead_end) {
@@ -120,43 +126,48 @@ void GraphDiscrepancySearch::print_statistics() const {
     }
 }
 
-void GraphDiscrepancySearch::start_evaluator_statistics(EvaluationContext &eval_context) {
-    int value = eval_context.get_evaluator_value_or_infinity(discrepancy_eval.get());
+void GraphDiscrepancySearch::start_evaluator_statistics(
+    EvaluationContext &eval_context) {
+    int value =
+        eval_context.get_evaluator_value_or_infinity(discrepancy_eval.get());
     if (value != EvaluationResult::INFTY) {
         statistics.report_f_value_progress(value);
     }
 }
 
-void GraphDiscrepancySearch::push_open(const State &state, int total_discrepancy, int g) {
+void GraphDiscrepancySearch::push_open(
+    const State &state, int total_discrepancy, int g) {
     open.push({state.get_id(), total_discrepancy, g, next_insertion_id++});
 }
 
 bool GraphDiscrepancySearch::evaluate_successor(
-    const SearchNode &parent_node,
-    const OperatorProxy &op,
-    const State &state,
-    SearchNode &node,
-    int succ_g,
-    int &rank_h_out) {
+    const SearchNode &parent_node, const OperatorProxy &op, const State &state,
+    SearchNode &node, int succ_g, int &rank_h_out) {
     EvaluationContext eval_context(state, succ_g, false, &statistics);
     statistics.inc_evaluated_states();
 
-    int rank_h = eval_context.get_evaluator_value_or_infinity(discrepancy_eval.get());
-    if (rank_h == EvaluationResult::INFTY && discrepancy_eval->dead_ends_are_reliable()) {
+    int rank_h =
+        eval_context.get_evaluator_value_or_infinity(discrepancy_eval.get());
+    if (rank_h == EvaluationResult::INFTY &&
+        discrepancy_eval->dead_ends_are_reliable()) {
         node.mark_as_dead_end();
         statistics.inc_dead_ends();
         return false;
     }
 
-    int prune_h = eval_context.get_evaluator_value_or_infinity(prune_eval.get());
-    if (prune_h == EvaluationResult::INFTY && prune_eval->dead_ends_are_reliable()) {
+    int prune_h =
+        eval_context.get_evaluator_value_or_infinity(prune_eval.get());
+    if (prune_h == EvaluationResult::INFTY &&
+        prune_eval->dead_ends_are_reliable()) {
         node.mark_as_dead_end();
         statistics.inc_dead_ends();
         return false;
     }
 
-    // Scorpion SearchNode lacks get_real_g(); get_g() equals real_g for NORMAL cost type.
-    if (has_incumbent && parent_node.get_g() + op.get_cost() + prune_h >= incumbent_cost)
+    // Scorpion SearchNode lacks get_real_g(); get_g() equals real_g for NORMAL
+    // cost type.
+    if (has_incumbent &&
+        parent_node.get_g() + op.get_cost() + prune_h >= incumbent_cost)
         return false;
 
     if (search_progress.check_progress(eval_context)) {
@@ -195,7 +206,8 @@ SearchStatus GraphDiscrepancySearch::step() {
             continue;
 
         int recorded_discrepancy = state_discrepancy[state];
-        if (entry.g != node.get_g() || entry.total_discrepancy != recorded_discrepancy)
+        if (entry.g != node.get_g() ||
+            entry.total_discrepancy != recorded_discrepancy)
             continue;
 
         if (task_properties::is_goal_state(task_proxy, state)) {
@@ -218,7 +230,8 @@ SearchStatus GraphDiscrepancySearch::step() {
 
         for (OperatorID op_id : applicable_ops) {
             OperatorProxy op = task_proxy.get_operators()[op_id];
-            // Scorpion SearchNode lacks get_real_g(); get_g() equals real_g for NORMAL cost type.
+            // Scorpion SearchNode lacks get_real_g(); get_g() equals real_g for
+            // NORMAL cost type.
             if (node.get_g() + op.get_cost() >= bound)
                 continue;
 
@@ -241,10 +254,12 @@ SearchStatus GraphDiscrepancySearch::step() {
             }
 
             int rank_h = EvaluationResult::INFTY;
-            if (!evaluate_successor(node, op, succ_state, succ_node, succ_g, rank_h))
+            if (!evaluate_successor(
+                    node, op, succ_state, succ_node, succ_g, rank_h))
                 continue;
 
-            candidates.push_back({op_id, succ_state, succ_node, succ_g, rank_h});
+            candidates.push_back(
+                {op_id, succ_state, succ_node, succ_g, rank_h});
         }
 
         if (candidates.empty())
@@ -252,16 +267,17 @@ SearchStatus GraphDiscrepancySearch::step() {
 
         vector<int> sorted_indices(candidates.size());
         iota(sorted_indices.begin(), sorted_indices.end(), 0);
-        stable_sort(sorted_indices.begin(), sorted_indices.end(),
-                    [&candidates](int lhs, int rhs) {
-                        const SuccessorCandidate &a = candidates[lhs];
-                        const SuccessorCandidate &b = candidates[rhs];
-                        if (a.rank_h != b.rank_h)
-                            return a.rank_h < b.rank_h;
-                        if (a.succ_g != b.succ_g)
-                            return a.succ_g < b.succ_g;
-                        return a.op_id.get_index() < b.op_id.get_index();
-                    });
+        stable_sort(
+            sorted_indices.begin(), sorted_indices.end(),
+            [&candidates](int lhs, int rhs) {
+                const SuccessorCandidate &a = candidates[lhs];
+                const SuccessorCandidate &b = candidates[rhs];
+                if (a.rank_h != b.rank_h)
+                    return a.rank_h < b.rank_h;
+                if (a.succ_g != b.succ_g)
+                    return a.succ_g < b.succ_g;
+                return a.op_id.get_index() < b.op_id.get_index();
+            });
 
         vector<int> discrepancies(candidates.size(), 1);
         if (discrepancy_mode == DiscrepancyMode::CHILD_RANK) {
@@ -273,7 +289,8 @@ SearchStatus GraphDiscrepancySearch::step() {
             for (size_t i = 0; i < sorted_indices.size(); ++i) {
                 const int candidate_index = sorted_indices[i];
                 const int candidate_h = candidates[candidate_index].rank_h;
-                long long gap = static_cast<long long>(candidate_h) - static_cast<long long>(best_rank_h);
+                long long gap = static_cast<long long>(candidate_h) -
+                                static_cast<long long>(best_rank_h);
                 if (gap < 0)
                     gap = 0;
                 if (gap > static_cast<long long>(numeric_limits<int>::max()))
@@ -299,13 +316,16 @@ SearchStatus GraphDiscrepancySearch::step() {
                 if (succ_node.is_closed()) {
                     if (reopen_closed_nodes) {
                         statistics.inc_reopened();
-                        succ_node.reopen_closed_node(node, op, get_adjusted_cost(op));
+                        succ_node.reopen_closed_node(
+                            node, op, get_adjusted_cost(op));
                     } else {
-                        succ_node.update_closed_node_parent(node, op, get_adjusted_cost(op));
+                        succ_node.update_closed_node_parent(
+                            node, op, get_adjusted_cost(op));
                         continue;
                     }
                 } else {
-                    succ_node.update_open_node_parent(node, op, get_adjusted_cost(op));
+                    succ_node.update_open_node_parent(
+                        node, op, get_adjusted_cost(op));
                 }
             }
 

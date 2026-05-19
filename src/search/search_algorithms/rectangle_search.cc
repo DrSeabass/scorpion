@@ -7,7 +7,6 @@
 
 #include "../task_utils/successor_generator.h"
 #include "../task_utils/task_properties.h"
-
 #include "../utils/logging.h"
 
 #include <algorithm>
@@ -18,12 +17,9 @@ using namespace std;
 namespace rectangle_search {
 
 RectangleSearch::RectangleSearch(
-    const shared_ptr<Evaluator> &eval,
-    int beam_width,
-    int aspect,
-    const shared_ptr<PruningMethod> &pruning,
-    OperatorCost cost_type, int bound, double max_time,
-    const string &description, utils::Verbosity verbosity)
+    const shared_ptr<Evaluator> &eval, int beam_width, int aspect,
+    const shared_ptr<PruningMethod> &pruning, OperatorCost cost_type, int bound,
+    double max_time, const string &description, utils::Verbosity verbosity)
     : SearchAlgorithm(cost_type, bound, max_time, description, verbosity),
       beam_width(beam_width),
       aspect(aspect),
@@ -42,8 +38,7 @@ RectangleSearch::RectangleSearch(
 
 void RectangleSearch::initialize() {
     log << "Conducting rectangle search with beam width " << beam_width
-        << ", aspect = " << aspect
-        << ", (real) bound = " << bound << endl;
+        << ", aspect = " << aspect << ", (real) bound = " << bound << endl;
 
     assert(eval);
 
@@ -80,7 +75,8 @@ void RectangleSearch::initialize() {
         open_lists.push_back(deque<StateID>());
 
         vector<OperatorID> applicable_ops;
-        successor_generator.generate_applicable_ops(initial_state, applicable_ops);
+        successor_generator.generate_applicable_ops(
+            initial_state, applicable_ops);
         pruning_method->prune_operators(initial_state, applicable_ops);
 
         node.close();
@@ -91,11 +87,13 @@ void RectangleSearch::initialize() {
             if (op.get_cost() >= bound)
                 continue;
 
-            State succ_state = state_registry.get_successor_state(initial_state, op);
+            State succ_state =
+                state_registry.get_successor_state(initial_state, op);
             statistics.inc_generated();
 
             for (Evaluator *evaluator : path_dependent_evaluators) {
-                evaluator->notify_state_transition(initial_state, op_id, succ_state);
+                evaluator->notify_state_transition(
+                    initial_state, op_id, succ_state);
             }
 
             SearchNode succ_node = search_space.get_node(succ_state);
@@ -105,11 +103,14 @@ void RectangleSearch::initialize() {
             int succ_g = get_adjusted_cost(op);
 
             if (succ_node.is_new()) {
-                EvaluationContext succ_eval_context(succ_state, succ_g, false, &statistics);
+                EvaluationContext succ_eval_context(
+                    succ_state, succ_g, false, &statistics);
                 statistics.inc_evaluated_states();
 
-                int eval_h = succ_eval_context.get_evaluator_value_or_infinity(eval.get());
-                if (eval_h == EvaluationResult::INFTY && eval->dead_ends_are_reliable()) {
+                int eval_h = succ_eval_context.get_evaluator_value_or_infinity(
+                    eval.get());
+                if (eval_h == EvaluationResult::INFTY &&
+                    eval->dead_ends_are_reliable()) {
                     succ_node.mark_as_dead_end();
                     statistics.inc_dead_ends();
                     continue;
@@ -145,7 +146,8 @@ void RectangleSearch::print_statistics() const {
     pruning_method->print_statistics();
 }
 
-void RectangleSearch::start_evaluator_statistics(EvaluationContext &eval_context) {
+void RectangleSearch::start_evaluator_statistics(
+    EvaluationContext &eval_context) {
     int value = eval_context.get_evaluator_value_or_infinity(eval.get());
     if (value != EvaluationResult::INFTY) {
         statistics.report_f_value_progress(value);
@@ -153,7 +155,8 @@ void RectangleSearch::start_evaluator_statistics(EvaluationContext &eval_context
 }
 
 bool RectangleSearch::select_and_expand(int list_index) {
-    if (list_index >= static_cast<int>(open_lists.size()) || open_lists[list_index].empty())
+    if (list_index >= static_cast<int>(open_lists.size()) ||
+        open_lists[list_index].empty())
         return false;
 
     StateID state_id = open_lists[list_index].front();
@@ -177,7 +180,8 @@ bool RectangleSearch::select_and_expand(int list_index) {
 
     for (OperatorID op_id : applicable_ops) {
         OperatorProxy op = task_proxy.get_operators()[op_id];
-        // Scorpion SearchNode lacks get_real_g(); get_g() equals real_g for NORMAL cost type.
+        // Scorpion SearchNode lacks get_real_g(); get_g() equals real_g for
+        // NORMAL cost type.
         if (node.get_g() + op.get_cost() >= bound)
             continue;
 
@@ -196,11 +200,14 @@ bool RectangleSearch::select_and_expand(int list_index) {
         int succ_g = node.get_g() + get_adjusted_cost(op);
 
         if (succ_node.is_new()) {
-            EvaluationContext succ_eval_context(succ_state, succ_g, false, &statistics);
+            EvaluationContext succ_eval_context(
+                succ_state, succ_g, false, &statistics);
             statistics.inc_evaluated_states();
 
-            int eval_h = succ_eval_context.get_evaluator_value_or_infinity(eval.get());
-            if (eval_h == EvaluationResult::INFTY && eval->dead_ends_are_reliable()) {
+            int eval_h =
+                succ_eval_context.get_evaluator_value_or_infinity(eval.get());
+            if (eval_h == EvaluationResult::INFTY &&
+                eval->dead_ends_are_reliable()) {
                 succ_node.mark_as_dead_end();
                 statistics.inc_dead_ends();
                 continue;
@@ -216,20 +223,25 @@ bool RectangleSearch::select_and_expand(int list_index) {
                 open_lists.push_back(deque<StateID>());
             }
 
-            insert_into_open_list(list_index + 1, {succ_state.get_id(), eval_h, succ_g});
+            insert_into_open_list(
+                list_index + 1, {succ_state.get_id(), eval_h, succ_g});
 
             if (check_goal_and_set_plan(succ_state))
                 return true;
         } else {
             if (succ_node.get_g() > succ_g) {
-                succ_node.update_open_node_parent(node, op, get_adjusted_cost(op));
+                succ_node.update_open_node_parent(
+                    node, op, get_adjusted_cost(op));
             }
 
-            EvaluationContext succ_eval_context(succ_state, succ_node.get_g(), false, &statistics);
+            EvaluationContext succ_eval_context(
+                succ_state, succ_node.get_g(), false, &statistics);
             statistics.inc_evaluated_states();
 
-            int eval_h = succ_eval_context.get_evaluator_value_or_infinity(eval.get());
-            if (eval_h == EvaluationResult::INFTY && eval->dead_ends_are_reliable()) {
+            int eval_h =
+                succ_eval_context.get_evaluator_value_or_infinity(eval.get());
+            if (eval_h == EvaluationResult::INFTY &&
+                eval->dead_ends_are_reliable()) {
                 succ_node.mark_as_dead_end();
                 statistics.inc_dead_ends();
                 continue;
@@ -239,7 +251,9 @@ bool RectangleSearch::select_and_expand(int list_index) {
                 open_lists.push_back(deque<StateID>());
             }
 
-            insert_into_open_list(list_index + 1, {succ_state.get_id(), eval_h, succ_node.get_g()});
+            insert_into_open_list(
+                list_index + 1,
+                {succ_state.get_id(), eval_h, succ_node.get_g()});
 
             if (check_goal_and_set_plan(succ_state))
                 return true;
@@ -249,7 +263,8 @@ bool RectangleSearch::select_and_expand(int list_index) {
     return false;
 }
 
-void RectangleSearch::insert_into_open_list(int list_index, const Candidate &candidate) {
+void RectangleSearch::insert_into_open_list(
+    int list_index, const Candidate &candidate) {
     assert(list_index >= 0 && list_index < static_cast<int>(open_lists.size()));
 
     deque<StateID> &open_list = open_lists[list_index];
@@ -266,7 +281,8 @@ void RectangleSearch::insert_into_open_list(int list_index, const Candidate &can
 
         EvaluationContext existing_eval_context(
             existing_state, existing_node.get_g(), false, &statistics);
-        int existing_value = existing_eval_context.get_evaluator_value_or_infinity(eval.get());
+        int existing_value =
+            existing_eval_context.get_evaluator_value_or_infinity(eval.get());
 
         if (candidate.eval_value <= existing_value)
             break;

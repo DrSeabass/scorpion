@@ -6,7 +6,8 @@ using namespace std;
 
 namespace plugin_triangle {
 class TriangleSearchFeature
-    : public plugins::TypedFeature<SearchAlgorithm, triangle_search::TriangleSearch> {
+    : public plugins::TypedFeature<
+          SearchAlgorithm, triangle_search::TriangleSearch> {
 public:
     TriangleSearchFeature() : TypedFeature("triangle") {
         document_title("Triangle search");
@@ -16,13 +17,10 @@ public:
 
         add_option<shared_ptr<Evaluator>>("eval", "ranking evaluator");
         add_option<int>(
-            "slope",
-            "number of new depth levels added per triangle iteration",
-            "1",
-            plugins::Bounds("1", "infinity"));
+            "slope", "number of new depth levels added per triangle iteration",
+            "1", plugins::Bounds("1", "infinity"));
         add_option<bool>(
-            "reopen_closed",
-            "reopen closed nodes if a cheaper path is found",
+            "reopen_closed", "reopen closed nodes if a cheaper path is found",
             "true");
         add_option<bool>(
             "anytime",
@@ -34,11 +32,10 @@ public:
 
     virtual shared_ptr<triangle_search::TriangleSearch> create_component(
         const plugins::Options &opts) const override {
-        return plugins::make_shared_from_arg_tuples<triangle_search::TriangleSearch>(
-            opts.get<shared_ptr<Evaluator>>("eval"),
-            opts.get<int>("slope"),
-            opts.get<bool>("reopen_closed"),
-            opts.get<bool>("anytime"),
+        return plugins::make_shared_from_arg_tuples<
+            triangle_search::TriangleSearch>(
+            opts.get<shared_ptr<Evaluator>>("eval"), opts.get<int>("slope"),
+            opts.get<bool>("reopen_closed"), opts.get<bool>("anytime"),
             get_search_pruning_arguments_from_options(opts),
             get_search_algorithm_arguments_from_options(opts));
     }

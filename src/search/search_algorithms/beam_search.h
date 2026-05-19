@@ -30,11 +30,10 @@ protected:
 
 public:
     BeamSearch(
-        const std::shared_ptr<Evaluator> &eval,
-        int beam_width,
-        const std::shared_ptr<PruningMethod> &pruning,
-        OperatorCost cost_type, int bound, double max_time,
-        const std::string &description, utils::Verbosity verbosity);
+        const std::shared_ptr<Evaluator> &eval, int beam_width,
+        const std::shared_ptr<PruningMethod> &pruning, OperatorCost cost_type,
+        int bound, double max_time, const std::string &description,
+        utils::Verbosity verbosity);
     virtual ~BeamSearch() = default;
 
     virtual void print_statistics() const override;

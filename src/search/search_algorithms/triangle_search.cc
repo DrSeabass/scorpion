@@ -8,7 +8,6 @@
 
 #include "../task_utils/successor_generator.h"
 #include "../task_utils/task_properties.h"
-
 #include "../utils/logging.h"
 
 #include <algorithm>
@@ -19,11 +18,8 @@ using namespace std;
 namespace triangle_search {
 
 TriangleSearch::TriangleSearch(
-    const shared_ptr<Evaluator> &eval,
-    int slope,
-    bool reopen_closed,
-    bool anytime,
-    const shared_ptr<PruningMethod> &pruning,
+    const shared_ptr<Evaluator> &eval, int slope, bool reopen_closed,
+    bool anytime, const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
     const string &description, utils::Verbosity verbosity)
     : SearchAlgorithm(cost_type, bound, max_time, description, verbosity),
@@ -87,7 +83,8 @@ void TriangleSearch::print_statistics() const {
     pruning_method->print_statistics();
 }
 
-void TriangleSearch::start_evaluator_statistics(EvaluationContext &eval_context) {
+void TriangleSearch::start_evaluator_statistics(
+    EvaluationContext &eval_context) {
     int value = eval_context.get_evaluator_value_or_infinity(eval.get());
     if (value != EvaluationResult::INFTY) {
         statistics.report_f_value_progress(value);
@@ -125,7 +122,8 @@ void TriangleSearch::update_incumbent(const State &goal_state) {
     if (!found_solution() || candidate_cost < bound) {
         set_plan(candidate_plan);
         bound = candidate_cost;
-        log << "TriangleSearch: improved incumbent with cost " << candidate_cost << endl;
+        log << "TriangleSearch: improved incumbent with cost " << candidate_cost
+            << endl;
         if (anytime_search) {
             plan_manager.save_plan(candidate_plan, task_proxy, true);
         }
@@ -152,7 +150,8 @@ bool TriangleSearch::evaluate_and_prepare_node(
     return true;
 }
 
-void TriangleSearch::insert_into_open_list(int list_index, const OpenEntry &entry) {
+void TriangleSearch::insert_into_open_list(
+    int list_index, const OpenEntry &entry) {
     assert(list_index >= 0 && list_index < static_cast<int>(open_lists.size()));
     open_lists[list_index].push(entry);
 }
@@ -202,7 +201,8 @@ SearchStatus TriangleSearch::step() {
 
         for (OperatorID op_id : applicable_ops) {
             OperatorProxy op = task_proxy.get_operators()[op_id];
-            // Scorpion SearchNode lacks get_real_g(); get_g() equals real_g for NORMAL cost type.
+            // Scorpion SearchNode lacks get_real_g(); get_g() equals real_g for
+            // NORMAL cost type.
             if (node.get_g() + op.get_cost() >= bound)
                 continue;
 
@@ -225,7 +225,8 @@ SearchStatus TriangleSearch::step() {
 
             if (succ_node.is_new()) {
                 succ_node.open_new_node(node, op, get_adjusted_cost(op));
-                if (!evaluate_and_prepare_node(succ_state, succ_node, succ_g, succ_h))
+                if (!evaluate_and_prepare_node(
+                        succ_state, succ_node, succ_g, succ_h))
                     continue;
             } else if (succ_node.is_closed()) {
                 if (succ_g >= succ_node.get_g())
@@ -234,12 +235,15 @@ SearchStatus TriangleSearch::step() {
                     continue;
                 statistics.inc_reopened();
                 succ_node.reopen_closed_node(node, op, get_adjusted_cost(op));
-                if (!evaluate_and_prepare_node(succ_state, succ_node, succ_g, succ_h))
+                if (!evaluate_and_prepare_node(
+                        succ_state, succ_node, succ_g, succ_h))
                     continue;
             } else {
                 if (succ_g < succ_node.get_g())
-                    succ_node.update_open_node_parent(node, op, get_adjusted_cost(op));
-                if (!evaluate_and_prepare_node(succ_state, succ_node, succ_node.get_g(), succ_h))
+                    succ_node.update_open_node_parent(
+                        node, op, get_adjusted_cost(op));
+                if (!evaluate_and_prepare_node(
+                        succ_state, succ_node, succ_node.get_g(), succ_h))
                     continue;
             }
 
@@ -250,8 +254,10 @@ SearchStatus TriangleSearch::step() {
                 continue;
             }
 
-            open_lists.resize(max(static_cast<size_t>(i + 2), open_lists.size()));
-            insert_into_open_list(i + 1, {succ_state.get_id(), succ_h, succ_node.get_g()});
+            open_lists.resize(
+                max(static_cast<size_t>(i + 2), open_lists.size()));
+            insert_into_open_list(
+                i + 1, {succ_state.get_id(), succ_h, succ_node.get_g()});
         }
     }
 

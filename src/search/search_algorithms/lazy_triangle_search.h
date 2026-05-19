@@ -43,13 +43,8 @@ class LazyTriangleSearch : public SearchAlgorithm {
     void update_incumbent(const State &goal_state);
 
     ExpansionOutcome process_candidate(
-        const State &state,
-        StateID predecessor_id,
-        OperatorID operator_id,
-        int g,
-        int real_g,
-        int source_list_index,
-        bool is_root);
+        const State &state, StateID predecessor_id, OperatorID operator_id,
+        int g, int real_g, int source_list_index, bool is_root);
 
 protected:
     virtual void initialize() override;
@@ -57,11 +52,8 @@ protected:
 
 public:
     LazyTriangleSearch(
-        const std::shared_ptr<Evaluator> &eval,
-        int slope,
-        bool reopen_closed,
-        bool anytime,
-        const std::shared_ptr<PruningMethod> &pruning,
+        const std::shared_ptr<Evaluator> &eval, int slope, bool reopen_closed,
+        bool anytime, const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,
         const std::string &description, utils::Verbosity verbosity);
     virtual ~LazyTriangleSearch() = default;

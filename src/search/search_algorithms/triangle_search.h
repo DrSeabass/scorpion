@@ -29,7 +29,8 @@ class TriangleSearch : public SearchAlgorithm {
         }
     };
 
-    using OpenList = std::priority_queue<OpenEntry, std::vector<OpenEntry>, OpenEntryCompare>;
+    using OpenList = std::priority_queue<
+        OpenEntry, std::vector<OpenEntry>, OpenEntryCompare>;
 
     const int slope;
     const bool reopen_closed_nodes;
@@ -56,11 +57,8 @@ protected:
 
 public:
     TriangleSearch(
-        const std::shared_ptr<Evaluator> &eval,
-        int slope,
-        bool reopen_closed,
-        bool anytime,
-        const std::shared_ptr<PruningMethod> &pruning,
+        const std::shared_ptr<Evaluator> &eval, int slope, bool reopen_closed,
+        bool anytime, const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,
         const std::string &description, utils::Verbosity verbosity);
     virtual ~TriangleSearch() = default;
