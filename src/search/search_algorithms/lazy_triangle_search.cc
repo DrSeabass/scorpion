@@ -11,6 +11,7 @@
 #include "../utils/logging.h"
 #include "../utils/system.h"
 
+#include <algorithm>
 #include <cassert>
 #include <set>
 
@@ -77,13 +78,11 @@ void LazyTriangleSearch::start_evaluator_statistics(
 }
 
 bool LazyTriangleSearch::has_non_empty_lists() const {
-    if (root_pending)
-        return true;
-    for (const unique_ptr<EdgeOpenList> &open_list : open_lists) {
-        if (!open_list->empty())
-            return true;
-    }
-    return false;
+    return root_pending || any_of(
+                               open_lists.begin(), open_lists.end(),
+                               [](const unique_ptr<EdgeOpenList> &open_list) {
+                                   return !open_list->empty();
+                               });
 }
 
 unique_ptr<EdgeOpenList> LazyTriangleSearch::create_open_list() const {
