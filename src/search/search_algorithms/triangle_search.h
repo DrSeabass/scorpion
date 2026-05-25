@@ -42,9 +42,7 @@ class TriangleSearch : public SearchAlgorithm {
     std::deque<OpenList> open_lists;
 
     void start_evaluator_statistics(EvaluationContext &eval_context);
-    bool has_non_empty_lists() const;
     void extend_open_lists(int num_lists);
-    void trim_empty_lists();
     void update_incumbent(const State &goal_state);
     bool evaluate_and_prepare_node(
         const State &state, SearchNode &node, int g, int &h_out);

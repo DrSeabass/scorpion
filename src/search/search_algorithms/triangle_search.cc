@@ -94,26 +94,9 @@ void TriangleSearch::start_evaluator_statistics(EvaluationContext &eval_context)
     }
 }
 
-bool TriangleSearch::has_non_empty_lists() const {
-    for (const auto &open_list : open_lists) {
-        if (!open_list.empty())
-            return true;
-    }
-    return false;
-}
-
 void TriangleSearch::extend_open_lists(int num_lists) {
     for (int i = 0; i < num_lists; ++i) {
         open_lists.emplace_back();
-    }
-}
-
-void TriangleSearch::trim_empty_lists() {
-    while (!open_lists.empty() && open_lists.front().empty()) {
-        open_lists.pop_front();
-    }
-    while (!open_lists.empty() && open_lists.back().empty()) {
-        open_lists.pop_back();
     }
 }
 
@@ -158,7 +141,11 @@ void TriangleSearch::insert_into_open_list(int list_index, const OpenEntry &entr
 }
 
 SearchStatus TriangleSearch::step() {
-    if (!has_non_empty_lists()) {
+    while (!open_lists.empty() && open_lists.front().empty()) {
+        open_lists.pop_front();
+    }
+
+    if (open_lists.empty()) {
         if (found_solution()) {
             log << "All open lists are empty -- best solution found." << endl;
             return SOLVED;
@@ -255,7 +242,6 @@ SearchStatus TriangleSearch::step() {
         }
     }
 
-    trim_empty_lists();
     return IN_PROGRESS;
 }
 
