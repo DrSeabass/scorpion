@@ -151,9 +151,9 @@ void TriangleSearch::insert_into_open_list(int list_index, const OpenEntry &entr
 SearchStatus TriangleSearch::step() {
     while (!open_lists.empty() && open_lists.front().empty()) {
         open_lists.pop_front();
-        if (max_active_layer >= 0)
-            --max_active_layer;
+        --max_active_layer;
     }
+    max_active_layer = max(max_active_layer, 0);
 
     if (open_lists.empty()) {
         if (found_solution()) {
@@ -229,10 +229,8 @@ SearchStatus TriangleSearch::step() {
                 succ_node.open_new_node(node, op, get_adjusted_cost(op));
                 if (!evaluate_and_prepare_node(succ_state, succ_node, succ_g, succ_h))
                     continue;
-            } else if (succ_node.is_closed()) {
+            } else if (succ_node.is_closed() && reopen_closed_nodes) {
                 if (succ_g >= succ_node.get_g())
-                    continue;
-                if (!reopen_closed_nodes)
                     continue;
                 statistics.inc_reopened();
                 succ_node.reopen_closed_node(node, op, get_adjusted_cost(op));
