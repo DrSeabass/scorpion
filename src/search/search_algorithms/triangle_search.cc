@@ -126,9 +126,11 @@ void TriangleSearch::update_incumbent(const State &goal_state) {
 }
 
 bool TriangleSearch::evaluate_and_prepare_node(
-    const State &state, SearchNode &node, int g, int &h_out) {
+    const State &state, SearchNode &node, int g, int &h_out,
+    bool is_new_evaluation) {
     EvaluationContext eval_context(state, g, false, &statistics);
-    statistics.inc_evaluated_states();
+    if (is_new_evaluation)
+        statistics.inc_evaluated_states();
 
     int h = eval_context.get_evaluator_value_or_infinity(eval.get());
     if (h == EvaluationResult::INFTY && eval->dead_ends_are_reliable()) {
@@ -137,7 +139,7 @@ bool TriangleSearch::evaluate_and_prepare_node(
         return false;
     }
 
-    if (search_progress.check_progress(eval_context)) {
+    if (is_new_evaluation && search_progress.check_progress(eval_context)) {
         statistics.print_checkpoint_line(node.get_g());
     }
 
@@ -227,19 +229,22 @@ SearchStatus TriangleSearch::step() {
 
             if (succ_node.is_new()) {
                 succ_node.open_new_node(node, op, get_adjusted_cost(op));
-                if (!evaluate_and_prepare_node(succ_state, succ_node, succ_g, succ_h))
+                if (!evaluate_and_prepare_node(
+                        succ_state, succ_node, succ_g, succ_h, true))
                     continue;
             } else if (succ_node.is_closed() && reopen_closed_nodes) {
                 if (succ_g >= succ_node.get_g())
                     continue;
                 statistics.inc_reopened();
                 succ_node.reopen_closed_node(node, op, get_adjusted_cost(op));
-                if (!evaluate_and_prepare_node(succ_state, succ_node, succ_g, succ_h))
+                if (!evaluate_and_prepare_node(
+                        succ_state, succ_node, succ_g, succ_h, false))
                     continue;
             } else {
                 if (succ_g < succ_node.get_g())
                     succ_node.update_open_node_parent(node, op, get_adjusted_cost(op));
-                if (!evaluate_and_prepare_node(succ_state, succ_node, succ_node.get_g(), succ_h))
+                if (!evaluate_and_prepare_node(
+                        succ_state, succ_node, succ_node.get_g(), succ_h, false))
                     continue;
             }
 

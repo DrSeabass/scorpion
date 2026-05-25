@@ -47,7 +47,8 @@ class TriangleSearch : public SearchAlgorithm {
     void recompute_max_active_layer();
     void update_incumbent(const State &goal_state);
     bool evaluate_and_prepare_node(
-        const State &state, SearchNode &node, int g, int &h_out);
+        const State &state, SearchNode &node, int g, int &h_out,
+        bool is_new_evaluation);
     void insert_into_open_list(int list_index, const OpenEntry &entry);
 
 protected:
