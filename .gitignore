@@ -14,3 +14,4 @@ __pycache__/
 /misc/tests/output.sas
 /misc/tests/regression-baselines/dev/
 .venv/
+/.claude/
