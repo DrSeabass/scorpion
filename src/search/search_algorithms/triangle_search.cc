@@ -100,6 +100,12 @@ void TriangleSearch::extend_open_lists(int num_lists) {
     }
 }
 
+void TriangleSearch::recompute_max_active_layer() {
+    while (max_active_layer >= 0 && open_lists[max_active_layer].empty()) {
+        --max_active_layer;
+    }
+}
+
 void TriangleSearch::update_incumbent(const State &goal_state) {
     Plan candidate_plan =
         search_space.trace_path(task_proxy, successor_generator, goal_state);
@@ -138,11 +144,15 @@ bool TriangleSearch::evaluate_and_prepare_node(
 void TriangleSearch::insert_into_open_list(int list_index, const OpenEntry &entry) {
     assert(list_index >= 0 && list_index < static_cast<int>(open_lists.size()));
     open_lists[list_index].push(entry);
+    if (list_index > max_active_layer)
+        max_active_layer = list_index;
 }
 
 SearchStatus TriangleSearch::step() {
     while (!open_lists.empty() && open_lists.front().empty()) {
         open_lists.pop_front();
+        if (max_active_layer >= 0)
+            --max_active_layer;
     }
 
     if (open_lists.empty()) {
@@ -154,15 +164,19 @@ SearchStatus TriangleSearch::step() {
         return FAILED;
     }
 
-    extend_open_lists(slope);
+    const int target_size = max_active_layer + 1 + slope;
+    if (target_size > static_cast<int>(open_lists.size())) {
+        extend_open_lists(target_size - static_cast<int>(open_lists.size()));
+    }
 
-    const int num_lists = static_cast<int>(open_lists.size());
-    for (int i = 0; i < num_lists - 1; ++i) {
+    for (int i = 0; i < target_size - 1; ++i) {
         if (open_lists[i].empty())
             continue;
 
         OpenEntry current = open_lists[i].top();
         open_lists[i].pop();
+        if (open_lists[i].empty() && i == max_active_layer)
+            recompute_max_active_layer();
 
         State state = state_registry.lookup_state(current.id);
         SearchNode node = search_space.get_node(state);
@@ -237,7 +251,6 @@ SearchStatus TriangleSearch::step() {
                 continue;
             }
 
-            open_lists.resize(max(static_cast<size_t>(i + 2), open_lists.size()));
             insert_into_open_list(i + 1, {succ_state.get_id(), succ_h, succ_node.get_g()});
         }
     }

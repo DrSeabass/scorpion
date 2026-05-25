@@ -40,9 +40,11 @@ class TriangleSearch : public SearchAlgorithm {
     std::shared_ptr<PruningMethod> pruning_method;
 
     std::deque<OpenList> open_lists;
+    int max_active_layer = -1;
 
     void start_evaluator_statistics(EvaluationContext &eval_context);
     void extend_open_lists(int num_lists);
+    void recompute_max_active_layer();
     void update_incumbent(const State &goal_state);
     bool evaluate_and_prepare_node(
         const State &state, SearchNode &node, int g, int &h_out);
