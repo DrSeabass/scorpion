@@ -165,8 +165,9 @@ SearchStatus TriangleSearch::step() {
     }
 
     const int target_size = max_active_layer + 1 + slope;
-    if (target_size > static_cast<int>(open_lists.size())) {
-        extend_open_lists(target_size - static_cast<int>(open_lists.size()));
+    const int missing = target_size - static_cast<int>(open_lists.size());
+    if (missing > 0) {
+        extend_open_lists(missing);
     }
 
     for (int i = 0; i < target_size - 1; ++i) {
