@@ -101,6 +101,7 @@ void TriangleSearch::extend_open_lists(int num_lists) {
 }
 
 void TriangleSearch::recompute_max_active_layer() {
+    max_active_layer = static_cast<int>(open_lists.size()) - 1;
     while (max_active_layer >= 0 && open_lists[max_active_layer].empty()) {
         --max_active_layer;
     }
