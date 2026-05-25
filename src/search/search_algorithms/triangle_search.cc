@@ -74,7 +74,11 @@ void TriangleSearch::initialize() {
 
         SearchNode node = search_space.get_node(initial_state);
         node.open_initial();
-        insert_into_open_list(0, {initial_state.get_id(), h, 0});
+        if (task_properties::is_goal_state(task_proxy, initial_state)) {
+            update_incumbent(initial_state);
+        } else {
+            insert_into_open_list(0, {initial_state.get_id(), h, 0});
+        }
     }
 
     print_initial_evaluator_values(eval_context);
@@ -101,7 +105,6 @@ void TriangleSearch::extend_open_lists(int num_lists) {
 }
 
 void TriangleSearch::recompute_max_active_layer() {
-    max_active_layer = static_cast<int>(open_lists.size()) - 1;
     while (max_active_layer >= 0 && open_lists[max_active_layer].empty()) {
         --max_active_layer;
     }
@@ -180,6 +183,9 @@ SearchStatus TriangleSearch::step() {
         if (open_lists[i].empty() && i == max_active_layer)
             recompute_max_active_layer();
 
+        if (anytime_search && current.g >= bound)
+            continue;
+
         State state = state_registry.lookup_state(current.id);
         SearchNode node = search_space.get_node(state);
 
@@ -188,13 +194,6 @@ SearchStatus TriangleSearch::step() {
 
         if (node.is_dead_end() || node.is_closed())
             continue;
-
-        if (task_properties::is_goal_state(task_proxy, state)) {
-            update_incumbent(state);
-            if (!anytime_search)
-                return SOLVED;
-            continue;
-        }
 
         node.close();
         statistics.inc_expanded();
