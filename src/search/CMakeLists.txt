@@ -683,6 +683,27 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME ratchet_triangle_search
+    HELP "Ratchet triangle search"
+    SOURCES
+        search_algorithms/ratchet_triangle_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_ratchet_triangle
+    HELP "Ratchet triangle search (plugin)"
+    SOURCES
+        search_algorithms/plugin_ratchet_triangle
+    DEPENDS
+        ratchet_triangle_search
+)
+
+create_fast_downward_library(
     NAME lazy_triangle_search
     HELP "Lazy triangle search"
     SOURCES
