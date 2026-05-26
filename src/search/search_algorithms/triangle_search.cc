@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <limits>
 
 using namespace std;
 
@@ -190,9 +191,6 @@ SearchStatus TriangleSearch::step() {
         if (open_lists[i].empty() && i == max_active_layer)
             recompute_max_active_layer();
 
-        if (anytime_search && current.g >= bound)
-            continue;
-
         State state = state_registry.lookup_state(current.id);
         SearchNode node = search_space.get_node(state);
 
@@ -232,6 +230,23 @@ SearchStatus TriangleSearch::step() {
             int succ_g = node.get_g() + get_adjusted_cost(op);
             int succ_h = EvaluationResult::INFTY;
 
+            if (pruning_heuristic &&
+                bound != numeric_limits<int>::max()) {
+                EvaluationContext prune_ctx(
+                    succ_state, succ_g, false, &statistics);
+                int prune_h = prune_ctx.get_evaluator_value_or_infinity(
+                    pruning_heuristic.get());
+                if (prune_h == EvaluationResult::INFTY) {
+                    if (pruning_heuristic->dead_ends_are_reliable()) {
+                        succ_node.mark_as_dead_end();
+                        statistics.inc_dead_ends();
+                    }
+                    continue;
+                }
+                if (succ_g + prune_h >= bound)
+                    continue;
+            }
+
             if (succ_node.is_new()) {
                 succ_node.open_new_node(node, op, get_adjusted_cost(op));
                 if (!evaluate_and_prepare_node(
@@ -250,22 +265,6 @@ SearchStatus TriangleSearch::step() {
                     succ_node.update_open_node_parent(node, op, get_adjusted_cost(op));
                 if (!evaluate_and_prepare_node(
                         succ_state, succ_node, succ_node.get_g(), succ_h, false))
-                    continue;
-            }
-
-            if (pruning_heuristic) {
-                EvaluationContext prune_ctx(
-                    succ_state, succ_node.get_g(), false, &statistics);
-                int prune_h = prune_ctx.get_evaluator_value_or_infinity(
-                    pruning_heuristic.get());
-                if (prune_h == EvaluationResult::INFTY) {
-                    if (pruning_heuristic->dead_ends_are_reliable()) {
-                        succ_node.mark_as_dead_end();
-                        statistics.inc_dead_ends();
-                    }
-                    continue;
-                }
-                if (succ_node.get_g() + prune_h >= bound)
                     continue;
             }
 
