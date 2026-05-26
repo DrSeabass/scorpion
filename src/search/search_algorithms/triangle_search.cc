@@ -183,22 +183,36 @@ SearchStatus TriangleSearch::step() {
     }
 
     for (int i = 0; i < target_size - 1; ++i) {
-        if (open_lists[i].empty())
+        // Drain ineligible entries (stale, dead-end, already closed) from
+        // the top of layer i until we find an expandable node or the layer
+        // is exhausted. Without this, an ineligible top would silently
+        // forfeit this layer's contribution to the step even when expandable
+        // entries sit underneath it.
+        OpenEntry current{StateID::no_state, 0, 0};
+        bool found_expandable = false;
+        while (!open_lists[i].empty()) {
+            const OpenEntry &candidate = open_lists[i].top();
+            SearchNode candidate_node =
+                search_space.get_node(state_registry.lookup_state(candidate.id));
+            if (candidate.g > candidate_node.get_g() ||
+                candidate_node.is_dead_end() || candidate_node.is_closed()) {
+                open_lists[i].pop();
+                if (open_lists[i].empty() && i == max_active_layer)
+                    recompute_max_active_layer();
+                continue;
+            }
+            current = candidate;
+            open_lists[i].pop();
+            if (open_lists[i].empty() && i == max_active_layer)
+                recompute_max_active_layer();
+            found_expandable = true;
+            break;
+        }
+        if (!found_expandable)
             continue;
-
-        OpenEntry current = open_lists[i].top();
-        open_lists[i].pop();
-        if (open_lists[i].empty() && i == max_active_layer)
-            recompute_max_active_layer();
 
         State state = state_registry.lookup_state(current.id);
         SearchNode node = search_space.get_node(state);
-
-        if (current.g > node.get_g())
-            continue;
-
-        if (node.is_dead_end() || node.is_closed())
-            continue;
 
         node.close();
         statistics.inc_expanded();

@@ -185,9 +185,35 @@ SearchStatus AdaptiveTriangleSearch::step() {
         if (open_lists[i].empty())
             continue;
 
-        // Ensure layer i+1 exists to receive successors of the layer-i
-        // expansion. Free if already in the deque; otherwise pay one budget
-        // unit to instantiate.
+        // Drain ineligible entries (stale, dead-end, already closed) from
+        // the top of layer i without committing to expansion yet -- we don't
+        // want to pay the frontier-extension cost until we know we have
+        // someone to expand here. The expandable entry is identified but
+        // left on top until the cost check passes.
+        OpenEntry current{StateID::no_state, 0, 0};
+        bool found_expandable = false;
+        while (!open_lists[i].empty()) {
+            const OpenEntry &candidate = open_lists[i].top();
+            SearchNode candidate_node =
+                search_space.get_node(state_registry.lookup_state(candidate.id));
+            if (candidate.g > candidate_node.get_g() ||
+                candidate_node.is_dead_end() || candidate_node.is_closed()) {
+                open_lists[i].pop();
+                if (open_lists[i].empty() && i == max_active_layer)
+                    recompute_max_active_layer();
+                continue;
+            }
+            current = candidate;
+            found_expandable = true;
+            break;
+        }
+        if (!found_expandable)
+            continue;
+
+        // We have an expandable top. Ensure layer i+1 exists to receive its
+        // successors; free if already in the deque, otherwise pay one budget
+        // unit. If we can't afford it, halt the cascade with the expandable
+        // entry still in place for the next step.
         if (i + 1 >= static_cast<int>(open_lists.size())) {
             if (budget <= 0)
                 break;
@@ -195,19 +221,13 @@ SearchStatus AdaptiveTriangleSearch::step() {
             extend_open_lists(1);
         }
 
-        OpenEntry current = open_lists[i].top();
+        // Commit: actually pop the expandable entry.
         open_lists[i].pop();
         if (open_lists[i].empty() && i == max_active_layer)
             recompute_max_active_layer();
 
         State state = state_registry.lookup_state(current.id);
         SearchNode node = search_space.get_node(state);
-
-        if (current.g > node.get_g())
-            continue;
-
-        if (node.is_dead_end() || node.is_closed())
-            continue;
 
         node.close();
         statistics.inc_expanded();
