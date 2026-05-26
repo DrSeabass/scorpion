@@ -28,6 +28,12 @@ public:
             "anytime",
             "continue search after finding a solution to improve the incumbent",
             "false");
+        add_option<shared_ptr<Evaluator>>(
+            "pruning_heuristic",
+            "admissible evaluator used for f-pruning successors "
+            "(g + h(pruning_heuristic) >= bound). "
+            "If unset, only g-based pruning applies.",
+            plugins::ArgumentInfo::NO_DEFAULT);
         add_search_pruning_options_to_feature(*this);
         add_search_algorithm_options_to_feature(*this, "triangle");
     }
@@ -39,6 +45,7 @@ public:
             opts.get<int>("slope"),
             opts.get<bool>("reopen_closed"),
             opts.get<bool>("anytime"),
+            opts.get<shared_ptr<Evaluator>>("pruning_heuristic", nullptr),
             get_search_pruning_arguments_from_options(opts),
             get_search_algorithm_arguments_from_options(opts));
     }

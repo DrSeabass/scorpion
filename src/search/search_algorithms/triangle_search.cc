@@ -23,6 +23,7 @@ TriangleSearch::TriangleSearch(
     int slope,
     bool reopen_closed,
     bool anytime,
+    const shared_ptr<Evaluator> &pruning_heuristic,
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
     const string &description, utils::Verbosity verbosity)
@@ -31,6 +32,7 @@ TriangleSearch::TriangleSearch(
       reopen_closed_nodes(reopen_closed),
       anytime_search(anytime),
       eval(eval),
+      pruning_heuristic(pruning_heuristic),
       pruning_method(pruning) {
     if (slope <= 0) {
         cerr << "TriangleSearch: slope must be positive." << endl;
@@ -46,6 +48,9 @@ void TriangleSearch::initialize() {
 
     set<Evaluator *> evals;
     eval->get_path_dependent_evaluators(evals);
+    if (pruning_heuristic) {
+        pruning_heuristic->get_path_dependent_evaluators(evals);
+    }
     path_dependent_evaluators.assign(evals.begin(), evals.end());
 
     State initial_state = state_registry.get_initial_state();
@@ -248,8 +253,21 @@ SearchStatus TriangleSearch::step() {
                     continue;
             }
 
-            if (succ_node.get_g() + succ_h >= bound)
-                continue;
+            if (pruning_heuristic) {
+                EvaluationContext prune_ctx(
+                    succ_state, succ_node.get_g(), false, &statistics);
+                int prune_h = prune_ctx.get_evaluator_value_or_infinity(
+                    pruning_heuristic.get());
+                if (prune_h == EvaluationResult::INFTY) {
+                    if (pruning_heuristic->dead_ends_are_reliable()) {
+                        succ_node.mark_as_dead_end();
+                        statistics.inc_dead_ends();
+                    }
+                    continue;
+                }
+                if (succ_node.get_g() + prune_h >= bound)
+                    continue;
+            }
 
             if (task_properties::is_goal_state(task_proxy, succ_state)) {
                 update_incumbent(succ_state);
