@@ -67,6 +67,15 @@ def get_parser():
         r"\[t=(.+)s, \d+ KB\] Initial heuristic value for .+: (?:\d+|infinity)\n",
         type=float,
     )
+
+    # Wall-clock timestamp on every "Plan cost: N" announcement.  Paired
+    # element-wise with the standard `cost:all` list to give (time, cost)
+    # series for anytime trajectory plots.
+    parser.add_repeated_pattern(
+        "cost_times:all",
+        r"\[t=([\d.]+)s,\s*\d+\s*KB\]\s*Plan cost:\s*\d+",
+        type=float,
+    )
     parser.add_pattern(
         "search_start_memory",
         r"\[t=.+s, (\d+) KB\] Initial heuristic value for .+: (?:\d+|infinity)\n",
