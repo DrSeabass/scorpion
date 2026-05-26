@@ -154,7 +154,10 @@ bool TriangleSearch::evaluate_and_prepare_node(
 }
 
 void TriangleSearch::insert_into_open_list(int list_index, const OpenEntry &entry) {
-    assert(list_index >= 0 && list_index < static_cast<int>(open_lists.size()));
+    assert(list_index >= 0);
+    if (list_index >= static_cast<int>(open_lists.size())) {
+        extend_open_lists(list_index + 1 - static_cast<int>(open_lists.size()));
+    }
     open_lists[list_index].push(entry);
     if (list_index > max_active_layer)
         max_active_layer = list_index;
@@ -176,13 +179,18 @@ SearchStatus TriangleSearch::step() {
         return FAILED;
     }
 
-    const int target_size = max_active_layer + 1 + slope;
-    const int missing = target_size - static_cast<int>(open_lists.size());
-    if (missing > 0) {
-        extend_open_lists(missing);
-    }
+    // The cascade bound is the step-start max_active_layer plus slope; the
+    // deque grows lazily as successors get inserted, rather than being
+    // pre-extended by slope at the top of step().
+    const int cascade_cap = max_active_layer + slope;
 
-    for (int i = 0; i < target_size - 1; ++i) {
+    for (int i = 0; i < cascade_cap; ++i) {
+        // End the cascade as soon as we run off the end of the deque.
+        if (i >= static_cast<int>(open_lists.size()))
+            break;
+        if (open_lists[i].empty())
+            continue;
+
         // Drain ineligible entries (stale, dead-end, already closed) from
         // the top of layer i until we find an expandable node or the layer
         // is exhausted. Without this, an ineligible top would silently
