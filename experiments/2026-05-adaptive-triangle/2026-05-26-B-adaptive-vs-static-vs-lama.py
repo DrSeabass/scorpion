@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """
-Adaptive triangle vs static slope=48 triangle vs LAMA-2011 on agile-strips.
+Adaptive / ratchet triangle vs static slope=48 triangle vs LAMA-2011 on
+agile-strips.
 
-Mirrors ../2026-05-triangle-vs-lama/ but adds adaptive_triangle as a third
-algorithm family. For each of the three heuristic combinations (g-only,
-hmax pruning, lmcut pruning), we compare:
+Mirrors ../2026-05-triangle-vs-lama/ but adds two dynamic-slope variants
+of triangle. For each of three heuristic combinations (g-only, hmax
+pruning, lmcut pruning), we compare:
 
-  * static triangle with slope=48 -- the previous Phase 0/1 baseline
-  * adaptive_triangle             -- per-step h-trend budget chooses cascade
-                                     depth dynamically (commit bec111190
-                                     plus drain/lazy fixes on top)
+  * static triangle with slope=48 -- the Phase 0/1 baseline
+  * adaptive_triangle             -- per-step h-trend budget chooses
+                                     cascade depth dynamically; no
+                                     persistent slope state
+  * ratchet_triangle              -- persistent slope doubled/halved at
+                                     end of each step based on that
+                                     step's informed-vs-uninformed
+                                     h-transition count
 
 LAMA-2011 is included via the standard alias as an external satisficing
 reference.
@@ -26,6 +31,13 @@ reference.
   adaptive-triangle-lmcut: adaptive_triangle(eval=ff(),
                                              pruning_heuristic=lmcut(),
                                              anytime=true)
+  ratchet-triangle-gonly:  ratchet_triangle(eval=ff(), anytime=true)
+  ratchet-triangle-hmax:   ratchet_triangle(eval=ff(),
+                                            pruning_heuristic=hmax(),
+                                            anytime=true)
+  ratchet-triangle-lmcut:  ratchet_triangle(eval=ff(),
+                                            pruning_heuristic=lmcut(),
+                                            anytime=true)
   lama-anytime:            seq-sat-lama-2011 alias
 
 Modeled on ../2026-05-triangle-vs-lama/2026-05-26-A-triangle-anytime-vs-lama.py.
@@ -217,6 +229,17 @@ SEARCH_TEMPLATES = {
     ),
     "adaptive-triangle-lmcut": (
         f"adaptive_triangle(eval=ff(), pruning_heuristic=lmcut(), "
+        f"anytime=true)"
+    ),
+    "ratchet-triangle-gonly": (
+        f"ratchet_triangle(eval=ff(), anytime=true)"
+    ),
+    "ratchet-triangle-hmax": (
+        f"ratchet_triangle(eval=ff(), pruning_heuristic=hmax(), "
+        f"anytime=true)"
+    ),
+    "ratchet-triangle-lmcut": (
+        f"ratchet_triangle(eval=ff(), pruning_heuristic=lmcut(), "
         f"anytime=true)"
     ),
 }
