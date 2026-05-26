@@ -34,6 +34,7 @@ class TriangleSearch : public SearchAlgorithm {
     const int slope;
     const bool reopen_closed_nodes;
     const bool anytime_search;
+    const bool prune_by_f;
 
     std::shared_ptr<Evaluator> eval;
     std::vector<Evaluator *> path_dependent_evaluators;
@@ -61,6 +62,7 @@ public:
         int slope,
         bool reopen_closed,
         bool anytime,
+        bool prune_by_f,
         const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,
         const std::string &description, utils::Verbosity verbosity);

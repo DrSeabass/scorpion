@@ -23,6 +23,7 @@ TriangleSearch::TriangleSearch(
     int slope,
     bool reopen_closed,
     bool anytime,
+    bool prune_by_f,
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
     const string &description, utils::Verbosity verbosity)
@@ -30,6 +31,7 @@ TriangleSearch::TriangleSearch(
       slope(slope),
       reopen_closed_nodes(reopen_closed),
       anytime_search(anytime),
+      prune_by_f(prune_by_f),
       eval(eval),
       pruning_method(pruning) {
     if (slope <= 0) {
@@ -247,6 +249,9 @@ SearchStatus TriangleSearch::step() {
                         succ_state, succ_node, succ_node.get_g(), succ_h, false))
                     continue;
             }
+
+            if (prune_by_f && succ_node.get_g() + succ_h >= bound)
+                continue;
 
             if (task_properties::is_goal_state(task_proxy, succ_state)) {
                 update_incumbent(succ_state);

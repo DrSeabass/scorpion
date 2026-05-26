@@ -28,6 +28,11 @@ public:
             "anytime",
             "continue search after finding a solution to improve the incumbent",
             "false");
+        add_option<bool>(
+            "prune_by_f",
+            "skip inserting a successor when g(succ) + h(succ) >= bound; "
+            "sound only if the evaluator is admissible",
+            "false");
         add_search_pruning_options_to_feature(*this);
         add_search_algorithm_options_to_feature(*this, "triangle");
     }
@@ -39,6 +44,7 @@ public:
             opts.get<int>("slope"),
             opts.get<bool>("reopen_closed"),
             opts.get<bool>("anytime"),
+            opts.get<bool>("prune_by_f"),
             get_search_pruning_arguments_from_options(opts),
             get_search_algorithm_arguments_from_options(opts));
     }
