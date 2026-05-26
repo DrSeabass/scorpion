@@ -662,6 +662,27 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME adaptive_triangle_search
+    HELP "Adaptive triangle search"
+    SOURCES
+        search_algorithms/adaptive_triangle_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_adaptive_triangle
+    HELP "Adaptive triangle search (plugin)"
+    SOURCES
+        search_algorithms/plugin_adaptive_triangle
+    DEPENDS
+        adaptive_triangle_search
+)
+
+create_fast_downward_library(
     NAME lazy_triangle_search
     HELP "Lazy triangle search"
     SOURCES
