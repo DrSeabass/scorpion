@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <limits>
 
 using namespace std;
@@ -24,6 +25,7 @@ AdaptiveTriangleSearch::AdaptiveTriangleSearch(
     bool reopen_closed,
     bool anytime,
     bool lift_floor,
+    FloorProxy floor_proxy,
     const shared_ptr<Evaluator> &pruning_heuristic,
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
@@ -32,6 +34,7 @@ AdaptiveTriangleSearch::AdaptiveTriangleSearch(
       reopen_closed_nodes(reopen_closed),
       anytime_search(anytime),
       lift_floor(lift_floor),
+      floor_proxy(floor_proxy),
       eval(eval),
       pruning_heuristic(pruning_heuristic),
       pruning_method(pruning) {
@@ -39,6 +42,8 @@ AdaptiveTriangleSearch::AdaptiveTriangleSearch(
 
 void AdaptiveTriangleSearch::initialize() {
     log << "Conducting adaptive triangle search, lift_floor = " << lift_floor
+        << ", floor_proxy = "
+        << (floor_proxy == FloorProxy::INFORMEDNESS ? "informedness" : "layers_added")
         << ", (real) bound = " << bound << endl;
 
     assert(eval);
@@ -124,6 +129,11 @@ void AdaptiveTriangleSearch::update_incumbent(const State &goal_state) {
         if (anytime_search) {
             plan_manager.save_plan(candidate_plan, task_proxy, true);
         }
+        // Start a fresh informedness epoch on genuine progress: the floor
+        // drops back toward the root and re-climbs as the new epoch's
+        // heuristic quality accrues.
+        improving_transitions = 0;
+        nonimproving_transitions = 0;
     }
 }
 
@@ -182,19 +192,33 @@ SearchStatus AdaptiveTriangleSearch::step() {
     bool have_last_h = false;
 
     // Direction B (relaxed cascade start-depth). With lift_floor, begin the
-    // cascade prev_layers_added-1 layers below the shallowest active layer
-    // (which the front-drain above pins to index 0) instead of at the root,
-    // skipping the shallow layers the previous step's realized dive said we
-    // trust. prev_layers_added is the emergent analog of ratchet's persistent
-    // slope: the number of new frontier layers the last step instantiated. The
-    // clamp keeps the deepest active layer served (>=1 expansion/step, floor
-    // can't run off the deque). The floor self-resets toward the root because
-    // an unproductive (e.g. tail-pruned) step instantiates few/no new layers,
-    // shrinking prev_layers_added. lift_floor off yields start 0 == vanilla
-    // adaptive. layers_added counts this step's frontier instantiations to
-    // carry forward as the next step's floor.
-    const int cascade_start =
-        lift_floor ? max(0, min(prev_layers_added - 1, max_active_layer)) : 0;
+    // cascade above the root (front-drain above pins the shallowest active
+    // layer to index 0). Off => start 0 == vanilla adaptive. The clamp keeps
+    // the deepest active layer served (>=1 expansion/step, floor can't run off
+    // the deque). Two proxies:
+    //   LAYERS_ADDED: prev step's realized dive depth (conservative; small
+    //     per-step delta). Self-resets as unproductive steps add few layers.
+    //   INFORMEDNESS: position the floor between root (0) and frontier
+    //     (max_active_layer) by the fraction of recent transitions that
+    //     improved h -- floor = max_active * I / (I + N). All-improving ->
+    //     frontier, break-even -> midpoint, all-non-improving/no-data -> root.
+    //     Counts reset on incumbent improvement, so the floor tracks the
+    //     current epoch's heuristic quality without history lag.
+    int cascade_start = 0;
+    if (lift_floor) {
+        if (floor_proxy == FloorProxy::LAYERS_ADDED) {
+            cascade_start = max(0, min(prev_layers_added - 1, max_active_layer));
+        } else {
+            int total = improving_transitions + nonimproving_transitions;
+            if (total > 0) {
+                long f = lround(
+                    static_cast<double>(max_active_layer) *
+                    improving_transitions / total);
+                cascade_start = static_cast<int>(
+                    max(0L, min(static_cast<long>(max_active_layer), f)));
+            }
+        }
+    }
     int layers_added = 0;
 
     for (int i = cascade_start; ; ++i) {
@@ -253,10 +277,13 @@ SearchStatus AdaptiveTriangleSearch::step() {
         statistics.inc_expanded();
 
         if (have_last_h) {
-            if (current.h < last_expanded_h)
+            if (current.h < last_expanded_h) {
                 ++budget;
-            else
+                ++improving_transitions;
+            } else {
                 --budget;
+                ++nonimproving_transitions;
+            }
         }
         last_expanded_h = current.h;
         have_last_h = true;

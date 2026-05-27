@@ -14,6 +14,17 @@ class PruningMethod;
 
 namespace adaptive_triangle_search {
 
+// Direction B floor proxy: how the lifted cascade start-depth is derived.
+enum class FloorProxy {
+    // Previous step's realized dive depth (number of new frontier layers it
+    // instantiated). Conservative; floor = min(prev_layers_added - 1, ...).
+    LAYERS_ADDED,
+    // Position the floor between root and frontier by the fraction of recent
+    // transitions that improved h: floor = max_active * I / (I + N), counts
+    // reset on each incumbent improvement.
+    INFORMEDNESS
+};
+
 class AdaptiveTriangleSearch : public SearchAlgorithm {
     struct OpenEntry {
         StateID id;
@@ -34,10 +45,10 @@ class AdaptiveTriangleSearch : public SearchAlgorithm {
     const bool reopen_closed_nodes;
     const bool anytime_search;
     // Direction B (relaxed cascade start-depth): when true, begin each step's
-    // cascade at the realized dive depth of the previous step (prev_layers_added)
-    // instead of at the root. Off => start index stays 0 => bit-identical to
-    // vanilla adaptive.
+    // cascade above the root instead of at index 0, by the floor_proxy rule.
+    // Off => start index stays 0 => bit-identical to vanilla adaptive.
     const bool lift_floor;
+    const FloorProxy floor_proxy;
 
     std::shared_ptr<Evaluator> eval;
     std::shared_ptr<Evaluator> pruning_heuristic;
@@ -48,9 +59,13 @@ class AdaptiveTriangleSearch : public SearchAlgorithm {
     int max_active_layer = -1;
     // Number of new frontier layers the previous step instantiated (its
     // realized dive depth past the frontier -- the emergent analog of
-    // ratchet's persistent slope). Drives the lift_floor start index of the
-    // next step. Only read when lift_floor is true.
+    // ratchet's persistent slope). Drives the LAYERS_ADDED floor proxy.
     int prev_layers_added = 0;
+    // Improving / non-improving h-transition counts for the INFORMEDNESS floor
+    // proxy. Persistent across steps, reset on each incumbent improvement so
+    // the floor reflects the current epoch's heuristic quality.
+    int improving_transitions = 0;
+    int nonimproving_transitions = 0;
 
     void start_evaluator_statistics(EvaluationContext &eval_context);
     void extend_open_lists(int num_lists);
@@ -71,6 +86,7 @@ public:
         bool reopen_closed,
         bool anytime,
         bool lift_floor,
+        FloorProxy floor_proxy,
         const std::shared_ptr<Evaluator> &pruning_heuristic,
         const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,
