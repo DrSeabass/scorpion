@@ -18,10 +18,13 @@ public:
             "live frontier; duplicate detection stays global and stale copies "
             "are drained per list. The optional admissible pruning_heuristic "
             "remains the single bound-pruner across all lists. Scheduling is "
-            "per-sweep round-robin: one heuristic list owns the entire cascade "
-            "dive each step, and the served index rotates between steps. With "
-            "a single evaluator the search reduces to vanilla triangle. Stops "
-            "after the first plan is found unless anytime=true.");
+            "round-robin across the N lists, with granularity set by "
+            "'schedule': sweep (one list owns the whole cascade dive each step, "
+            "rotating between steps) or pop (the list advances per expansion, "
+            "so successive expansions down a dive alternate heuristics). With a "
+            "single evaluator the search reduces to vanilla triangle under "
+            "either schedule. Stops after the first plan is found unless "
+            "anytime=true.");
 
         add_list_option<shared_ptr<Evaluator>>(
             "evals", "inadmissible guidance evaluators, one ranked list per layer");
@@ -38,6 +41,10 @@ public:
             "anytime",
             "continue search after finding a solution to improve the incumbent",
             "false");
+        add_option<multi_triangle_search::Schedule>(
+            "schedule",
+            "round-robin granularity for choosing which guidance list to pop",
+            "sweep");
         add_option<shared_ptr<Evaluator>>(
             "pruning_heuristic",
             "admissible evaluator used for f-pruning successors "
@@ -55,6 +62,7 @@ public:
             opts.get<int>("slope"),
             opts.get<bool>("reopen_closed"),
             opts.get<bool>("anytime"),
+            opts.get<multi_triangle_search::Schedule>("schedule"),
             opts.get<shared_ptr<Evaluator>>("pruning_heuristic", nullptr),
             get_search_pruning_arguments_from_options(opts),
             get_search_algorithm_arguments_from_options(opts));
@@ -62,4 +70,12 @@ public:
 };
 
 static plugins::FeaturePlugin<MultiTriangleSearchFeature> _plugin;
+
+static plugins::TypedEnumPlugin<multi_triangle_search::Schedule> _enum_plugin(
+    {{"sweep",
+      "one guidance list owns the entire cascade dive each step; the served "
+      "index rotates between steps (dive-coherent)"},
+     {"pop",
+      "the served index advances per expansion, so successive expansions down "
+      "a dive alternate heuristics (alternation at expansion granularity)"}});
 }

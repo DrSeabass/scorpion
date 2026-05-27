@@ -14,6 +14,18 @@ class PruningMethod;
 
 namespace multi_triangle_search {
 
+// How the per-step cascade picks which of the N guidance lists to pop.
+enum class Schedule {
+    // Per-sweep round-robin: one guidance list owns the entire cascade dive
+    // this step; the served index rotates between steps (served =
+    // step_count % N). Preserves the coherence of a single dive.
+    SWEEP,
+    // Per-pop round-robin: the served index advances per expansion, so
+    // successive expansions down a dive alternate heuristics. The literal
+    // multi-heuristic-alternation analog at expansion granularity.
+    POP
+};
+
 /*
   Direction A (multi-heuristic Triangle), rich variant. Each depth layer
   carries N parallel ranked open lists, one per inadmissible guidance
@@ -52,6 +64,7 @@ class MultiTriangleSearch : public SearchAlgorithm {
     const int slope;
     const bool reopen_closed_nodes;
     const bool anytime_search;
+    const Schedule schedule;
 
     std::vector<std::shared_ptr<Evaluator>> evals;
     const int num_lists;
@@ -63,6 +76,9 @@ class MultiTriangleSearch : public SearchAlgorithm {
     int max_active_layer = -1;
     // Per-sweep round-robin counter: the served list index is step_count % N.
     int step_count = 0;
+    // Per-pop round-robin counter: advances per expansion (POP schedule only),
+    // so the served list index is pop_count % N at each expansion.
+    int pop_count = 0;
 
     void start_evaluator_statistics(EvaluationContext &eval_context);
     void extend_open_lists(int num_layers);
@@ -85,6 +101,7 @@ public:
         int slope,
         bool reopen_closed,
         bool anytime,
+        Schedule schedule,
         const std::shared_ptr<Evaluator> &pruning_heuristic,
         const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,

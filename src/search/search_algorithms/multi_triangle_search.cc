@@ -25,6 +25,7 @@ MultiTriangleSearch::MultiTriangleSearch(
     int slope,
     bool reopen_closed,
     bool anytime,
+    Schedule schedule,
     const shared_ptr<Evaluator> &pruning_heuristic,
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
@@ -33,6 +34,7 @@ MultiTriangleSearch::MultiTriangleSearch(
       slope(slope),
       reopen_closed_nodes(reopen_closed),
       anytime_search(anytime),
+      schedule(schedule),
       evals(evals),
       num_lists(static_cast<int>(evals.size())),
       pruning_heuristic(pruning_heuristic),
@@ -50,6 +52,7 @@ MultiTriangleSearch::MultiTriangleSearch(
 void MultiTriangleSearch::initialize() {
     log << "Conducting multi-heuristic triangle search with slope " << slope
         << ", " << num_lists << " guidance heuristic(s)"
+        << ", schedule = " << (schedule == Schedule::SWEEP ? "sweep" : "pop")
         << ", (real) bound = " << bound << endl;
 
     assert(!evals.empty());
@@ -216,17 +219,20 @@ SearchStatus MultiTriangleSearch::step() {
     // pre-extended by slope at the top of step().
     const int cascade_cap = max_active_layer + slope;
 
-    // Per-sweep round-robin: one guidance list owns the entire cascade dive
-    // this step; the served index rotates between steps. Because every live
-    // state is inserted into all N lists, the served list being (live-)empty
-    // at a layer means the layer is live-empty -- skipping it forfeits
-    // nothing.
-    const int served = step_count % num_lists;
+    // SWEEP: one guidance list owns the entire cascade dive this step; the
+    // served index rotates between steps. POP: the served index advances per
+    // expansion (below), so successive expansions down the dive alternate
+    // heuristics. Because every live state is inserted into all N lists, the
+    // served list being (live-)empty at a layer means the layer is live-empty
+    // -- skipping it forfeits nothing.
+    const int sweep_served = step_count % num_lists;
 
     for (int i = 0; i < cascade_cap; ++i) {
         // End the cascade as soon as we run off the end of the deque.
         if (i >= static_cast<int>(open_lists.size()))
             break;
+        const int served =
+            (schedule == Schedule::SWEEP) ? sweep_served : pop_count % num_lists;
         OpenList &list = open_lists[i][served];
         if (list.empty())
             continue;
@@ -262,6 +268,10 @@ SearchStatus MultiTriangleSearch::step() {
 
         node.close();
         statistics.inc_expanded();
+        // POP schedule: advance the round-robin per expansion so the next
+        // expansion (the next layer of this dive, or the next step) is guided
+        // by the next heuristic. No-op for SWEEP.
+        ++pop_count;
 
         vector<OperatorID> applicable_ops;
         successor_generator.generate_applicable_ops(state, applicable_ops);
