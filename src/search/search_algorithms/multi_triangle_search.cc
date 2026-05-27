@@ -26,6 +26,7 @@ MultiTriangleSearch::MultiTriangleSearch(
     bool reopen_closed,
     bool anytime,
     Schedule schedule,
+    bool guide_by_pruning,
     const shared_ptr<Evaluator> &pruning_heuristic,
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
@@ -35,8 +36,11 @@ MultiTriangleSearch::MultiTriangleSearch(
       reopen_closed_nodes(reopen_closed),
       anytime_search(anytime),
       schedule(schedule),
+      guide_by_pruning(guide_by_pruning),
       evals(evals),
       num_lists(static_cast<int>(evals.size())),
+      use_pruner_queue(guide_by_pruning && pruning_heuristic != nullptr),
+      total_lists(static_cast<int>(evals.size()) + (guide_by_pruning && pruning_heuristic != nullptr ? 1 : 0)),
       pruning_heuristic(pruning_heuristic),
       pruning_method(pruning) {
     if (slope <= 0) {
@@ -53,6 +57,8 @@ void MultiTriangleSearch::initialize() {
     log << "Conducting multi-heuristic triangle search with slope " << slope
         << ", " << num_lists << " guidance heuristic(s)"
         << ", schedule = " << (schedule == Schedule::SWEEP ? "sweep" : "pop")
+        << ", guide_by_pruning = " << use_pruner_queue
+        << " (" << total_lists << " list(s)/layer)"
         << ", (real) bound = " << bound << endl;
 
     assert(!evals.empty());
@@ -76,12 +82,22 @@ void MultiTriangleSearch::initialize() {
     // Evaluate the initial state with all N guidance heuristics. It is a dead
     // end iff any reliable heuristic proves it so (multi-source dead-end).
     bool is_dead_end = false;
-    vector<int> initial_h(num_lists);
+    vector<int> initial_h;
+    initial_h.reserve(total_lists);
     for (int k = 0; k < num_lists; ++k) {
         int h = eval_context.get_evaluator_value_or_infinity(evals[k].get());
         if (h == EvaluationResult::INFTY && evals[k]->dead_ends_are_reliable())
             is_dead_end = true;
-        initial_h[k] = h;
+        initial_h.push_back(h);
+    }
+    if (use_pruner_queue) {
+        // Seed the pruner queue from the admissible h of the initial state.
+        int prune_h =
+            eval_context.get_evaluator_value_or_infinity(pruning_heuristic.get());
+        if (prune_h == EvaluationResult::INFTY &&
+            pruning_heuristic->dead_ends_are_reliable())
+            is_dead_end = true;
+        initial_h.push_back(prune_h);
     }
 
     extend_open_lists(1);
@@ -123,7 +139,7 @@ void MultiTriangleSearch::start_evaluator_statistics(EvaluationContext &eval_con
 
 void MultiTriangleSearch::extend_open_lists(int num_layers) {
     for (int i = 0; i < num_layers; ++i) {
-        open_lists.emplace_back(num_lists);
+        open_lists.emplace_back(total_lists);
     }
 }
 
@@ -187,11 +203,11 @@ bool MultiTriangleSearch::evaluate_and_prepare_node(
 void MultiTriangleSearch::insert_successor(
     int layer, StateID id, int g, const vector<int> &hs) {
     assert(layer >= 0);
-    assert(static_cast<int>(hs.size()) == num_lists);
+    assert(static_cast<int>(hs.size()) == total_lists);
     if (layer >= static_cast<int>(open_lists.size())) {
         extend_open_lists(layer + 1 - static_cast<int>(open_lists.size()));
     }
-    for (int k = 0; k < num_lists; ++k) {
+    for (int k = 0; k < total_lists; ++k) {
         open_lists[layer][k].push({id, hs[k], g});
     }
     if (layer > max_active_layer)
@@ -225,14 +241,14 @@ SearchStatus MultiTriangleSearch::step() {
     // heuristics. Because every live state is inserted into all N lists, the
     // served list being (live-)empty at a layer means the layer is live-empty
     // -- skipping it forfeits nothing.
-    const int sweep_served = step_count % num_lists;
+    const int sweep_served = step_count % total_lists;
 
     for (int i = 0; i < cascade_cap; ++i) {
         // End the cascade as soon as we run off the end of the deque.
         if (i >= static_cast<int>(open_lists.size()))
             break;
         const int served =
-            (schedule == Schedule::SWEEP) ? sweep_served : pop_count % num_lists;
+            (schedule == Schedule::SWEEP) ? sweep_served : pop_count % total_lists;
         OpenList &list = open_lists[i][served];
         if (list.empty())
             continue;
@@ -299,12 +315,17 @@ SearchStatus MultiTriangleSearch::step() {
 
             int succ_g = node.get_g() + get_adjusted_cost(op);
             vector<int> succ_h;
+            int prune_h = EvaluationResult::INFTY;
 
+            // Compute the admissible h when it is needed: for the f-prune once
+            // a bound exists, or unconditionally when it also feeds the pruner
+            // queue (so the queue is populated even before the first
+            // incumbent). The single computed value serves both.
             if (pruning_heuristic &&
-                bound != numeric_limits<int>::max()) {
+                (use_pruner_queue || bound != numeric_limits<int>::max())) {
                 EvaluationContext prune_ctx(
                     succ_state, succ_g, false, &statistics);
-                int prune_h = prune_ctx.get_evaluator_value_or_infinity(
+                prune_h = prune_ctx.get_evaluator_value_or_infinity(
                     pruning_heuristic.get());
                 if (prune_h == EvaluationResult::INFTY) {
                     if (pruning_heuristic->dead_ends_are_reliable()) {
@@ -313,7 +334,7 @@ SearchStatus MultiTriangleSearch::step() {
                     }
                     continue;
                 }
-                if (succ_g + prune_h >= bound)
+                if (bound != numeric_limits<int>::max() && succ_g + prune_h >= bound)
                     continue;
             }
 
@@ -345,6 +366,10 @@ SearchStatus MultiTriangleSearch::step() {
                 continue;
             }
 
+            // The guidance heuristics filled succ_h (size num_lists); append
+            // the admissible value so the pruner queue is ranked too.
+            if (use_pruner_queue)
+                succ_h.push_back(prune_h);
             insert_successor(i + 1, succ_state.get_id(), succ_node.get_g(), succ_h);
         }
     }

@@ -45,6 +45,14 @@ public:
             "schedule",
             "round-robin granularity for choosing which guidance list to pop",
             "sweep");
+        add_option<bool>(
+            "guide_by_pruning",
+            "also rank by the admissible pruning_heuristic in an extra open "
+            "list, joining the round-robin. The admissible h is already "
+            "computed for the f-prune, so this adds list memory, not "
+            "evaluation; it does force the prune eval to be unconditional. "
+            "No effect unless pruning_heuristic is set.",
+            "false");
         add_option<shared_ptr<Evaluator>>(
             "pruning_heuristic",
             "admissible evaluator used for f-pruning successors "
@@ -63,6 +71,7 @@ public:
             opts.get<bool>("reopen_closed"),
             opts.get<bool>("anytime"),
             opts.get<multi_triangle_search::Schedule>("schedule"),
+            opts.get<bool>("guide_by_pruning"),
             opts.get<shared_ptr<Evaluator>>("pruning_heuristic", nullptr),
             get_search_pruning_arguments_from_options(opts),
             get_search_algorithm_arguments_from_options(opts));

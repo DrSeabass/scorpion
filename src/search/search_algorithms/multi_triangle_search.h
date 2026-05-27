@@ -65,9 +65,21 @@ class MultiTriangleSearch : public SearchAlgorithm {
     const bool reopen_closed_nodes;
     const bool anytime_search;
     const Schedule schedule;
+    // When true (and a pruning_heuristic is set), the admissible heuristic
+    // also gets its own ranked list at index num_lists, joining the
+    // round-robin. The admissible h is already computed for the f-prune, so
+    // this extra queue costs list memory, not evaluation -- but it forces the
+    // prune eval to be unconditional (computed even before the first
+    // incumbent) to seed the queue.
+    const bool guide_by_pruning;
 
     std::vector<std::shared_ptr<Evaluator>> evals;
+    // Number of inadmissible guidance heuristics.
     const int num_lists;
+    // Whether the admissible pruner contributes an extra ranked list.
+    const bool use_pruner_queue;
+    // Lists per layer: num_lists guidance lists plus the optional pruner list.
+    const int total_lists;
     std::shared_ptr<Evaluator> pruning_heuristic;
     std::vector<Evaluator *> path_dependent_evaluators;
     std::shared_ptr<PruningMethod> pruning_method;
@@ -102,6 +114,7 @@ public:
         bool reopen_closed,
         bool anytime,
         Schedule schedule,
+        bool guide_by_pruning,
         const std::shared_ptr<Evaluator> &pruning_heuristic,
         const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,
