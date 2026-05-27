@@ -1,29 +1,22 @@
 #!/usr/bin/env python3
 """
-Adaptive / ratchet triangle vs static slope=48 triangle vs LAMA-2011 on
-agile-strips.
+Adaptive / ratchet triangle on agile-strips (novel-variants half of the pair).
 
-Mirrors ../2026-05-triangle-vs-lama/ but adds two dynamic-slope variants
-of triangle. For each of three heuristic combinations (g-only, hmax
-pruning, lmcut pruning), we compare:
+This experiment runs ONLY the two dynamic-slope triangle variants, across
+three heuristic combinations (g-only, hmax pruning, lmcut pruning):
 
-  * static triangle with slope=48 -- the Phase 0/1 baseline
-  * adaptive_triangle             -- per-step h-trend budget chooses
-                                     cascade depth dynamically; no
-                                     persistent slope state
-  * ratchet_triangle              -- persistent slope doubled/halved at
-                                     end of each step based on that
-                                     step's informed-vs-uninformed
-                                     h-transition count
+  * adaptive_triangle  -- per-step h-trend budget chooses cascade depth
+                          dynamically; no persistent slope state
+  * ratchet_triangle   -- persistent slope doubled/halved at end of each
+                          step based on that step's informed-vs-uninformed
+                          h-transition count
 
-LAMA-2011 is included via the standard alias as an external satisficing
-reference.
+The static triangle (slope=48) and LAMA-2011 baselines that complete the
+comparison are deliberately NOT rerun here -- they are produced by the
+sibling experiment ../2026-05-triangle-vs-lama/ under identical conditions
+(same suite, ipd=5/step=1, 30m, 8G, slope=48) and stitched in during
+analysis.  Running configs in exactly one place avoids duplicate compute.
 
-  triangle-gonly:          triangle(eval=ff(), slope=48, anytime=true)
-  triangle-hmax:           triangle(eval=ff(), pruning_heuristic=hmax(),
-                                    slope=48, anytime=true)
-  triangle-lmcut:          triangle(eval=ff(), pruning_heuristic=lmcut(),
-                                    slope=48, anytime=true)
   adaptive-triangle-gonly: adaptive_triangle(eval=ff(), anytime=true)
   adaptive-triangle-hmax:  adaptive_triangle(eval=ff(),
                                              pruning_heuristic=hmax(),
@@ -38,7 +31,8 @@ reference.
   ratchet-triangle-lmcut:  ratchet_triangle(eval=ff(),
                                             pruning_heuristic=lmcut(),
                                             anytime=true)
-  lama-anytime:            seq-sat-lama-2011 alias
+
+  (baselines triangle-{gonly,hmax,lmcut} + lama-anytime: see sibling exp)
 
 Modeled on ../2026-05-triangle-vs-lama/2026-05-26-A-triangle-anytime-vs-lama.py.
 
@@ -49,7 +43,6 @@ Environment variables (defaults shown; Tetralith overrides marked):
   ADAPTIVE_TRIANGLE_INSTANCES_PER_DOMAIN    default 1 local / 5 Tetralith
   ADAPTIVE_TRIANGLE_INSTANCE_STEP           default 3 local / 1 Tetralith
   ADAPTIVE_TRIANGLE_DOMAINS                 comma-separated; default all-discovered
-  ADAPTIVE_TRIANGLE_SLOPE                   default 48 (static-triangle baseline)
   ADAPTIVE_TRIANGLE_BENCHMARK_TARGET        default autoscale-agile-21.11-strips
   DOWNWARD_REPO                             default <repo root>
   DOWNWARD_BUILD                            default release
@@ -61,6 +54,7 @@ hour and uses ~16 GB peak (2 * 8G memory limit).  Increase via env vars when
 you have headroom.
 """
 
+import math
 import os
 import platform
 import re
@@ -134,7 +128,6 @@ else:
     INSTANCE_STEP = int(os.environ.get("ADAPTIVE_TRIANGLE_INSTANCE_STEP", "3"))
 
 LOCAL_PROCESSES = int(os.environ.get("ADAPTIVE_TRIANGLE_PROCESSES", "2"))
-SLOPE = int(os.environ.get("ADAPTIVE_TRIANGLE_SLOPE", "48"))
 
 
 # ----------------------------------------------------------------------------
@@ -209,17 +202,11 @@ TASKS = build_limited_suite(BENCHMARKS_DIR, SUITE, INSTANCES_PER_DOMAIN, INSTANC
 TRANSLATE_OPTIONS = ["--translate-options"]
 
 SEARCH_TEMPLATES = {
-    "triangle-gonly": (
-        f"triangle(eval=ff(), slope={SLOPE}, anytime=true)"
-    ),
-    "triangle-hmax": (
-        f"triangle(eval=ff(), pruning_heuristic=hmax(), "
-        f"slope={SLOPE}, anytime=true)"
-    ),
-    "triangle-lmcut": (
-        f"triangle(eval=ff(), pruning_heuristic=lmcut(), "
-        f"slope={SLOPE}, anytime=true)"
-    ),
+    # NOTE: the static triangle-{gonly,hmax,lmcut} and lama-anytime baselines
+    # are intentionally NOT run here -- they are produced by the sibling
+    # experiment ../2026-05-triangle-vs-lama/ under identical conditions
+    # (same suite, ipd=5/step=1, 30m, 8G, slope=48) and stitched in afterward.
+    # This experiment runs only the novel adaptive/ratchet variants.
     "adaptive-triangle-gonly": (
         f"adaptive_triangle(eval=ff(), anytime=true)"
     ),
@@ -244,9 +231,9 @@ SEARCH_TEMPLATES = {
     ),
 }
 
-ALIAS_CONFIGS = {
-    "lama-anytime": ["--alias", "seq-sat-lama-2011"],
-}
+# lama-anytime is run by the sibling ../2026-05-triangle-vs-lama/ experiment;
+# omitted here to avoid rerunning a shared configuration (see note above).
+ALIAS_CONFIGS = {}
 
 DRIVER_OPTIONS_DICT = {
     "--validate": None,
@@ -273,6 +260,41 @@ for name, search in SEARCH_TEMPLATES.items():
     )
 for name, alias_opts in ALIAS_CONFIGS.items():
     CONFIGS.append((name, alias_opts))
+
+
+# ----------------------------------------------------------------------------
+# Slurm wall-clock reservation
+# ----------------------------------------------------------------------------
+# Lab packs ceil(num_runs / MAX_TASKS) runs into each array task and runs them
+# back-to-back.  Ask the scheduler for exactly what a task can need -- the FD
+# search limit times that many runs, plus a flat 30m to cover translation and
+# validation -- rather than the 24h TetralithEnvironment default, which wrecks
+# backfill for short tasks.
+def _budget_to_seconds(budget):
+    """Parse an FD time-limit string ('30m', '1800s', '0.5h', '1800') to seconds."""
+    text = str(budget).strip().lower()
+    units = {"s": 1, "m": 60, "h": 3600}
+    if text and text[-1] in units:
+        return float(text[:-1]) * units[text[-1]]
+    return float(text)  # bare value is seconds
+
+
+def _seconds_to_hms(seconds):
+    seconds = int(round(seconds))
+    hours, rem = divmod(seconds, 3600)
+    minutes, secs = divmod(rem, 60)
+    return f"{hours}:{minutes:02d}:{secs:02d}"
+
+
+if IS_TETRALITH:
+    NUM_RUNS = len(CONFIGS) * len(TASKS)
+    RUNS_PER_TASK = math.ceil(NUM_RUNS / ENV.MAX_TASKS)
+    WALL_SECONDS = RUNS_PER_TASK * _budget_to_seconds(BUDGET) + 30 * 60
+    ENV.time_limit_per_task = _seconds_to_hms(WALL_SECONDS)
+    print(
+        f"[adaptive-triangle] {NUM_RUNS} runs, {RUNS_PER_TASK} runs/array-task, "
+        f"requesting wall time {ENV.time_limit_per_task} per task"
+    )
 
 
 # ----------------------------------------------------------------------------

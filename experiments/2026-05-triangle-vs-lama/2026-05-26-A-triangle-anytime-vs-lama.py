@@ -37,6 +37,7 @@ hour and uses ~16 GB peak (2 * 8G memory limit).  Increase via env vars when
 you have headroom.
 """
 
+import math
 import os
 import platform
 import re
@@ -227,6 +228,41 @@ for name, search in TRIANGLE_TEMPLATES.items():
     )
 for name, alias_opts in ALIAS_CONFIGS.items():
     CONFIGS.append((name, alias_opts))
+
+
+# ----------------------------------------------------------------------------
+# Slurm wall-clock reservation
+# ----------------------------------------------------------------------------
+# Lab packs ceil(num_runs / MAX_TASKS) runs into each array task and runs them
+# back-to-back.  Ask the scheduler for exactly what a task can need -- the FD
+# search limit times that many runs, plus a flat 30m to cover translation and
+# validation -- rather than the 24h TetralithEnvironment default, which wrecks
+# backfill for ~80-minute tasks.
+def _budget_to_seconds(budget):
+    """Parse an FD time-limit string ('30m', '1800s', '0.5h', '1800') to seconds."""
+    text = str(budget).strip().lower()
+    units = {"s": 1, "m": 60, "h": 3600}
+    if text and text[-1] in units:
+        return float(text[:-1]) * units[text[-1]]
+    return float(text)  # bare value is seconds
+
+
+def _seconds_to_hms(seconds):
+    seconds = int(round(seconds))
+    hours, rem = divmod(seconds, 3600)
+    minutes, secs = divmod(rem, 60)
+    return f"{hours}:{minutes:02d}:{secs:02d}"
+
+
+if IS_TETRALITH:
+    NUM_RUNS = len(CONFIGS) * len(TASKS)
+    RUNS_PER_TASK = math.ceil(NUM_RUNS / ENV.MAX_TASKS)
+    WALL_SECONDS = RUNS_PER_TASK * _budget_to_seconds(BUDGET) + 30 * 60
+    ENV.time_limit_per_task = _seconds_to_hms(WALL_SECONDS)
+    print(
+        f"[triangle-vs-lama] {NUM_RUNS} runs, {RUNS_PER_TASK} runs/array-task, "
+        f"requesting wall time {ENV.time_limit_per_task} per task"
+    )
 
 
 # ----------------------------------------------------------------------------
