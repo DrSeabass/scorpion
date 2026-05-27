@@ -34,6 +34,10 @@ class RatchetTriangleSearch : public SearchAlgorithm {
     int slope;
     const bool reopen_closed_nodes;
     const bool anytime_search;
+    // Direction B (relaxed cascade start-depth): when true, begin each step's
+    // cascade slope-1 layers below the shallowest active layer instead of at
+    // the root. Off => start index stays 0 => bit-identical to vanilla ratchet.
+    const bool lift_floor;
 
     std::shared_ptr<Evaluator> eval;
     std::shared_ptr<Evaluator> pruning_heuristic;
@@ -62,6 +66,7 @@ public:
         int initial_slope,
         bool reopen_closed,
         bool anytime,
+        bool lift_floor,
         const std::shared_ptr<Evaluator> &pruning_heuristic,
         const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,

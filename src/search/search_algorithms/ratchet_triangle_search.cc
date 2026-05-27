@@ -25,6 +25,7 @@ RatchetTriangleSearch::RatchetTriangleSearch(
     int initial_slope,
     bool reopen_closed,
     bool anytime,
+    bool lift_floor,
     const shared_ptr<Evaluator> &pruning_heuristic,
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
@@ -33,6 +34,7 @@ RatchetTriangleSearch::RatchetTriangleSearch(
       slope(initial_slope),
       reopen_closed_nodes(reopen_closed),
       anytime_search(anytime),
+      lift_floor(lift_floor),
       eval(eval),
       pruning_heuristic(pruning_heuristic),
       pruning_method(pruning) {
@@ -44,6 +46,7 @@ RatchetTriangleSearch::RatchetTriangleSearch(
 
 void RatchetTriangleSearch::initialize() {
     log << "Conducting ratchet triangle search, initial slope " << slope
+        << ", lift_floor = " << lift_floor
         << ", (real) bound = " << bound << endl;
 
     assert(eval);
@@ -182,6 +185,19 @@ SearchStatus RatchetTriangleSearch::step() {
 
     const int cascade_cap = max_active_layer + slope;
 
+    // Direction B (relaxed cascade start-depth). With lift_floor, begin the
+    // cascade slope-1 layers below the shallowest active layer (which the
+    // front-drain above pins to index 0) instead of at the root, so the
+    // shallow layers the persistent slope says we trust are skipped this
+    // step. The clamp to max_active_layer keeps the deepest active layer
+    // served, so every step makes at least one expansion and the floor can
+    // never run off the deque. slope==1 (or lift_floor off) yields start 0,
+    // i.e. the vanilla ratchet cascade. The floor self-resets toward the root
+    // as the slope ratchets back down on an unproductive (e.g. tail-pruned)
+    // frontier -- no explicit reset hook needed.
+    const int cascade_start =
+        lift_floor ? min(slope - 1, max_active_layer) : 0;
+
     // H-trend bookkeeping for the end-of-step slope ratchet: count
     // informed (h decreased relative to the previous expansion in this
     // step) vs uninformed layer-transitions.
@@ -190,7 +206,7 @@ SearchStatus RatchetTriangleSearch::step() {
     int informed_count = 0;
     int uninformed_count = 0;
 
-    for (int i = 0; i < cascade_cap; ++i) {
+    for (int i = cascade_start; i < cascade_cap; ++i) {
         if (i >= static_cast<int>(open_lists.size()))
             break;
         if (open_lists[i].empty())

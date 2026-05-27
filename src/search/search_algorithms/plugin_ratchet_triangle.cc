@@ -18,7 +18,11 @@ public:
             "previous expansion in this step) than uninformed ones, slope "
             "doubles; otherwise it halves, with a floor of 1. No upper bound "
             "beyond int-overflow guarding. Stops after the first plan is "
-            "found unless anytime=true.");
+            "found unless anytime=true. With lift_floor=true (Direction B, "
+            "relaxed cascade start-depth) each step's cascade begins slope-1 "
+            "layers below the shallowest active layer instead of at the root, "
+            "skipping the shallow layers the current slope says we trust; the "
+            "floor self-resets toward the root as the slope ratchets down.");
 
         add_option<shared_ptr<Evaluator>>("eval", "ranking evaluator");
         add_option<int>(
@@ -33,6 +37,12 @@ public:
         add_option<bool>(
             "anytime",
             "continue search after finding a solution to improve the incumbent",
+            "false");
+        add_option<bool>(
+            "lift_floor",
+            "Direction B: start each cascade slope-1 layers below the "
+            "shallowest active layer instead of at the root, skipping the "
+            "shallow layers the current slope trusts",
             "false");
         add_option<shared_ptr<Evaluator>>(
             "pruning_heuristic",
@@ -51,6 +61,7 @@ public:
             opts.get<int>("slope"),
             opts.get<bool>("reopen_closed"),
             opts.get<bool>("anytime"),
+            opts.get<bool>("lift_floor"),
             opts.get<shared_ptr<Evaluator>>("pruning_heuristic", nullptr),
             get_search_pruning_arguments_from_options(opts),
             get_search_algorithm_arguments_from_options(opts));
