@@ -22,7 +22,7 @@ Environment variables (defaults shown; Tetralith overrides marked):
   TRIANGLE_VS_LAMA_BUDGET                  default 5m local / 30m Tetralith
   TRIANGLE_VS_LAMA_MEMORY                  default 8G
   TRIANGLE_VS_LAMA_PROCESSES               local-only, default 2
-  TRIANGLE_VS_LAMA_INSTANCES_PER_DOMAIN    default 1 local / 5 Tetralith
+  TRIANGLE_VS_LAMA_INSTANCES_PER_DOMAIN    default 1 local / 0=all Tetralith
   TRIANGLE_VS_LAMA_INSTANCE_STEP           default 3 local / 1 Tetralith
   TRIANGLE_VS_LAMA_DOMAINS                 comma-separated; default all-discovered
   TRIANGLE_VS_LAMA_SLOPE                   default 48
@@ -99,7 +99,7 @@ if IS_TETRALITH:
     BUDGET = os.environ.get("TRIANGLE_VS_LAMA_BUDGET", "30m")
     MEMORY = os.environ.get("TRIANGLE_VS_LAMA_MEMORY", "8G")
     INSTANCES_PER_DOMAIN = int(
-        os.environ.get("TRIANGLE_VS_LAMA_INSTANCES_PER_DOMAIN", "5")
+        os.environ.get("TRIANGLE_VS_LAMA_INSTANCES_PER_DOMAIN", "0")
     )
     INSTANCE_STEP = int(os.environ.get("TRIANGLE_VS_LAMA_INSTANCE_STEP", "1"))
 else:

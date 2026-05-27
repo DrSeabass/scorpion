@@ -40,7 +40,7 @@ Environment variables (defaults shown; Tetralith overrides marked):
   ADAPTIVE_TRIANGLE_BUDGET                  default 5m local / 30m Tetralith
   ADAPTIVE_TRIANGLE_MEMORY                  default 8G
   ADAPTIVE_TRIANGLE_PROCESSES               local-only, default 2
-  ADAPTIVE_TRIANGLE_INSTANCES_PER_DOMAIN    default 1 local / 5 Tetralith
+  ADAPTIVE_TRIANGLE_INSTANCES_PER_DOMAIN    default 1 local / 0=all Tetralith
   ADAPTIVE_TRIANGLE_INSTANCE_STEP           default 3 local / 1 Tetralith
   ADAPTIVE_TRIANGLE_DOMAINS                 comma-separated; default all-discovered
   ADAPTIVE_TRIANGLE_BENCHMARK_TARGET        default autoscale-agile-21.11-strips
@@ -116,7 +116,7 @@ if IS_TETRALITH:
     BUDGET = os.environ.get("ADAPTIVE_TRIANGLE_BUDGET", "30m")
     MEMORY = os.environ.get("ADAPTIVE_TRIANGLE_MEMORY", "8G")
     INSTANCES_PER_DOMAIN = int(
-        os.environ.get("ADAPTIVE_TRIANGLE_INSTANCES_PER_DOMAIN", "5")
+        os.environ.get("ADAPTIVE_TRIANGLE_INSTANCES_PER_DOMAIN", "0")
     )
     INSTANCE_STEP = int(os.environ.get("ADAPTIVE_TRIANGLE_INSTANCE_STEP", "1"))
 else:
