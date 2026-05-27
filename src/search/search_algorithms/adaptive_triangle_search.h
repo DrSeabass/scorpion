@@ -33,6 +33,11 @@ class AdaptiveTriangleSearch : public SearchAlgorithm {
 
     const bool reopen_closed_nodes;
     const bool anytime_search;
+    // Direction B (relaxed cascade start-depth): when true, begin each step's
+    // cascade at the realized dive depth of the previous step (prev_layers_added)
+    // instead of at the root. Off => start index stays 0 => bit-identical to
+    // vanilla adaptive.
+    const bool lift_floor;
 
     std::shared_ptr<Evaluator> eval;
     std::shared_ptr<Evaluator> pruning_heuristic;
@@ -41,6 +46,11 @@ class AdaptiveTriangleSearch : public SearchAlgorithm {
 
     std::deque<OpenList> open_lists;
     int max_active_layer = -1;
+    // Number of new frontier layers the previous step instantiated (its
+    // realized dive depth past the frontier -- the emergent analog of
+    // ratchet's persistent slope). Drives the lift_floor start index of the
+    // next step. Only read when lift_floor is true.
+    int prev_layers_added = 0;
 
     void start_evaluator_statistics(EvaluationContext &eval_context);
     void extend_open_lists(int num_lists);
@@ -60,6 +70,7 @@ public:
         const std::shared_ptr<Evaluator> &eval,
         bool reopen_closed,
         bool anytime,
+        bool lift_floor,
         const std::shared_ptr<Evaluator> &pruning_heuristic,
         const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,

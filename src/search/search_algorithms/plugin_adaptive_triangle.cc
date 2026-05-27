@@ -18,7 +18,13 @@ public:
             "in this step) refunds one unit while each uninformed transition "
             "debits one. The cascade halts when the budget is too small to "
             "afford the next extension. Stops after the first plan is found "
-            "unless anytime=true.");
+            "unless anytime=true. With lift_floor=true (Direction B, relaxed "
+            "cascade start-depth) each step's cascade begins at the previous "
+            "step's realized dive depth (number of new frontier layers it "
+            "instantiated, minus one) below the shallowest active layer "
+            "instead of at the root, skipping the shallow layers the last "
+            "dive trusted; the floor self-resets toward the root as an "
+            "unproductive step instantiates fewer new layers.");
 
         add_option<shared_ptr<Evaluator>>("eval", "ranking evaluator");
         add_option<bool>(
@@ -28,6 +34,12 @@ public:
         add_option<bool>(
             "anytime",
             "continue search after finding a solution to improve the incumbent",
+            "false");
+        add_option<bool>(
+            "lift_floor",
+            "Direction B: start each cascade at the previous step's realized "
+            "dive depth below the shallowest active layer instead of at the "
+            "root, skipping the shallow layers the last dive trusted",
             "false");
         add_option<shared_ptr<Evaluator>>(
             "pruning_heuristic",
@@ -45,6 +57,7 @@ public:
             opts.get<shared_ptr<Evaluator>>("eval"),
             opts.get<bool>("reopen_closed"),
             opts.get<bool>("anytime"),
+            opts.get<bool>("lift_floor"),
             opts.get<shared_ptr<Evaluator>>("pruning_heuristic", nullptr),
             get_search_pruning_arguments_from_options(opts),
             get_search_algorithm_arguments_from_options(opts));

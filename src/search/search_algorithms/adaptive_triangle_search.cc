@@ -23,6 +23,7 @@ AdaptiveTriangleSearch::AdaptiveTriangleSearch(
     const shared_ptr<Evaluator> &eval,
     bool reopen_closed,
     bool anytime,
+    bool lift_floor,
     const shared_ptr<Evaluator> &pruning_heuristic,
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
@@ -30,13 +31,15 @@ AdaptiveTriangleSearch::AdaptiveTriangleSearch(
     : SearchAlgorithm(cost_type, bound, max_time, description, verbosity),
       reopen_closed_nodes(reopen_closed),
       anytime_search(anytime),
+      lift_floor(lift_floor),
       eval(eval),
       pruning_heuristic(pruning_heuristic),
       pruning_method(pruning) {
 }
 
 void AdaptiveTriangleSearch::initialize() {
-    log << "Conducting adaptive triangle search, (real) bound = " << bound << endl;
+    log << "Conducting adaptive triangle search, lift_floor = " << lift_floor
+        << ", (real) bound = " << bound << endl;
 
     assert(eval);
 
@@ -178,7 +181,23 @@ SearchStatus AdaptiveTriangleSearch::step() {
     int last_expanded_h = 0;
     bool have_last_h = false;
 
-    for (int i = 0; ; ++i) {
+    // Direction B (relaxed cascade start-depth). With lift_floor, begin the
+    // cascade prev_layers_added-1 layers below the shallowest active layer
+    // (which the front-drain above pins to index 0) instead of at the root,
+    // skipping the shallow layers the previous step's realized dive said we
+    // trust. prev_layers_added is the emergent analog of ratchet's persistent
+    // slope: the number of new frontier layers the last step instantiated. The
+    // clamp keeps the deepest active layer served (>=1 expansion/step, floor
+    // can't run off the deque). The floor self-resets toward the root because
+    // an unproductive (e.g. tail-pruned) step instantiates few/no new layers,
+    // shrinking prev_layers_added. lift_floor off yields start 0 == vanilla
+    // adaptive. layers_added counts this step's frontier instantiations to
+    // carry forward as the next step's floor.
+    const int cascade_start =
+        lift_floor ? max(0, min(prev_layers_added - 1, max_active_layer)) : 0;
+    int layers_added = 0;
+
+    for (int i = cascade_start; ; ++i) {
         if (i >= static_cast<int>(open_lists.size()))
             break;
 
@@ -219,6 +238,7 @@ SearchStatus AdaptiveTriangleSearch::step() {
                 break;
             --budget;
             extend_open_lists(1);
+            ++layers_added;
         }
 
         // Commit: actually pop the expandable entry.
@@ -317,6 +337,8 @@ SearchStatus AdaptiveTriangleSearch::step() {
         }
     }
 
+    // Carry this step's realized dive depth to drive next step's lift_floor.
+    prev_layers_added = layers_added;
     return IN_PROGRESS;
 }
 
