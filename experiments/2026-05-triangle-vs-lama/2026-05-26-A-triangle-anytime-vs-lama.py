@@ -26,6 +26,7 @@ Environment variables (defaults shown; Tetralith overrides marked):
   TRIANGLE_VS_LAMA_INSTANCE_STEP           default 3 local / 1 Tetralith
   TRIANGLE_VS_LAMA_DOMAINS                 comma-separated; default all-discovered
   TRIANGLE_VS_LAMA_SLOPE                   default 48
+  TRIANGLE_VS_LAMA_WALL_TIME_FLOOR         Tetralith reservation floor, default 10:00:00
   TRIANGLE_VS_LAMA_BENCHMARK_TARGET        default autoscale-agile-21.11-strips
   DOWNWARD_REPO                            default <repo root>
   DOWNWARD_BUILD                           default release
@@ -234,13 +235,25 @@ for name, alias_opts in ALIAS_CONFIGS.items():
 # Slurm wall-clock reservation
 # ----------------------------------------------------------------------------
 # Lab packs ceil(num_runs / MAX_TASKS) runs into each array task and runs them
-# back-to-back.  Ask the scheduler for exactly what a task can need -- the FD
-# search limit times that many runs, plus a flat 30m to cover translation and
-# validation -- rather than the 24h TetralithEnvironment default, which wrecks
-# backfill for ~80-minute tasks.
-def _budget_to_seconds(budget):
-    """Parse an FD time-limit string ('30m', '1800s', '0.5h', '1800') to seconds."""
-    text = str(budget).strip().lower()
+# back-to-back, so a task needs the FD search limit plus translate/validate
+# overhead, times that many runs.  We compute that estimate (per-run padding,
+# so it stays safe as runs/task grows) but reserve at least WALL_TIME_FLOOR.
+# --time is a hard SIGKILL and losing a run to it is far worse than slightly
+# over-reserving; the 10h floor still sits well under the 24h
+# TetralithEnvironment default, so backfill stays happy.  Bump the floor via
+# TRIANGLE_VS_LAMA_WALL_TIME_FLOOR if a future scope pushes the estimate higher.
+PER_RUN_OVERHEAD_SECONDS = 180  # translate + validate + lab; grid tops out ~2m
+
+
+def _duration_to_seconds(value):
+    """Parse a duration ('30m', '1800s', '0.5h', '10:00:00', '1800') to seconds."""
+    text = str(value).strip().lower()
+    if ":" in text:
+        parts = [float(p) for p in text.split(":")]
+        while len(parts) < 3:
+            parts.insert(0, 0.0)
+        hours, minutes, secs = parts
+        return hours * 3600 + minutes * 60 + secs
     units = {"s": 1, "m": 60, "h": 3600}
     if text and text[-1] in units:
         return float(text[:-1]) * units[text[-1]]
@@ -257,11 +270,19 @@ def _seconds_to_hms(seconds):
 if IS_TETRALITH:
     NUM_RUNS = len(CONFIGS) * len(TASKS)
     RUNS_PER_TASK = math.ceil(NUM_RUNS / ENV.MAX_TASKS)
-    WALL_SECONDS = RUNS_PER_TASK * _budget_to_seconds(BUDGET) + 30 * 60
+    EST_SECONDS = RUNS_PER_TASK * (
+        _duration_to_seconds(BUDGET) + PER_RUN_OVERHEAD_SECONDS
+    )
+    FLOOR_SECONDS = _duration_to_seconds(
+        os.environ.get("TRIANGLE_VS_LAMA_WALL_TIME_FLOOR", "10:00:00")
+    )
+    WALL_SECONDS = max(EST_SECONDS, FLOOR_SECONDS)
     ENV.time_limit_per_task = _seconds_to_hms(WALL_SECONDS)
     print(
-        f"[triangle-vs-lama] {NUM_RUNS} runs, {RUNS_PER_TASK} runs/array-task, "
-        f"requesting wall time {ENV.time_limit_per_task} per task"
+        f"[triangle-vs-lama] {NUM_RUNS} runs, {RUNS_PER_TASK} runs/array-task; "
+        f"estimate {_seconds_to_hms(EST_SECONDS)}, "
+        f"floor {_seconds_to_hms(FLOOR_SECONDS)} "
+        f"-> requesting {ENV.time_limit_per_task} per task"
     )
 
 
