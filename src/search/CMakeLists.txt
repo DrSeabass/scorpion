@@ -704,6 +704,27 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME multi_triangle_search
+    HELP "Multi-heuristic triangle search"
+    SOURCES
+        search_algorithms/multi_triangle_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_multi_triangle
+    HELP "Multi-heuristic triangle search (plugin)"
+    SOURCES
+        search_algorithms/plugin_multi_triangle
+    DEPENDS
+        multi_triangle_search
+)
+
+create_fast_downward_library(
     NAME lazy_triangle_search
     HELP "Lazy triangle search"
     SOURCES
