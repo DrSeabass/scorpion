@@ -43,9 +43,6 @@ compute (same discipline as ../2026-05-bring-up-rear/):
                             weight schedule, and boosting are OUT OF SCOPE for
                             AAAI (Paper 3), so this is the closest single element
                             to LAMA we can field here.
-    rich-ffcg-sweep-gbp  multi_triangle([ff, cg], pruning_heuristic=lmcut(),
-                            guide_by_pruning=true, schedule=sweep)
-                         -- the admissible h as a free (N+1)th ranked queue
     rh-altq-ffcg         eager_greedy([ff, cg])
                          -- Roeger & Helmert (2010) "The More, the Merrier"
                             multi-heuristic ALTERNATION open list, matched on
@@ -269,13 +266,6 @@ SEARCH_TEMPLATES = {
     "rich-fflm-sweep": (
         f"let(hff, {LAMA_FF}, let(hlm, {LAMA_LM}, "
         f"multi_triangle([hff, hlm], slope={SLOPE}, schedule=sweep, anytime=true)))"
-    ),
-
-    # The admissible pruner doubling as an (N+1)th ranked queue.
-    "rich-ffcg-sweep-gbp": (
-        "let(hff, ff(), let(hcg, cg(), "
-        f"multi_triangle([hff, hcg], pruning_heuristic=lmcut(), "
-        f"guide_by_pruning=true, slope={SLOPE}, schedule=sweep, anytime=true)))"
     ),
 
     # Roeger & Helmert (2010) multi-heuristic alternation open list, matched on
