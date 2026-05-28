@@ -49,6 +49,12 @@ class AdaptiveTriangleSearch : public SearchAlgorithm {
     // Off => start index stays 0 => bit-identical to vanilla adaptive.
     const bool lift_floor;
     const FloorProxy floor_proxy;
+    // Budget decrement applied per uninformed (h non-improving) transition.
+    // Default 1 matches the original symmetric +1/-1 budget rule. Setting to
+    // 0 lets the cascade keep running through non-improving transitions as
+    // long as no frontier extension is needed -- so a single bad transition
+    // mid-step no longer halts forward progress.
+    const int non_progress_penalty;
 
     std::shared_ptr<Evaluator> eval;
     std::shared_ptr<Evaluator> pruning_heuristic;
@@ -87,6 +93,7 @@ public:
         bool anytime,
         bool lift_floor,
         FloorProxy floor_proxy,
+        int non_progress_penalty,
         const std::shared_ptr<Evaluator> &pruning_heuristic,
         const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,

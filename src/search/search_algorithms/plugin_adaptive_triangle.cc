@@ -49,6 +49,14 @@ public:
             "how the lifted cascade start-depth is derived (only used when "
             "lift_floor=true)",
             "informedness");
+        add_option<int>(
+            "non_progress_penalty",
+            "budget decrement applied per uninformed (h non-improving) "
+            "transition. Default 1 matches the symmetric +1/-1 budget rule. "
+            "Setting to 0 lets the cascade keep running through non-improving "
+            "transitions as long as no frontier extension is needed",
+            "1",
+            plugins::Bounds("0", "infinity"));
         add_option<shared_ptr<Evaluator>>(
             "pruning_heuristic",
             "admissible evaluator used for f-pruning successors "
@@ -67,6 +75,7 @@ public:
             opts.get<bool>("anytime"),
             opts.get<bool>("lift_floor"),
             opts.get<adaptive_triangle_search::FloorProxy>("floor_proxy"),
+            opts.get<int>("non_progress_penalty"),
             opts.get<shared_ptr<Evaluator>>("pruning_heuristic", nullptr),
             get_search_pruning_arguments_from_options(opts),
             get_search_algorithm_arguments_from_options(opts));

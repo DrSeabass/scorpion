@@ -26,6 +26,7 @@ AdaptiveTriangleSearch::AdaptiveTriangleSearch(
     bool anytime,
     bool lift_floor,
     FloorProxy floor_proxy,
+    int non_progress_penalty,
     const shared_ptr<Evaluator> &pruning_heuristic,
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
@@ -35,6 +36,7 @@ AdaptiveTriangleSearch::AdaptiveTriangleSearch(
       anytime_search(anytime),
       lift_floor(lift_floor),
       floor_proxy(floor_proxy),
+      non_progress_penalty(non_progress_penalty),
       eval(eval),
       pruning_heuristic(pruning_heuristic),
       pruning_method(pruning) {
@@ -44,6 +46,7 @@ void AdaptiveTriangleSearch::initialize() {
     log << "Conducting adaptive triangle search, lift_floor = " << lift_floor
         << ", floor_proxy = "
         << (floor_proxy == FloorProxy::INFORMEDNESS ? "informedness" : "layers_added")
+        << ", non_progress_penalty = " << non_progress_penalty
         << ", (real) bound = " << bound << endl;
 
     assert(eval);
@@ -281,7 +284,7 @@ SearchStatus AdaptiveTriangleSearch::step() {
                 ++budget;
                 ++improving_transitions;
             } else {
-                --budget;
+                budget -= non_progress_penalty;
                 ++nonimproving_transitions;
             }
         }
