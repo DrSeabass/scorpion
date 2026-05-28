@@ -3,8 +3,12 @@
 Bring-up-the-rear (Direction B: relaxed cascade start-depth) triangle
 variants on agile-strips.
 
-This experiment runs ONLY the lift_floor=on B variants, across three
-heuristic combinations (g-only, hmax pruning, lmcut pruning):
+This experiment runs ONLY the lift_floor=on B variants, g-only pruning
+only (the hmax/lmcut admissible-pruner variants have been retired -- the
+B-experiment of ../2026-05-adaptive-triangle/ showed the pruning-heuristic
+axis contributes essentially nothing once the cascade has the wrong shape;
+keep the experiment matrix narrow until the floor-lift dynamics are
+characterized):
 
   * adaptive_triangle(lift_floor=true, floor_proxy=informedness)
         -- floor positioned between root and frontier by the fraction of
@@ -23,12 +27,8 @@ config in exactly one place avoids duplicate compute.
   adaptive-floor-inf-gonly: adaptive_triangle(eval=ff(), lift_floor=true,
                                               floor_proxy=informedness,
                                               anytime=true)
-  adaptive-floor-inf-hmax:  + pruning_heuristic=hmax()
-  adaptive-floor-inf-lmcut: + pruning_heuristic=lmcut()
   ratchet-floor-gonly:      ratchet_triangle(eval=ff(), lift_floor=true,
                                              anytime=true)
-  ratchet-floor-hmax:       + pruning_heuristic=hmax()
-  ratchet-floor-lmcut:      + pruning_heuristic=lmcut()
 
   (off baselines: ../2026-05-adaptive-triangle/; static + lama:
    ../2026-05-triangle-vs-lama/)
@@ -42,7 +42,9 @@ Environment variables (defaults shown; Tetralith overrides marked):
   LIFT_FLOOR_INSTANCES_PER_DOMAIN    default 1 local / 0=all Tetralith
   LIFT_FLOOR_INSTANCE_STEP           default 3 local / 1 Tetralith
   LIFT_FLOOR_DOMAINS                 comma-separated; default all-discovered
-  LIFT_FLOOR_WALL_TIME_FLOOR         Tetralith reservation floor, default 10:00:00
+  LIFT_FLOOR_WALL_TIME_FLOOR         Tetralith reservation floor, default 4:00:00
+                                     (2 configs, ~2:45 est per task -- 4h
+                                     leaves ~1:15 of headroom)
   LIFT_FLOOR_BENCHMARK_TARGET        default autoscale-agile-21.11-strips
   DOWNWARD_REPO                             default <repo root>
   DOWNWARD_BUILD                            default release
@@ -202,33 +204,18 @@ TASKS = build_limited_suite(BENCHMARKS_DIR, SUITE, INSTANCES_PER_DOMAIN, INSTANC
 TRANSLATE_OPTIONS = ["--translate-options"]
 
 SEARCH_TEMPLATES = {
-    # NOTE: only the lift_floor=on Direction-B variants run here. The
-    # lift_floor=off baselines come from ../2026-05-adaptive-triangle/ and the
-    # static triangle (slope=48) + lama-anytime from ../2026-05-triangle-vs-lama/,
-    # all under identical conditions and stitched in during analysis. Running
-    # each config in exactly one place avoids duplicate compute.
+    # NOTE: only the lift_floor=on Direction-B variants run here, g-only
+    # pruning only. The lift_floor=off baselines come from
+    # ../2026-05-adaptive-triangle/ and the static triangle (slope=48) +
+    # lama-anytime from ../2026-05-triangle-vs-lama/, all under identical
+    # conditions and stitched in during analysis. Running each config in
+    # exactly one place avoids duplicate compute.
     "adaptive-floor-inf-gonly": (
         "adaptive_triangle(eval=ff(), lift_floor=true, "
         "floor_proxy=informedness, anytime=true)"
     ),
-    "adaptive-floor-inf-hmax": (
-        "adaptive_triangle(eval=ff(), pruning_heuristic=hmax(), "
-        "lift_floor=true, floor_proxy=informedness, anytime=true)"
-    ),
-    "adaptive-floor-inf-lmcut": (
-        "adaptive_triangle(eval=ff(), pruning_heuristic=lmcut(), "
-        "lift_floor=true, floor_proxy=informedness, anytime=true)"
-    ),
     "ratchet-floor-gonly": (
         "ratchet_triangle(eval=ff(), lift_floor=true, anytime=true)"
-    ),
-    "ratchet-floor-hmax": (
-        "ratchet_triangle(eval=ff(), pruning_heuristic=hmax(), "
-        "lift_floor=true, anytime=true)"
-    ),
-    "ratchet-floor-lmcut": (
-        "ratchet_triangle(eval=ff(), pruning_heuristic=lmcut(), "
-        "lift_floor=true, anytime=true)"
     ),
 }
 
@@ -306,7 +293,7 @@ if IS_TETRALITH:
         _duration_to_seconds(BUDGET) + PER_RUN_OVERHEAD_SECONDS
     )
     FLOOR_SECONDS = _duration_to_seconds(
-        os.environ.get("LIFT_FLOOR_WALL_TIME_FLOOR", "10:00:00")
+        os.environ.get("LIFT_FLOOR_WALL_TIME_FLOOR", "4:00:00")
     )
     WALL_SECONDS = max(EST_SECONDS, FLOOR_SECONDS)
     ENV.time_limit_per_task = _seconds_to_hms(WALL_SECONDS)
