@@ -22,7 +22,9 @@ Environment variables (defaults shown; Tetralith overrides marked):
   ADAPTIVE_TRIANGLE_INSTANCES_PER_DOMAIN    default 1 local / 0=all Tetralith
   ADAPTIVE_TRIANGLE_INSTANCE_STEP           default 3 local / 1 Tetralith
   ADAPTIVE_TRIANGLE_DOMAINS                 comma-separated; default all-discovered
-  ADAPTIVE_TRIANGLE_WALL_TIME_FLOOR         Tetralith reservation floor, default 10:00:00
+  ADAPTIVE_TRIANGLE_WALL_TIME_FLOOR         Tetralith reservation floor, default 2:00:00
+                                            (this lab has only 3 runs/task so the
+                                            ~1:39 estimate fits comfortably under 2h)
   ADAPTIVE_TRIANGLE_BENCHMARK_TARGET        default autoscale-agile-21.11-strips
   DOWNWARD_REPO                             default <repo root>
   DOWNWARD_BUILD                            default release
@@ -247,7 +249,7 @@ if IS_TETRALITH:
         _duration_to_seconds(BUDGET) + PER_RUN_OVERHEAD_SECONDS
     )
     FLOOR_SECONDS = _duration_to_seconds(
-        os.environ.get("ADAPTIVE_TRIANGLE_WALL_TIME_FLOOR", "10:00:00")
+        os.environ.get("ADAPTIVE_TRIANGLE_WALL_TIME_FLOOR", "2:00:00")
     )
     WALL_SECONDS = max(EST_SECONDS, FLOOR_SECONDS)
     ENV.time_limit_per_task = _seconds_to_hms(WALL_SECONDS)
