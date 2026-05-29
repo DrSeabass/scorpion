@@ -1,39 +1,35 @@
 #!/usr/bin/env python3
 """
 Bring-up-the-rear (Direction B: relaxed cascade start-depth) triangle
-variants on agile-strips.
+variants on agile-strips, g-only pruning only:
 
-This experiment runs ONLY the lift_floor=on B variants, g-only pruning
-only (the hmax/lmcut admissible-pruner variants have been retired -- the
-B-experiment of ../2026-05-adaptive-triangle/ showed the pruning-heuristic
-axis contributes essentially nothing once the cascade has the wrong shape;
-keep the experiment matrix narrow until the floor-lift dynamics are
-characterized):
-
-  * adaptive_triangle(lift_floor=true, floor_proxy=informedness)
+  * adaptive_triangle(lift_floor=true, floor_proxy=informedness,
+                      non_progress_penalty=0)
         -- floor positioned between root and frontier by the fraction of
-           recent h-improving transitions; counts reset on incumbent
+           recent h-improving transitions; counts reset on incumbent.
+           non_progress_penalty=0 matches the D-experiment finding in
+           ../2026-05-adaptive-triangle/2026-05-28-D-adaptive-gonly-no-penalty.py:
+           zeroing the debit (keeping the refund) is significantly more
+           performant than the symmetric +1/-1 default.
   * ratchet_triangle(lift_floor=true)
         -- floor lifted to min(slope-1, max_active_layer), coupled to the
            persistent ratchet slope
 
-The lift_floor=off baselines (adaptive_triangle, ratchet_triangle) are
-produced by the sibling experiment ../2026-05-adaptive-triangle/ under
-identical conditions; the static triangle (slope=48) and LAMA-2011
-baselines come from ../2026-05-triangle-vs-lama/.  Both are deliberately
-NOT rerun here -- they are stitched in during analysis.  Running each
-config in exactly one place avoids duplicate compute.
+The lift_floor=off adaptive baseline is the np0 variant from
+../2026-05-adaptive-triangle/2026-05-28-D-adaptive-gonly-no-penalty.py;
+the lift_floor=off ratchet baseline comes from
+../2026-05-adaptive-triangle/2026-05-26-B-adaptive-vs-static-vs-lama.py;
+the static triangle (slope=48) and LAMA-2011 baselines come from
+../2026-05-triangle-vs-lama/.  All are run under identical conditions
+and stitched in during analysis -- running each config in exactly one
+place avoids duplicate compute.
 
-  adaptive-floor-inf-gonly: adaptive_triangle(eval=ff(), lift_floor=true,
-                                              floor_proxy=informedness,
-                                              anytime=true)
-  ratchet-floor-gonly:      ratchet_triangle(eval=ff(), lift_floor=true,
-                                             anytime=true)
-
-  (off baselines: ../2026-05-adaptive-triangle/; static + lama:
-   ../2026-05-triangle-vs-lama/)
-
-Modeled on ../2026-05-adaptive-triangle/2026-05-26-B-adaptive-vs-static-vs-lama.py.
+  adaptive-floor-inf-gonly-np0:
+      adaptive_triangle(eval=ff(), lift_floor=true,
+                        floor_proxy=informedness, anytime=true,
+                        non_progress_penalty=0)
+  ratchet-floor-gonly:
+      ratchet_triangle(eval=ff(), lift_floor=true, anytime=true)
 
 Environment variables (defaults shown; Tetralith overrides marked):
   LIFT_FLOOR_BUDGET                  default 5m local / 30m Tetralith
@@ -204,15 +200,10 @@ TASKS = build_limited_suite(BENCHMARKS_DIR, SUITE, INSTANCES_PER_DOMAIN, INSTANC
 TRANSLATE_OPTIONS = ["--translate-options"]
 
 SEARCH_TEMPLATES = {
-    # NOTE: only the lift_floor=on Direction-B variants run here, g-only
-    # pruning only. The lift_floor=off baselines come from
-    # ../2026-05-adaptive-triangle/ and the static triangle (slope=48) +
-    # lama-anytime from ../2026-05-triangle-vs-lama/, all under identical
-    # conditions and stitched in during analysis. Running each config in
-    # exactly one place avoids duplicate compute.
-    "adaptive-floor-inf-gonly": (
+    "adaptive-floor-inf-gonly-np0": (
         "adaptive_triangle(eval=ff(), lift_floor=true, "
-        "floor_proxy=informedness, anytime=true)"
+        "floor_proxy=informedness, anytime=true, "
+        "non_progress_penalty=0)"
     ),
     "ratchet-floor-gonly": (
         "ratchet_triangle(eval=ff(), lift_floor=true, anytime=true)"
