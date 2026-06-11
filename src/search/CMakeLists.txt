@@ -768,6 +768,27 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME anytime_nonparametric_search
+    HELP "Anytime nonparametric A* (ANA*)"
+    SOURCES
+        search_algorithms/anytime_nonparametric_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_ana
+    HELP "Anytime nonparametric A* (ANA*) (plugin)"
+    SOURCES
+        search_algorithms/plugin_ana
+    DEPENDS
+        anytime_nonparametric_search
+)
+
+create_fast_downward_library(
     NAME graph_discrepancy_search
     HELP "Graph discrepancy search"
     SOURCES
