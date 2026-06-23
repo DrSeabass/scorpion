@@ -3,6 +3,7 @@
 #include "../evaluation_context.h"
 #include "../evaluation_result.h"
 #include "../evaluator.h"
+#include "../plan_manager.h"
 #include "../pruning_method.h"
 
 #include "../task_utils/successor_generator.h"
@@ -21,12 +22,16 @@ RectangleSearch::RectangleSearch(
     const shared_ptr<Evaluator> &eval,
     int beam_width,
     int aspect,
+    bool reopen_closed,
+    bool anytime,
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
     const string &description, utils::Verbosity verbosity)
     : SearchAlgorithm(cost_type, bound, max_time, description, verbosity),
       beam_width(beam_width),
       aspect(aspect),
+      reopen_closed_nodes(reopen_closed),
+      anytime_search(anytime),
       eval(eval),
       pruning_method(pruning),
       depth(1) {
@@ -123,7 +128,7 @@ void RectangleSearch::initialize() {
 
                 insert_into_open_list(0, {succ_state.get_id(), eval_h, succ_g});
 
-                if (check_goal_and_set_plan(succ_state))
+                if (handle_goal(succ_state))
                     break;
             }
         }
@@ -152,6 +157,31 @@ void RectangleSearch::start_evaluator_statistics(EvaluationContext &eval_context
     }
 }
 
+void RectangleSearch::update_incumbent(const State &goal_state) {
+    Plan candidate_plan =
+        search_space.trace_path(task_proxy, successor_generator, goal_state);
+    int candidate_cost = calculate_plan_cost(candidate_plan, task_proxy);
+
+    if (!found_solution() || candidate_cost < bound) {
+        set_plan(candidate_plan);
+        bound = candidate_cost;
+        log << "RectangleSearch: improved incumbent with cost " << candidate_cost << endl;
+        if (anytime_search) {
+            plan_manager.save_plan(candidate_plan, task_proxy, true);
+        }
+    }
+}
+
+// Record a goal as the incumbent. Returns true iff the search should stop now
+// (first solution found in non-anytime mode); in anytime mode it keeps going so
+// the incumbent can be improved toward the optimum.
+bool RectangleSearch::handle_goal(const State &state) {
+    if (!task_properties::is_goal_state(task_proxy, state))
+        return false;
+    update_incumbent(state);
+    return !anytime_search;
+}
+
 bool RectangleSearch::select_and_expand(int list_index) {
     if (list_index >= static_cast<int>(open_lists.size()) || open_lists[list_index].empty())
         return false;
@@ -162,7 +192,7 @@ bool RectangleSearch::select_and_expand(int list_index) {
     State state = state_registry.lookup_state(state_id);
     SearchNode node = search_space.get_node(state);
 
-    if (check_goal_and_set_plan(state))
+    if (handle_goal(state))
         return true;
 
     if (node.is_closed())
@@ -190,7 +220,9 @@ bool RectangleSearch::select_and_expand(int list_index) {
             evaluator->notify_state_transition(state, op_id, succ_state);
         }
 
-        if (succ_node.is_dead_end() || succ_node.is_closed())
+        if (succ_node.is_dead_end())
+            continue;
+        if (succ_node.is_closed() && !reopen_closed_nodes)
             continue;
 
         int succ_g = node.get_g() + get_adjusted_cost(op);
@@ -218,7 +250,36 @@ bool RectangleSearch::select_and_expand(int list_index) {
 
             insert_into_open_list(list_index + 1, {succ_state.get_id(), eval_h, succ_g});
 
-            if (check_goal_and_set_plan(succ_state))
+            if (handle_goal(succ_state))
+                return true;
+        } else if (succ_node.is_closed()) {
+            // Reopen a closed node reached by a strictly cheaper path so the
+            // corrected g propagates to its successors. Required for the anytime
+            // search to converge to the optimal cost in non-unit-cost domains,
+            // where a depth layer is operator count, not cost.
+            if (succ_g >= succ_node.get_g())
+                continue;
+
+            statistics.inc_reopened();
+            succ_node.reopen_closed_node(node, op, get_adjusted_cost(op));
+
+            EvaluationContext succ_eval_context(succ_state, succ_node.get_g(), false, &statistics);
+            statistics.inc_evaluated_states();
+
+            int eval_h = succ_eval_context.get_evaluator_value_or_infinity(eval.get());
+            if (eval_h == EvaluationResult::INFTY && eval->dead_ends_are_reliable()) {
+                succ_node.mark_as_dead_end();
+                statistics.inc_dead_ends();
+                continue;
+            }
+
+            while (static_cast<int>(open_lists.size()) <= list_index + 1) {
+                open_lists.push_back(deque<StateID>());
+            }
+
+            insert_into_open_list(list_index + 1, {succ_state.get_id(), eval_h, succ_node.get_g()});
+
+            if (handle_goal(succ_state))
                 return true;
         } else {
             if (succ_node.get_g() > succ_g) {
@@ -241,7 +302,7 @@ bool RectangleSearch::select_and_expand(int list_index) {
 
             insert_into_open_list(list_index + 1, {succ_state.get_id(), eval_h, succ_node.get_g()});
 
-            if (check_goal_and_set_plan(succ_state))
+            if (handle_goal(succ_state))
                 return true;
         }
     }
@@ -299,10 +360,18 @@ bool RectangleSearch::has_non_empty_lists() const {
 }
 
 SearchStatus RectangleSearch::step() {
-    if (found_solution())
+    // In first-solution mode, stop as soon as any plan exists (matches the old
+    // behaviour, including a goal found during initialize()). In anytime mode,
+    // keep going until the sub-incumbent space is exhausted so the incumbent
+    // converges to the optimum.
+    if (!anytime_search && found_solution())
         return SOLVED;
 
     if (!has_non_empty_lists()) {
+        if (found_solution()) {
+            log << "All open lists are empty -- best solution found." << endl;
+            return SOLVED;
+        }
         log << "All open lists are empty -- no solution!" << endl;
         return FAILED;
     }

@@ -28,6 +28,15 @@ public:
             "controls the depth progression rate (depth increases by aspect each iteration)",
             "1",
             plugins::Bounds("1", "infinity"));
+        add_option<bool>(
+            "reopen_closed",
+            "reopen closed nodes if a cheaper path is found",
+            "true");
+        add_option<bool>(
+            "anytime",
+            "continue search after finding a solution to improve the incumbent "
+            "(converges to the optimal cost)",
+            "false");
         add_search_pruning_options_to_feature(*this);
         add_search_algorithm_options_to_feature(*this, "rectangle");
     }
@@ -38,6 +47,8 @@ public:
             opts.get<shared_ptr<Evaluator>>("eval"),
             opts.get<int>("beam_width"),
             opts.get<int>("aspect"),
+            opts.get<bool>("reopen_closed"),
+            opts.get<bool>("anytime"),
             get_search_pruning_arguments_from_options(opts),
             get_search_algorithm_arguments_from_options(opts));
     }
