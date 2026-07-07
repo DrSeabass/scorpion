@@ -16,8 +16,17 @@ weighted A* baseline uses ff() with the same integer weights.
   rrr-a{A}-w{W}:      bsor(eval=ff(), dist=[lmcut()], w=W, aspect=A, rr=true)
   rrr-ff-a{A}-w{W}:   bsor(eval=ff(), w=W, aspect=A, rr=true)  # ff for h and d
   wastar-w{W}:        eager_wastar([ff()], w=W)
+  ees-w{W}:           ees(h=lmcut(), hhat=ff(), dhat=[lmcount], w=W)
+  ees-db-w{W}:        ees(..., w=W, debias=true)  # path-based error correction
 
 with A over ASPECTS (default {1, 500}) and W over WEIGHTS (default {1, 2, 3, 5}).
+
+The EES baseline (Thayer & Ruml, IJCAI 2011) separates the estimator roles:
+h = lmcut() (admissible; f = g + h drives the w-bound), hhat = ff()
+(inadmissible; f^ = g + hhat orders open), dhat = landmark_sum() under unit
+costs (an lmcount action-count proxy ordering focal).  ees-db additionally
+debiases hhat/dhat by the mean single-step error along each node's path
+(Thayer, Dionne & Ruml 2011), the sharper inadmissible estimates EES targets.
 
 Modeled on ../2026-05-triangle-vs-lama-arrhenius/.  Same cluster-aware shape and
 Slurm environment (NAISS Arrhenius); see project.ArrheniusEnvironment for the
@@ -37,6 +46,10 @@ Environment variables (defaults shown; Arrhenius overrides marked):
   BSOR_VS_WASTAR_ASPECTS                 comma-separated ints; default 1,500
   BSOR_VS_WASTAR_H_EVAL                  BSOR h + wA* evaluator; default ff()
   BSOR_VS_WASTAR_D_EVAL                  BSOR d (rect) evaluator; default lmcut()
+  BSOR_VS_WASTAR_EES_H_EVAL              EES admissible h; default lmcut()
+  BSOR_VS_WASTAR_EES_HHAT_EVAL           EES inadmissible hhat; default ff()
+  BSOR_VS_WASTAR_EES_DHAT_EVAL           EES distance-to-go dhat; default
+                                         landmark_sum(...,adapt_costs(one)) (lmcount)
   BSOR_VS_WASTAR_WALL_TIME_FLOOR         Arrhenius reservation floor, default 10:00:00
   BSOR_VS_WASTAR_BENCHMARK_TARGET        default autoscale-agile-21.11-strips
   DOWNWARD_REPO                          default <repo root>
@@ -54,7 +67,8 @@ budget, 2 parallel processes) so a first-cut run completes quickly.  Increase
 via env vars when you have headroom.  Note the config grid is large (with the
 defaults: 2 aspects * 4 weights * 2 rr modes = 16 ff/lmcut rectangle configs,
 plus 2 aspects * 4 weights = 8 single-heuristic (ff-only) RRR configs, plus 4
-wA* = 28), so widen the instance scope with the grid in mind.
+wA* plus 4 EES plus 4 debiased EES = 36), so widen the instance scope with the
+grid in mind.
 """
 
 import math
@@ -149,6 +163,18 @@ WEIGHTS = _int_list_env("BSOR_VS_WASTAR_WEIGHTS", [1, 2, 3, 5])
 ASPECTS = _int_list_env("BSOR_VS_WASTAR_ASPECTS", [1, 500])
 H_EVAL = os.environ.get("BSOR_VS_WASTAR_H_EVAL", "ff()")
 D_EVAL = os.environ.get("BSOR_VS_WASTAR_D_EVAL", "lmcut()")
+# EES (Thayer & Ruml, IJCAI 2011) consults three estimators with distinct
+# roles: an admissible h for the w-bound (f = g + h), an inadmissible cost
+# estimate hhat for the open ordering (f^ = g + hhat), and a distance-to-go
+# estimate dhat for the focal ordering. Defaults follow the intended BSRRR
+# mapping: lmcut() (admissible), ff() (inadmissible), and lmcount (landmark_sum
+# under unit costs) as the action-count proxy.
+EES_H_EVAL = os.environ.get("BSOR_VS_WASTAR_EES_H_EVAL", "lmcut()")
+EES_HHAT_EVAL = os.environ.get("BSOR_VS_WASTAR_EES_HHAT_EVAL", "ff()")
+EES_DHAT_EVAL = os.environ.get(
+    "BSOR_VS_WASTAR_EES_DHAT_EVAL",
+    "landmark_sum(lm_rhw(), transform=adapt_costs(one), pref=false)",
+)
 
 
 # ----------------------------------------------------------------------------
@@ -262,6 +288,21 @@ for aspect in ASPECTS:
 # Weighted A* baseline (integer weights; shares the ff() evaluator).
 for weight in WEIGHTS:
     SEARCH_TEMPLATES[f"wastar-w{weight}"] = f"eager_wastar([{H_EVAL}], w={weight})"
+# Explicit Estimation Search baseline (Thayer & Ruml, IJCAI 2011): a
+# bounded-suboptimal best-first search that separates the estimator roles.
+# ees-w{W}:    hhat/dhat used verbatim.
+# ees-db-w{W}: hhat/dhat debiased by path-based single-step error correction
+#              (Thayer, Dionne & Ruml 2011), the "skeptical"-style estimates EES
+#              was designed for.
+for weight in WEIGHTS:
+    SEARCH_TEMPLATES[f"ees-w{weight}"] = (
+        f"ees(h={EES_H_EVAL}, hhat={EES_HHAT_EVAL}, "
+        f"dhat=[{EES_DHAT_EVAL}], w={weight})"
+    )
+    SEARCH_TEMPLATES[f"ees-db-w{weight}"] = (
+        f"ees(h={EES_H_EVAL}, hhat={EES_HHAT_EVAL}, "
+        f"dhat=[{EES_DHAT_EVAL}], w={weight}, debias=true)"
+    )
 
 DRIVER_OPTIONS_DICT = {
     "--validate": None,
