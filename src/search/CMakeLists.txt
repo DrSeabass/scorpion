@@ -810,6 +810,27 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME ees_search
+    HELP "Explicit Estimation Search (EES)"
+    SOURCES
+        search_algorithms/ees_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_ees
+    HELP "Explicit Estimation Search (plugin)"
+    SOURCES
+        search_algorithms/plugin_ees
+    DEPENDS
+        ees_search
+)
+
+create_fast_downward_library(
     NAME anytime_nonparametric_search
     HELP "Anytime nonparametric A* (ANA*)"
     SOURCES
