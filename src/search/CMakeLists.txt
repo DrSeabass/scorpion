@@ -620,6 +620,27 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME bead_search
+    HELP "Eager Bead search (unboundedly-suboptimal beam search)"
+    SOURCES
+        search_algorithms/bead_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_bead
+    HELP "Eager Bead search (plugin)"
+    SOURCES
+        search_algorithms/plugin_bead
+    DEPENDS
+        bead_search
+)
+
+create_fast_downward_library(
     NAME lazy_beam_search
     HELP "Lazy beam search"
     SOURCES
@@ -765,6 +786,27 @@ create_fast_downward_library(
         search_algorithms/plugin_rectangle
     DEPENDS
         rectangle_search
+)
+
+create_fast_downward_library(
+    NAME bsor_search
+    HELP "Bounded-suboptimal rectangle search (BSOR/RRR)"
+    SOURCES
+        search_algorithms/bsor_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_bsor
+    HELP "Bounded-suboptimal rectangle search (plugin)"
+    SOURCES
+        search_algorithms/plugin_bsor
+    DEPENDS
+        bsor_search
 )
 
 create_fast_downward_library(
