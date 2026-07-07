@@ -16,17 +16,17 @@ weighted A* baseline uses ff() with the same integer weights.
   rrr-a{A}-w{W}:      bsor(eval=ff(), dist=[lmcut()], w=W, aspect=A, rr=true)
   rrr-ff-a{A}-w{W}:   bsor(eval=ff(), w=W, aspect=A, rr=true)  # ff for h and d
   wastar-w{W}:        eager_wastar([ff()], w=W)
-  ees-w{W}:           ees(h=lmcut(), hhat=ff(), dhat=[lmcount], w=W)
-  ees-db-w{W}:        ees(..., w=W, debias=true)  # path-based error correction
+  ees-w{W}:           ees(h=lmcut(), hhat=ff(), dhat=[lmcount], w=W, debias=true)
 
 with A over ASPECTS (default {1, 500}) and W over WEIGHTS (default {1, 2, 3, 5}).
 
 The EES baseline (Thayer & Ruml, IJCAI 2011) separates the estimator roles:
-h = lmcut() (admissible; f = g + h drives the w-bound), hhat = ff()
-(inadmissible; f^ = g + hhat orders open), dhat = landmark_sum() under unit
-costs (an lmcount action-count proxy ordering focal).  ees-db additionally
-debiases hhat/dhat by the mean single-step error along each node's path
-(Thayer, Dionne & Ruml 2011), the sharper inadmissible estimates EES targets.
+h = lmcut() (admissible; f = g + h drives the w-bound, so the returned solution
+is within w times optimal), hhat = ff() (inadmissible; f^ = g + hhat orders
+open), dhat = landmark_sum() under unit costs (an lmcount action-count proxy
+ordering focal).  hhat/dhat are debiased by the mean single-step error along
+each node's path (debias=true; Thayer, Dionne & Ruml 2011), the sharper
+inadmissible estimates EES was designed for.
 
 Modeled on ../2026-05-triangle-vs-lama-arrhenius/.  Same cluster-aware shape and
 Slurm environment (NAISS Arrhenius); see project.ArrheniusEnvironment for the
@@ -67,8 +67,7 @@ budget, 2 parallel processes) so a first-cut run completes quickly.  Increase
 via env vars when you have headroom.  Note the config grid is large (with the
 defaults: 2 aspects * 4 weights * 2 rr modes = 16 ff/lmcut rectangle configs,
 plus 2 aspects * 4 weights = 8 single-heuristic (ff-only) RRR configs, plus 4
-wA* plus 4 EES plus 4 debiased EES = 36), so widen the instance scope with the
-grid in mind.
+wA* plus 4 EES = 32), so widen the instance scope with the grid in mind.
 """
 
 import math
@@ -289,17 +288,13 @@ for aspect in ASPECTS:
 for weight in WEIGHTS:
     SEARCH_TEMPLATES[f"wastar-w{weight}"] = f"eager_wastar([{H_EVAL}], w={weight})"
 # Explicit Estimation Search baseline (Thayer & Ruml, IJCAI 2011): a
-# bounded-suboptimal best-first search that separates the estimator roles.
-# ees-w{W}:    hhat/dhat used verbatim.
-# ees-db-w{W}: hhat/dhat debiased by path-based single-step error correction
-#              (Thayer, Dionne & Ruml 2011), the "skeptical"-style estimates EES
-#              was designed for.
+# bounded-suboptimal best-first search that separates the estimator roles. Uses
+# path-based single-step error correction (debias=true; Thayer, Dionne & Ruml
+# 2011) on hhat/dhat -- the sharper "skeptical"-style estimates EES was designed
+# for. h defaults to lmcut() (admissible), so the returned solution is provably
+# within w times optimal.
 for weight in WEIGHTS:
     SEARCH_TEMPLATES[f"ees-w{weight}"] = (
-        f"ees(h={EES_H_EVAL}, hhat={EES_HHAT_EVAL}, "
-        f"dhat=[{EES_DHAT_EVAL}], w={weight})"
-    )
-    SEARCH_TEMPLATES[f"ees-db-w{weight}"] = (
         f"ees(h={EES_H_EVAL}, hhat={EES_HHAT_EVAL}, "
         f"dhat=[{EES_DHAT_EVAL}], w={weight}, debias=true)"
     )
