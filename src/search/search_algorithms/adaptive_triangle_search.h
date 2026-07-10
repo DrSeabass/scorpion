@@ -72,6 +72,11 @@ class AdaptiveTriangleSearch : public SearchAlgorithm {
     // the floor reflects the current epoch's heuristic quality.
     int improving_transitions = 0;
     int nonimproving_transitions = 0;
+    // Per-step heuristic-trend budget. Unspent budget carries between steps:
+    // at the top of each step it is reset to max(1, remaining), so a step
+    // that ended with leftover credit starts richer while a depleted step
+    // still gets one unit to make forward progress.
+    int budget = 1;
 
     void start_evaluator_statistics(EvaluationContext &eval_context);
     void extend_open_lists(int num_lists);

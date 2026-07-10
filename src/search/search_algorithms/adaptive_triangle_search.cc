@@ -188,9 +188,11 @@ SearchStatus AdaptiveTriangleSearch::step() {
     // Per-step heuristic-trend budget. Budget pays one unit to instantiate a
     // new deque slot at the frontier; informed layer-transitions (h(curr) <
     // h(prev_expanded)) refund one unit, uninformed transitions debit one.
+    // Unspent budget carries between steps; each step starts with at least one
+    // unit so forward progress is always possible even after a depleted step.
     // last_expanded_h tracks the h of the most recently expanded node in this
     // step (preserved across skipped empty layers).
-    int budget = 1;
+    budget = max(1, budget);
     int last_expanded_h = 0;
     bool have_last_h = false;
 
