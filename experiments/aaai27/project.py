@@ -388,6 +388,153 @@ def add_compress_exp_dir_step(exp):
     exp.add_step("compress-exp-dir", compress_exp_dir)
 
 
+def add_bounded_suboptimal_plot_step(
+    exp,
+    attributes=("coverage", "expansions", "search_time", "cost"),
+    name="plot",
+    outfile=None,
+):
+    """Add a step plotting each attribute against the suboptimality weight.
+
+    Reads the fetched properties, recovers (family, weight) from each algorithm
+    name -- split on the last '-w', reading the weight tag's '_' back as '.', so
+    e.g. 'rrdex-db-w2_5' -> family 'rrdex-db', weight 2.5 -- and draws one line
+    per family with a 95% confidence band (shaded region):
+      - coverage is summed over tasks; its band is the Wilson score interval on
+        the solved/attempted proportion, scaled back to counts (well-behaved at
+        0/1 and small samples).
+      - the other attributes are geometric-mean-aggregated over the runs solved
+        at that weight (so effort curves stay comparable across weights); their
+        band is the 95% interval computed in log space (mean +/- 1.96 * SE of
+        log values) and exponentiated, matching the log y-axis.
+    Writes one multi-panel PNG into the eval dir. Runs locally after `fetch`; a
+    no-op (with a message) if matplotlib is unavailable or no runs carry a
+    parseable weight.
+    """
+
+    def make_plot():
+        import json
+        import math
+        from collections import defaultdict
+
+        properties_path = Path(exp.eval_dir) / "properties"
+        if not properties_path.exists():
+            print(f"No properties file at {properties_path}; run fetch first.")
+            return
+        try:
+            import matplotlib
+
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+        except ImportError:
+            print("matplotlib not available; skipping bounded-suboptimal plot.")
+            return
+
+        with open(properties_path) as f:
+            props = json.load(f)
+
+        NAN = float("nan")
+        Z = 1.96  # 95% (normal approximation)
+
+        # (family, weight) -> solved run dicts, and attempted-task counts.
+        solved = defaultdict(lambda: defaultdict(list))
+        attempted = defaultdict(lambda: defaultdict(int))
+        for run in props.values():
+            algo = run.get("algorithm", "")
+            if "-w" not in algo:
+                continue
+            family, tag = algo.rsplit("-w", 1)
+            try:
+                weight = float(tag.replace("_", "."))
+            except ValueError:
+                continue
+            attempted[family][weight] += 1
+            if run.get("coverage"):
+                solved[family][weight].append(run)
+
+        if not attempted:
+            print("No runs with parseable weights; nothing to plot.")
+            return
+
+        families = sorted(attempted)
+        weights = sorted({w for fam in attempted.values() for w in fam})
+
+        def gmean_ci(values):
+            """(point, lo, hi) for the geometric mean; log-space 95% CI."""
+            xs = [v for v in values if v and v > 0]
+            n = len(xs)
+            if n == 0:
+                return NAN, NAN, NAN
+            logs = [math.log(v) for v in xs]
+            mean = sum(logs) / n
+            point = math.exp(mean)
+            if n < 2:
+                return point, point, point
+            var = sum((x - mean) ** 2 for x in logs) / (n - 1)
+            se = math.sqrt(var) / math.sqrt(n)
+            return point, math.exp(mean - Z * se), math.exp(mean + Z * se)
+
+        def wilson_ci(k, n):
+            """(count, lo, hi) with a Wilson score band scaled to counts."""
+            if n == 0:
+                return NAN, NAN, NAN
+            p = k / n
+            denom = 1 + Z * Z / n
+            center = (p + Z * Z / (2 * n)) / denom
+            half = Z * math.sqrt(p * (1 - p) / n + Z * Z / (4 * n * n)) / denom
+            return k, max(0.0, center - half) * n, min(1.0, center + half) * n
+
+        def series(family, attribute):
+            points, los, his = [], [], []
+            for w in weights:
+                runs = solved[family].get(w, [])
+                if attribute == "coverage":
+                    pt, lo, hi = wilson_ci(len(runs), attempted[family].get(w, 0))
+                else:
+                    pt, lo, hi = gmean_ci([r.get(attribute) for r in runs])
+                points.append(pt)
+                los.append(lo)
+                his.append(hi)
+            return points, los, his
+
+        n = len(attributes)
+        fig, axes = plt.subplots(1, n, figsize=(5 * n, 4.2), squeeze=False)
+        for ax, attribute in zip(axes[0], attributes):
+            for family in families:
+                points, los, his = series(family, attribute)
+                # Plot over the full weight grid, leaving weights with no data as
+                # NaN. matplotlib then draws a marker at every weight the family
+                # has data for but connects only CONSECUTIVE weights, breaking the
+                # line across any gap -- so we never draw a segment through a
+                # weight we didn't measure (e.g. wA*'s non-integer weights, or a
+                # weight where the family solved nothing).
+                line, = ax.plot(weights, points, marker="o", label=family)
+                ax.fill_between(
+                    weights, los, his, color=line.get_color(), alpha=0.15,
+                    linewidth=0,
+                )
+            ax.set_xlabel("suboptimality weight w")
+            ax.set_title(
+                attribute if attribute == "coverage" else f"gmean {attribute}"
+            )
+            ax.grid(True, alpha=0.3)
+            if attribute != "coverage":
+                ax.set_yscale("log")
+        axes[0][0].legend(fontsize=7, loc="best")
+        fig.suptitle(
+            f"{exp.name}: bounded-suboptimal curves vs weight (95% CI shaded)"
+        )
+        fig.tight_layout()
+
+        out = outfile or (
+            Path(exp.eval_dir) / f"{exp.name}-bounded-suboptimal.png"
+        )
+        fig.savefig(out, dpi=110)
+        print(f"Wrote {out}")
+
+    exp.add_step(name, make_plot)
+
+
 def fetch_algorithm(exp, expname, algo, *, new_algo=None):
     """Fetch (and possibly rename) a single algorithm from *expname*."""
     new_algo = new_algo or algo

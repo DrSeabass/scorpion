@@ -1,32 +1,50 @@
 #!/usr/bin/env python3
 """
-Bounded-Suboptimal Rectangle Search vs weighted A* on agile-strips.
+Bounded-Suboptimal Rectangle Search vs RR-DXES and weighted A* on agile-strips.
 
-Runs a grid of bounded-suboptimal rectangle search (BSOR, Algorithms 4/5 of
-Thomas et al., HSDIP 2026) configurations against weighted A* as the baseline,
-on the Autoscale agile-strips benchmark, in a first-solution (coverage) setting.
+Runs a pared roster of bounded-suboptimal searches on the Autoscale agile-strips
+benchmark, in a first-solution (coverage) setting, over the suboptimality-weight
+schedule. The roster is split into two independently-run SETS (AAAI27_SET), each
+targeting its OWN data/eval directory so they can be merged after the fact --
+the lab-idiomatic way to add algorithms without re-running the others:
 
-BSOR ranking: h = ff() (so f = g + ff, orders the open list and the w-bound),
-d = lmcut() (the distance-to-go proxy that orders each rectangle depth bucket,
-passed via dist=[...]).  Both BSOR (rr=false) and Round-Robin Rectangle Search
-(RRR, rr=true) are swept over aspect ratios and suboptimality weights.  The
-weighted A* baseline uses ff() with the same integer weights.
+  "min" -- minimum-viable set: rectangle search at the PRIMARY aspect (500) plus
+  the RR-DXES baseline; writes data/<script>-min[-eval] --
+    bsor-a{P}-w{W}:   bsor(eval=ff(), dist=[lmcut()], w=W, aspect=P, rr=false)
+    rrr-a{P}-w{W}:    bsor(eval=ff(), dist=[lmcut()], w=W, aspect=P, rr=true)
+    rrdex-w{W}:       rrdex(h=lmcut(), hhat=ff(), dhat=[lmcount], w=W, debias=true)
 
-  bsor-a{A}-w{W}:     bsor(eval=ff(), dist=[lmcut()], w=W, aspect=A, rr=false)
-  rrr-a{A}-w{W}:      bsor(eval=ff(), dist=[lmcut()], w=W, aspect=A, rr=true)
-  rrr-ff-a{A}-w{W}:   bsor(eval=ff(), w=W, aspect=A, rr=true)  # ff for h and d
-  wastar-w{W}:        eager_wastar([ff()], w=W)
-  ees-w{W}:           ees(h=lmcut(), hhat=ff(), dhat=[lmcount], w=W, debias=true)
+  "remainder" -- rectangle search at the SECONDARY aspect (1) plus weighted-A*;
+  writes data/<script>-remainder[-eval] --
+    bsor-a{S}-w{W}:   bsor(eval=ff(), dist=[lmcut()], w=W, aspect=S, rr=false)
+    rrr-a{S}-w{W}:    bsor(eval=ff(), dist=[lmcut()], w=W, aspect=S, rr=true)
+    wastar-w{W}:      eager_wastar([ff()], w=W)  # integer weights only
 
-with A over ASPECTS (default {1, 500}) and W over WEIGHTS (default {1, 2, 3, 5}).
+  "combined" -- owns no runs; merges the -min-eval and -remainder-eval dirs into
+  data/<script>-combined-eval (via merge fetchers) and produces the combined
+  report + bounded-suboptimal plot. Run after both sets have been fetched.
 
-The EES baseline (Thayer & Ruml, IJCAI 2011) separates the estimator roles:
-h = lmcut() (admissible; f = g + h drives the w-bound, so the returned solution
-is within w times optimal), hhat = ff() (inadmissible; f^ = g + hhat orders
-open), dhat = landmark_sum() under unit costs (an lmcount action-count proxy
-ordering focal).  hhat/dhat are debiased by the mean single-step error along
-each node's path (debias=true; Thayer, Dionne & Ruml 2011), the sharper
-inadmissible estimates EES was designed for.
+Workflow:
+    AAAI27_SET=min       ... build start parse fetch <name>-min-abs plot
+    AAAI27_SET=remainder ... build start parse fetch <name>-remainder-abs plot
+    AAAI27_SET=combined  ... fetch-min fetch-remainder <name>-combined-abs plot
+
+with W over WEIGHTS (default the 10-point schedule {1, 1.05, 1.1, 1.25, 1.5,
+1.75, 2, 2.5, 3, 5}). In config names the weight's decimal point is written as
+'_' (e.g. w=1.05 -> ...-w1_05).
+
+BSOR ranking: eval = ff() (so f = g + ff orders the open list and the w-bound),
+dist = lmcut() (the distance-to-go proxy ordering each rectangle depth bucket).
+RRR is the rr=true (round-robin rectangle) variant. The RR-DXES baseline
+(Fickert, Gu & Ruml, AAAI 2022) uses admissible h = lmcut() (so f = g + h drives
+the w-bound, returned solution within w times optimal), inadmissible hhat = ff()
+for its f^ ordering, and dhat = landmark_sum() under unit costs (an lmcount
+action-count proxy); hhat/dhat are debiased by the mean single-step path error
+(debias=true; Thayer, Dionne & Ruml 2011). The weighted-A* baseline is
+integer-weight only, so it runs at the integer weights in the schedule.
+
+(Earlier revisions also swept a single-heuristic RRR and EES/RR-D best-first
+baselines; those were pared out. RR-D remains available as the `rrd` plugin.)
 
 Modeled on ../2026-05-triangle-vs-lama-arrhenius/.  Same cluster-aware shape and
 Slurm environment (NAISS Arrhenius); see project.ArrheniusEnvironment for the
@@ -36,22 +54,25 @@ cluster; the submitting python (its absolute path, carried via PATH export)
 becomes the python used inside the job scripts.
 
 Environment variables (defaults shown; Arrhenius overrides marked):
-  BSOR_VS_WASTAR_BUDGET                  default 5m local / 5m Arrhenius
-  BSOR_VS_WASTAR_MEMORY                  default 8G (solver soft limit)
-  BSOR_VS_WASTAR_PROCESSES               local-only, default 2
-  BSOR_VS_WASTAR_INSTANCES_PER_DOMAIN    default 1 local / 0=all Arrhenius
-  BSOR_VS_WASTAR_INSTANCE_STEP           default 3 local / 1 Arrhenius
-  BSOR_VS_WASTAR_DOMAINS                 comma-separated; default all-discovered
-  BSOR_VS_WASTAR_WEIGHTS                 comma-separated ints; default 1,2,3,5
-  BSOR_VS_WASTAR_ASPECTS                 comma-separated ints; default 1,500
-  BSOR_VS_WASTAR_H_EVAL                  BSOR h + wA* evaluator; default ff()
-  BSOR_VS_WASTAR_D_EVAL                  BSOR d (rect) evaluator; default lmcut()
-  BSOR_VS_WASTAR_EES_H_EVAL              EES admissible h; default lmcut()
-  BSOR_VS_WASTAR_EES_HHAT_EVAL           EES inadmissible hhat; default ff()
-  BSOR_VS_WASTAR_EES_DHAT_EVAL           EES distance-to-go dhat; default
+  AAAI27_BUDGET                  default 5m local / 5m Arrhenius
+  AAAI27_MEMORY                  default 8G (solver soft limit)
+  AAAI27_PROCESSES               local-only, default 2
+  AAAI27_INSTANCES_PER_DOMAIN    default 1 local / 0=all Arrhenius
+  AAAI27_INSTANCE_STEP           default 3 local / 1 Arrhenius
+  AAAI27_DOMAINS                 comma-separated; default all-discovered
+  AAAI27_WEIGHTS                 comma-separated floats; default
+                                         1,1.05,1.1,1.25,1.5,1.75,2,2.5,3,5
+  AAAI27_SET                     min|remainder|combined; default min
+  AAAI27_ASPECT_PRIMARY          rect aspect in min tier; default 500
+  AAAI27_ASPECT_SECONDARY        extra rect aspect (full only); default 1
+  AAAI27_H_EVAL                  BSOR/RRR + wA* eval; default ff()
+  AAAI27_D_EVAL                  BSOR d (rect) evaluator; default lmcut()
+  AAAI27_RRDEX_H_EVAL              rrdex admissible h; default lmcut()
+  AAAI27_RRDEX_HHAT_EVAL           rrdex inadmissible hhat; default ff()
+  AAAI27_RRDEX_DHAT_EVAL           rrdex distance-to-go dhat; default
                                          landmark_sum(...,adapt_costs(one)) (lmcount)
-  BSOR_VS_WASTAR_WALL_TIME_FLOOR         Arrhenius reservation floor, default 10:00:00
-  BSOR_VS_WASTAR_BENCHMARK_TARGET        default autoscale-agile-21.11-strips
+  AAAI27_WALL_TIME_FLOOR         Arrhenius reservation floor, default 10:00:00
+  AAAI27_BENCHMARK_TARGET        default autoscale-agile-21.11-strips
   DOWNWARD_REPO                          default <repo root>
   DOWNWARD_BUILD                         default release
   ARRHENIUS_ACCOUNT                      default naiss2026-4-694-cpu
@@ -64,10 +85,10 @@ Environment variables (defaults shown; Arrhenius overrides marked):
 
 Default local scope is intentionally small (handful of instances, 5-minute
 budget, 2 parallel processes) so a first-cut run completes quickly.  Increase
-via env vars when you have headroom.  Note the config grid is large (with the
-defaults: 2 aspects * 4 weights * 2 rr modes = 16 ff/lmcut rectangle configs,
-plus 2 aspects * 4 weights = 8 single-heuristic (ff-only) RRR configs, plus 4
-wA* plus 4 EES = 32), so widen the instance scope with the grid in mind.
+via env vars when you have headroom.  Config counts (10-weight schedule): the
+min set is bsor + rrr (primary aspect) + rrdex = 3 * 10 = 30 configs; the
+remainder set is bsor + rrr (secondary aspect) = 20 plus wA* at the 4 integer
+weights = 24 configs; combined merges the two eval dirs (54 rows, no new runs).
 """
 
 import math
@@ -116,11 +137,11 @@ BENCHMARK_DIRS = ARRHENIUS_BENCHMARK_DIRS if IS_ARRHENIUS else LOCAL_BENCHMARK_D
 
 BENCHMARK_TARGET_DEFAULT = "autoscale-agile-21.11-strips"
 BENCHMARK_TARGET = os.environ.get(
-    "BSOR_VS_WASTAR_BENCHMARK_TARGET", BENCHMARK_TARGET_DEFAULT
+    "AAAI27_BENCHMARK_TARGET", BENCHMARK_TARGET_DEFAULT
 )
 if BENCHMARK_TARGET not in BENCHMARK_DIRS:
     raise ValueError(
-        f"Unknown BSOR_VS_WASTAR_BENCHMARK_TARGET={BENCHMARK_TARGET!r}; "
+        f"Unknown AAAI27_BENCHMARK_TARGET={BENCHMARK_TARGET!r}; "
         f"valid: {sorted(BENCHMARK_DIRS)}"
     )
 BENCHMARKS_DIR = os.path.expanduser(
@@ -131,47 +152,74 @@ BENCHMARKS_DIR = os.path.expanduser(
 # Scope (default tight for local sanity; Arrhenius goes wider)
 # ----------------------------------------------------------------------------
 if IS_ARRHENIUS:
-    BUDGET = os.environ.get("BSOR_VS_WASTAR_BUDGET", "5m")
-    MEMORY = os.environ.get("BSOR_VS_WASTAR_MEMORY", "8G")
+    BUDGET = os.environ.get("AAAI27_BUDGET", "5m")
+    MEMORY = os.environ.get("AAAI27_MEMORY", "8G")
     INSTANCES_PER_DOMAIN = int(
-        os.environ.get("BSOR_VS_WASTAR_INSTANCES_PER_DOMAIN", "0")
+        os.environ.get("AAAI27_INSTANCES_PER_DOMAIN", "0")
     )
-    INSTANCE_STEP = int(os.environ.get("BSOR_VS_WASTAR_INSTANCE_STEP", "1"))
+    INSTANCE_STEP = int(os.environ.get("AAAI27_INSTANCE_STEP", "1"))
 else:
-    BUDGET = os.environ.get("BSOR_VS_WASTAR_BUDGET", "5m")
-    MEMORY = os.environ.get("BSOR_VS_WASTAR_MEMORY", "8G")
+    BUDGET = os.environ.get("AAAI27_BUDGET", "5m")
+    MEMORY = os.environ.get("AAAI27_MEMORY", "8G")
     INSTANCES_PER_DOMAIN = int(
-        os.environ.get("BSOR_VS_WASTAR_INSTANCES_PER_DOMAIN", "1")
+        os.environ.get("AAAI27_INSTANCES_PER_DOMAIN", "1")
     )
-    INSTANCE_STEP = int(os.environ.get("BSOR_VS_WASTAR_INSTANCE_STEP", "3"))
+    INSTANCE_STEP = int(os.environ.get("AAAI27_INSTANCE_STEP", "3"))
 
-LOCAL_PROCESSES = int(os.environ.get("BSOR_VS_WASTAR_PROCESSES", "2"))
+LOCAL_PROCESSES = int(os.environ.get("AAAI27_PROCESSES", "2"))
 
 
-def _int_list_env(name, default):
+def _float_list_env(name, default):
     raw = os.environ.get(name)
     if not raw:
         return list(default)
-    values = [int(v.strip()) for v in raw.split(",") if v.strip()]
+    values = [float(v.strip()) for v in raw.split(",") if v.strip()]
     if not values:
         raise ValueError(f"{name} parsed to an empty list")
     return values
 
 
-WEIGHTS = _int_list_env("BSOR_VS_WASTAR_WEIGHTS", [1, 2, 3, 5])
-ASPECTS = _int_list_env("BSOR_VS_WASTAR_ASPECTS", [1, 500])
-H_EVAL = os.environ.get("BSOR_VS_WASTAR_H_EVAL", "ff()")
-D_EVAL = os.environ.get("BSOR_VS_WASTAR_D_EVAL", "lmcut()")
-# EES (Thayer & Ruml, IJCAI 2011) consults three estimators with distinct
-# roles: an admissible h for the w-bound (f = g + h), an inadmissible cost
-# estimate hhat for the open ordering (f^ = g + hhat), and a distance-to-go
-# estimate dhat for the focal ordering. Defaults follow the intended BSRRR
-# mapping: lmcut() (admissible), ff() (inadmissible), and lmcount (landmark_sum
-# under unit costs) as the action-count proxy.
-EES_H_EVAL = os.environ.get("BSOR_VS_WASTAR_EES_H_EVAL", "lmcut()")
-EES_HHAT_EVAL = os.environ.get("BSOR_VS_WASTAR_EES_HHAT_EVAL", "ff()")
-EES_DHAT_EVAL = os.environ.get(
-    "BSOR_VS_WASTAR_EES_DHAT_EVAL",
+def _weight_value(w):
+    """Search-string literal for a weight: 1.0 -> '1', 1.05 -> '1.05'."""
+    return "%g" % w
+
+
+def _weight_tag(w):
+    """Filesystem/report-safe token for a weight: 1.0 -> '1', 1.05 -> '1_05'."""
+    return _weight_value(w).replace(".", "_")
+
+
+# Suboptimality-bound schedule (co-authors' proposed 10-point ladder). bsor and
+# rrdex take w as a double, so fractional weights pass through verbatim; the
+# eager_wastar baseline is integer-only (see the wastar config below).
+WEIGHTS = _float_list_env(
+    "AAAI27_WEIGHTS", [1.0, 1.05, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 5.0]
+)
+# The roster is split into two independently-run sets, each targeting its OWN
+# data/eval directory, to be merged after the fact (AAAI27_SET):
+#   "min"       -- minimum-viable: bsor + rrr at the primary aspect + rrdex
+#   "remainder" -- bsor + rrr at the secondary aspect + weighted-A*
+#   "combined"  -- no runs; merges the min and remainder eval dirs into one
+#                  combined report + plot (run after both sets have been fetched)
+# Typical workflow: run "min", run "remainder", then run "combined".
+SET = os.environ.get("AAAI27_SET", "min").lower()
+if SET not in ("min", "remainder", "combined"):
+    raise ValueError(
+        f"AAAI27_SET must be 'min', 'remainder', or 'combined', got {SET!r}"
+    )
+ASPECT_PRIMARY = int(os.environ.get("AAAI27_ASPECT_PRIMARY", "500"))
+ASPECT_SECONDARY = int(os.environ.get("AAAI27_ASPECT_SECONDARY", "1"))
+H_EVAL = os.environ.get("AAAI27_H_EVAL", "ff()")
+D_EVAL = os.environ.get("AAAI27_D_EVAL", "lmcut()")
+# Estimator triple for the rrdex baseline: an admissible h for the w-bound
+# (f = g + h), an inadmissible cost estimate hhat for the f^ = g + hhat ordering,
+# and a distance-to-go estimate dhat. Defaults follow the intended mapping:
+# lmcut() (admissible), ff() (inadmissible), and lmcount (landmark_sum under unit
+# costs) as the action-count proxy.
+RRDEX_H_EVAL = os.environ.get("AAAI27_RRDEX_H_EVAL", "lmcut()")
+RRDEX_HHAT_EVAL = os.environ.get("AAAI27_RRDEX_HHAT_EVAL", "ff()")
+RRDEX_DHAT_EVAL = os.environ.get(
+    "AAAI27_RRDEX_DHAT_EVAL",
     "landmark_sum(lm_rhw(), transform=adapt_costs(one), pref=false)",
 )
 
@@ -225,17 +273,17 @@ def list_domains(benchmarks_dir):
 
 
 SUITE = list_domains(BENCHMARKS_DIR)
-_domains_filter = os.environ.get("BSOR_VS_WASTAR_DOMAINS")
+_domains_filter = os.environ.get("AAAI27_DOMAINS")
 if _domains_filter:
     requested = [d.strip() for d in _domains_filter.split(",") if d.strip()]
     missing = [d for d in requested if d not in SUITE]
     if missing:
         raise ValueError(
-            f"BSOR_VS_WASTAR_DOMAINS includes unknown: {missing}; "
+            f"AAAI27_DOMAINS includes unknown: {missing}; "
             f"available: {SUITE}"
         )
     SUITE = requested
-print(f"[bsor-vs-wastar] {len(SUITE)} domains under {BENCHMARKS_DIR}")
+print(f"[aaai27] {len(SUITE)} domains under {BENCHMARKS_DIR}")
 
 
 def build_limited_suite(benchmarks_dir, domains, instances_per_domain, instance_step):
@@ -251,7 +299,7 @@ def build_limited_suite(benchmarks_dir, domains, instances_per_domain, instance_
             selected = limited[::instance_step]
         tasks.extend(selected)
     print(
-        f"[bsor-vs-wastar] {len(tasks)} tasks "
+        f"[aaai27] {len(tasks)} tasks "
         f"({len(domains)} domains, ipd={instances_per_domain}, step={instance_step})"
     )
     return tasks
@@ -266,38 +314,52 @@ TASKS = build_limited_suite(BENCHMARKS_DIR, SUITE, INSTANCES_PER_DOMAIN, INSTANC
 TRANSLATE_OPTIONS = ["--translate-options"]
 
 SEARCH_TEMPLATES = {}
-# BSOR and RRR: rectangle family over aspect ratios and weights.
-for aspect in ASPECTS:
+
+
+def _add_rectangle(prefix, aspect, rr):
+    """BSOR (rr=false) / RRR (rr=true) rectangle configs at a given aspect."""
     for weight in WEIGHTS:
-        for rr in (False, True):
-            prefix = "rrr" if rr else "bsor"
-            name = f"{prefix}-a{aspect}-w{weight}"
-            SEARCH_TEMPLATES[name] = (
-                f"bsor(eval={H_EVAL}, dist=[{D_EVAL}], w={weight}, "
-                f"aspect={aspect}, rr={'true' if rr else 'false'})"
-            )
-# Single-heuristic RRR (BSRRR): ff() alone for both h and d (dist omitted, so it
-# defaults to eval), matching wA*'s single-evaluator setup for a cleaner
-# expansions comparison.
-for aspect in ASPECTS:
-    for weight in WEIGHTS:
-        SEARCH_TEMPLATES[f"rrr-ff-a{aspect}-w{weight}"] = (
-            f"bsor(eval={H_EVAL}, w={weight}, aspect={aspect}, rr=true)"
+        SEARCH_TEMPLATES[f"{prefix}-a{aspect}-w{_weight_tag(weight)}"] = (
+            f"bsor(eval={H_EVAL}, dist=[{D_EVAL}], w={_weight_value(weight)}, "
+            f"aspect={aspect}, rr={'true' if rr else 'false'})"
         )
-# Weighted A* baseline (integer weights; shares the ff() evaluator).
-for weight in WEIGHTS:
-    SEARCH_TEMPLATES[f"wastar-w{weight}"] = f"eager_wastar([{H_EVAL}], w={weight})"
-# Explicit Estimation Search baseline (Thayer & Ruml, IJCAI 2011): a
-# bounded-suboptimal best-first search that separates the estimator roles. Uses
-# path-based single-step error correction (debias=true; Thayer, Dionne & Ruml
-# 2011) on hhat/dhat -- the sharper "skeptical"-style estimates EES was designed
-# for. h defaults to lmcut() (admissible), so the returned solution is provably
-# within w times optimal.
-for weight in WEIGHTS:
-    SEARCH_TEMPLATES[f"ees-w{weight}"] = (
-        f"ees(h={EES_H_EVAL}, hhat={EES_HHAT_EVAL}, "
-        f"dhat=[{EES_DHAT_EVAL}], w={weight}, debias=true)"
-    )
+
+
+def _add_rrdex():
+    """RR-DXES baseline (Fickert, Gu & Ruml, AAAI 2022): dynamic expected-effort
+    round robin. Admissible h, so the returned solution is within w * optimal;
+    hhat/dhat debiased by path-based single-step error (Thayer, Dionne & Ruml
+    2011)."""
+    for weight in WEIGHTS:
+        SEARCH_TEMPLATES[f"rrdex-w{_weight_tag(weight)}"] = (
+            f"rrdex(h={RRDEX_H_EVAL}, hhat={RRDEX_HHAT_EVAL}, "
+            f"dhat=[{RRDEX_DHAT_EVAL}], w={_weight_value(weight)}, debias=true)"
+        )
+
+
+def _add_wastar():
+    """Weighted A* baseline. eager_wastar's weight is integer-only, so it runs
+    only at the integer-valued weights in the schedule."""
+    for weight in WEIGHTS:
+        if not float(weight).is_integer():
+            continue
+        SEARCH_TEMPLATES[f"wastar-w{_weight_tag(weight)}"] = (
+            f"eager_wastar([{H_EVAL}], w={int(weight)})"
+        )
+
+
+if SET == "min":
+    # Minimum-viable set: rectangle search (BSOR and RRR) at the primary aspect,
+    # plus the RR-DXES baseline.
+    _add_rectangle("bsor", ASPECT_PRIMARY, rr=False)
+    _add_rectangle("rrr", ASPECT_PRIMARY, rr=True)
+    _add_rrdex()
+elif SET == "remainder":
+    # Remainder set: rectangle search at the secondary aspect, plus weighted-A*.
+    _add_rectangle("bsor", ASPECT_SECONDARY, rr=False)
+    _add_rectangle("rrr", ASPECT_SECONDARY, rr=True)
+    _add_wastar()
+# SET == "combined" has no configs of its own; it merges the two eval dirs.
 
 DRIVER_OPTIONS_DICT = {
     "--validate": None,
@@ -322,7 +384,7 @@ for name, search in SEARCH_TEMPLATES.items():
     CONFIGS.append(
         (name, TRANSLATE_OPTIONS + ["--search-options", "--search", search])
     )
-print(f"[bsor-vs-wastar] {len(CONFIGS)} configs")
+print(f"[aaai27] {len(CONFIGS)} configs")
 
 
 # ----------------------------------------------------------------------------
@@ -353,19 +415,19 @@ def _seconds_to_hms(seconds):
     return f"{hours}:{minutes:02d}:{secs:02d}"
 
 
-if IS_ARRHENIUS:
+if IS_ARRHENIUS and SET != "combined":
     NUM_RUNS = len(CONFIGS) * len(TASKS)
     RUNS_PER_TASK = math.ceil(NUM_RUNS / ENV.MAX_TASKS)
     EST_SECONDS = RUNS_PER_TASK * (
         _duration_to_seconds(BUDGET) + PER_RUN_OVERHEAD_SECONDS
     )
     FLOOR_SECONDS = _duration_to_seconds(
-        os.environ.get("BSOR_VS_WASTAR_WALL_TIME_FLOOR", "10:00:00")
+        os.environ.get("AAAI27_WALL_TIME_FLOOR", "10:00:00")
     )
     WALL_SECONDS = max(EST_SECONDS, FLOOR_SECONDS)
     ENV.time_limit_per_task = _seconds_to_hms(WALL_SECONDS)
     print(
-        f"[bsor-vs-wastar] {NUM_RUNS} runs, {RUNS_PER_TASK} runs/array-task; "
+        f"[aaai27] {NUM_RUNS} runs, {RUNS_PER_TASK} runs/array-task; "
         f"estimate {_seconds_to_hms(EST_SECONDS)}, "
         f"floor {_seconds_to_hms(FLOOR_SECONDS)} "
         f"-> requesting {ENV.time_limit_per_task} per task"
@@ -438,34 +500,53 @@ ATTRIBUTES = [
 ]
 
 
-exp = Experiment(environment=ENV)
+# Each set targets its own experiment/eval directory under data/, so the min and
+# remainder runs never collide and can be merged after the fact. The "combined"
+# set owns no runs -- it fetches (merges) the two sibling eval dirs.
+DATA_DIR = DIR / "data"
+STEM = Path(__file__).stem
+MIN_EVAL = DATA_DIR / f"{STEM}-min-eval"
+REMAINDER_EVAL = DATA_DIR / f"{STEM}-remainder-eval"
 
-for config_name, config in CONFIGS:
-    algo = FastDownwardAlgorithm(config_name, None, DRIVER_OPTIONS, config)
-    for task in TASKS:
-        run = LocalFastDownwardRun(exp, algo, task, LOCAL_DRIVER, LOCAL_BUILD)
-        exp.add_run(run)
+exp = Experiment(path=str(DATA_DIR / f"{STEM}-{SET}"), environment=ENV)
 
-# BSOR and wA* each return a single final solution (BSOR reports improving
-# incumbents via its own log line, not repeated "Plan cost:" lines, and emits no
-# "Cumulative statistics:"), so the single-search parser applies and captures the
-# expansions/search_time/evaluations metrics the HSDIP paper reports on.
-exp.add_parser(project.FastDownwardExperiment.EXITCODE_PARSER)
-exp.add_parser(project.FastDownwardExperiment.TRANSLATOR_PARSER)
-exp.add_parser(project.FastDownwardExperiment.SINGLE_SEARCH_PARSER)
-exp.add_parser(custom_parser.get_parser())
-exp.add_parser(project.FastDownwardExperiment.PLANNER_PARSER)
+if SET == "combined":
+    # No runs of our own: merge the min and remainder eval dirs into this
+    # (combined) experiment's eval dir, then report and plot over the union.
+    # Requires both sets to have been run + fetched first.
+    exp.add_fetcher(str(MIN_EVAL), merge=True, name="fetch-min")
+    exp.add_fetcher(str(REMAINDER_EVAL), merge=True, name="fetch-remainder")
+else:
+    for config_name, config in CONFIGS:
+        algo = FastDownwardAlgorithm(config_name, None, DRIVER_OPTIONS, config)
+        for task in TASKS:
+            run = LocalFastDownwardRun(exp, algo, task, LOCAL_DRIVER, LOCAL_BUILD)
+            exp.add_run(run)
 
-exp.add_step("build", exp.build)
-exp.add_step("start", exp.start_runs)
-exp.add_step("parse", exp.parse)
-exp.add_fetcher(name="fetch")
+    # BSOR and wA* each return a single final solution (BSOR reports improving
+    # incumbents via its own log line, not repeated "Plan cost:" lines, and emits
+    # no "Cumulative statistics:"), so the single-search parser applies and
+    # captures the expansions/search_time/evaluations metrics we report on.
+    exp.add_parser(project.FastDownwardExperiment.EXITCODE_PARSER)
+    exp.add_parser(project.FastDownwardExperiment.TRANSLATOR_PARSER)
+    exp.add_parser(project.FastDownwardExperiment.SINGLE_SEARCH_PARSER)
+    exp.add_parser(custom_parser.get_parser())
+    exp.add_parser(project.FastDownwardExperiment.PLANNER_PARSER)
+
+    exp.add_step("build", exp.build)
+    exp.add_step("start", exp.start_runs)
+    exp.add_step("parse", exp.parse)
+    exp.add_fetcher(name="fetch")
 
 project.add_absolute_report(
     exp,
     attributes=ATTRIBUTES,
     filter=[project.add_evaluations_per_time],
 )
-project.add_compress_exp_dir_step(exp)
+# Bounded-suboptimal curves: coverage / effort / cost vs the weight schedule,
+# one line per algorithm family. Run after `fetch` (or the merge fetchers).
+project.add_bounded_suboptimal_plot_step(exp)
+if SET != "combined":
+    project.add_compress_exp_dir_step(exp)
 
 exp.run_steps()

@@ -831,6 +831,48 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME rrd_search
+    HELP "Round-Robin on distance (RR-D)"
+    SOURCES
+        search_algorithms/rrd_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_rrd
+    HELP "Round-Robin on distance (plugin)"
+    SOURCES
+        search_algorithms/plugin_rrd
+    DEPENDS
+        rrd_search
+)
+
+create_fast_downward_library(
+    NAME rrdex_search
+    HELP "Round-Robin dynamic expected effort search (RR-DXES)"
+    SOURCES
+        search_algorithms/rrdex_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_rrdex
+    HELP "Round-Robin dynamic expected effort search (plugin)"
+    SOURCES
+        search_algorithms/plugin_rrdex
+    DEPENDS
+        rrdex_search
+)
+
+create_fast_downward_library(
     NAME anytime_nonparametric_search
     HELP "Anytime nonparametric A* (ANA*)"
     SOURCES
