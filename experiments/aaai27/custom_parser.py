@@ -31,6 +31,61 @@ class CommonParser(Parser):
         self.add_function(search_from_bottom, file=file)
 
 
+# Benign single-line messages that Scorpion/the translator prints to stderr but
+# that do not indicate a failed run.  lab's fetcher flags *any* non-empty
+# run.err as an "unexplained error", so we strip these lines during parsing
+# (parser functions run in the run dir, before the fetcher reads run.err).
+BENIGN_STDERR_LINE_PATTERNS = [
+    # h^add overflows on tasks with very large action costs; the value is
+    # clamped and the search continues normally.
+    re.compile(r"^WARNING: overflow on h\^add! Costs clamped to \d+$"),
+    # A duplicated atom in the initial state is a modelling quirk in some
+    # benchmark domains (e.g. organic-synthesis); the translator ignores it.
+    re.compile(r"^Warning: Atom .+ is specified twice in initial state specification$"),
+]
+
+# Markers that identify a VAL plan-validation failure.  Here the *planner*
+# succeeded and only the external Validate binary returned non-zero, so this is
+# not a search error and should not count as an unexplained error.
+VAL_FAILURE_MARKERS = ("run_validate", "Validate", "returned non-zero exit status")
+
+
+def clean_stderr(content, props):
+    """Strip known-benign messages from run.err so they don't count as errors.
+
+    Anything not recognised as benign is left in run.err untouched, so genuine
+    errors are still reported. A compact record of what was suppressed is stored
+    under ``suppressed_stderr`` for auditing.
+
+    """
+    if not content or not content.strip():
+        return
+
+    kept = []
+    suppressed = []
+    for line in content.splitlines():
+        if any(p.match(line.strip()) for p in BENIGN_STDERR_LINE_PATTERNS):
+            suppressed.append("benign-warning")
+        else:
+            kept.append(line)
+    remainder = "\n".join(kept).strip()
+
+    # If everything that's left is a VAL plan-validation traceback, that's
+    # benign too: the plan was found, only external validation failed.
+    if remainder and all(marker in remainder for marker in VAL_FAILURE_MARKERS):
+        suppressed.append("validation-failed")
+        remainder = ""
+
+    if not suppressed:
+        return
+
+    props["suppressed_stderr"] = sorted(set(suppressed))
+
+    # Rewrite run.err (cwd is the run dir) so the fetcher sees clean stderr.
+    with open("run.err", "w") as f:
+        f.write(remainder + "\n" if remainder else "")
+
+
 def add_scores(content, props):
     """
     Convert some properties into scores in the range [0, 1].
@@ -83,6 +138,10 @@ def get_parser():
     )
 
     parser.add_function(add_scores)
+
+    # Strip known-benign messages from run.err so they don't count as
+    # unexplained errors during fetching.
+    parser.add_function(clean_stderr, file="run.err")
 
     parser.add_pattern("preprocessor_time", r"Preprocessor time: (.+)s\n", type=float)
     parser.add_pattern("preprocessor_memory", r"Preprocessor peak memory: (.+) KB\n", type=int)

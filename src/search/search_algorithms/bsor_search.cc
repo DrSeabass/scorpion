@@ -344,7 +344,12 @@ SearchStatus BSORSearch::step() {
             open.erase(open.begin());
             State n = state_registry.lookup_state(seq_to_state[entry.second]);
             SearchNode n_node = search_space.get_node(n);
-            rect[node_de[n]].erase({node_h[n], entry.second});
+            // rect buckets are keyed on d (see frontier_insert), so erase with
+            // node_d, not node_h. These coincide when dist defaults to eval,
+            // but differ when dist != eval (e.g. eval=ff, dist=lmcut): keying
+            // on node_h there would miss the entry, leaving the just-expanded
+            // node as a stale rect entry that gets re-expanded later.
+            rect[node_de[n]].erase({node_d[n], entry.second});
 
             int f_n = n_node.get_g() + node_h[n];
             if (f_n < bound) {

@@ -789,6 +789,27 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME adaptive_rectangle_search
+    HELP "Adaptive rectangle search (dynamic beam width)"
+    SOURCES
+        search_algorithms/adaptive_rectangle_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_adaptive_rectangle
+    HELP "Adaptive rectangle search (plugin)"
+    SOURCES
+        search_algorithms/plugin_adaptive_rectangle
+    DEPENDS
+        adaptive_rectangle_search
+)
+
+create_fast_downward_library(
     NAME bsor_search
     HELP "Bounded-suboptimal rectangle search (BSOR/RRR)"
     SOURCES

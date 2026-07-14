@@ -509,10 +509,13 @@ def add_bounded_suboptimal_plot_step(
                 # weight we didn't measure (e.g. wA*'s non-integer weights, or a
                 # weight where the family solved nothing).
                 line, = ax.plot(weights, points, marker="o", label=family)
-                ax.fill_between(
-                    weights, los, his, color=line.get_color(), alpha=0.15,
-                    linewidth=0,
-                )
+                # Coverage is a raw count, not an estimate; showing a band there
+                # over-implies uncertainty, so shade the CI on the other panels only.
+                if attribute != "coverage":
+                    ax.fill_between(
+                        weights, los, his, color=line.get_color(), alpha=0.15,
+                        linewidth=0,
+                    )
             ax.set_xlabel("suboptimality weight w")
             ax.set_title(
                 attribute if attribute == "coverage" else f"gmean {attribute}"
@@ -522,7 +525,8 @@ def add_bounded_suboptimal_plot_step(
                 ax.set_yscale("log")
         axes[0][0].legend(fontsize=7, loc="best")
         fig.suptitle(
-            f"{exp.name}: bounded-suboptimal curves vs weight (95% CI shaded)"
+            f"{exp.name}: bounded-suboptimal curves vs weight "
+            f"(95% CI shaded, except coverage)"
         )
         fig.tight_layout()
 
