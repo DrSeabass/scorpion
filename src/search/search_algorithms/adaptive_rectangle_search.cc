@@ -1,4 +1,4 @@
-#include "rectangle_search.h"
+#include "adaptive_rectangle_search.h"
 
 #include "../evaluation_context.h"
 #include "../evaluation_result.h"
@@ -10,40 +10,40 @@
 #include "../task_utils/task_properties.h"
 #include "../utils/logging.h"
 
+#include <algorithm>
 #include <cassert>
 
 using namespace std;
 
-namespace rectangle_search {
+namespace adaptive_rectangle_search {
 
-RectangleSearch::RectangleSearch(
-    const shared_ptr<Evaluator> &eval, double aspect, bool reopen_closed,
-    bool anytime, const shared_ptr<PruningMethod> &pruning,
-    OperatorCost cost_type, int bound, double max_time,
-    const string &description, utils::Verbosity verbosity)
+// Safety rails on the live aspect ratio (not tuning knobs): keep a in a range
+// where iteration * delta stays well within int and the schedule never
+// degenerates to a single shape forever.
+static const double ASPECT_FLOOR = 1.0 / 1024.0;
+static const double ASPECT_CEILING = 1024.0;
+
+AdaptiveRectangleSearch::AdaptiveRectangleSearch(
+    const shared_ptr<Evaluator> &eval, bool reopen_closed, bool anytime,
+    const shared_ptr<PruningMethod> &pruning, OperatorCost cost_type, int bound,
+    double max_time, const string &description, utils::Verbosity verbosity)
     : SearchAlgorithm(cost_type, bound, max_time, description, verbosity),
-      aspect(aspect),
       reopen_closed_nodes(reopen_closed),
       anytime_search(anytime),
       eval(eval),
       pruning_method(pruning),
+      aspect(1.0),
       delta_down(1.0),
       delta_across(1.0),
+      chain_intact_votes(0),
+      chain_broken_votes(0),
+      spine_level(-1),
       iteration(1),
       level(0),
       next_seq(0) {
-    if (aspect <= 0.0) {
-        cerr << "RectangleSearch: aspect must be positive." << endl;
-        utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
-    }
 }
 
-void RectangleSearch::initialize() {
-    log << "Conducting rectangle search with aspect = " << aspect
-        << ", (real) bound = " << bound << endl;
-
-    assert(eval);
-
+void AdaptiveRectangleSearch::recompute_deltas() {
     // (delta_down, delta_across) = (a, 1) if a >= 1 else (1, 1/a).
     if (aspect >= 1.0) {
         delta_down = aspect;
@@ -52,8 +52,21 @@ void RectangleSearch::initialize() {
         delta_down = 1.0;
         delta_across = 1.0 / aspect;
     }
+}
+
+void AdaptiveRectangleSearch::initialize() {
+    log << "Conducting adaptive rectangle search (dynamic aspect ratio), "
+        << "(real) bound = " << bound << endl;
+
+    assert(eval);
+
+    aspect = 1.0;
+    recompute_deltas();
     iteration = 1;
     level = 0;
+    chain_intact_votes = 0;
+    chain_broken_votes = 0;
+    spine_level = -1;
 
     set<Evaluator *> evals;
     eval->get_path_dependent_evaluators(evals);
@@ -99,13 +112,13 @@ void RectangleSearch::initialize() {
     pruning_method->initialize(task);
 }
 
-void RectangleSearch::print_statistics() const {
+void AdaptiveRectangleSearch::print_statistics() const {
     statistics.print_detailed_statistics();
     search_space.print_statistics();
     pruning_method->print_statistics();
 }
 
-void RectangleSearch::start_evaluator_statistics(
+void AdaptiveRectangleSearch::start_evaluator_statistics(
     EvaluationContext &eval_context) {
     int value = eval_context.get_evaluator_value_or_infinity(eval.get());
     if (value != EvaluationResult::INFTY) {
@@ -113,21 +126,21 @@ void RectangleSearch::start_evaluator_statistics(
     }
 }
 
-int RectangleSearch::assign_seq(const State &state) {
+int AdaptiveRectangleSearch::assign_seq(const State &state) {
     int seq = next_seq++;
     node_seq[state] = seq;
     seq_to_state.push_back(state.get_id());
     return seq;
 }
 
-void RectangleSearch::ensure_level(int idx) {
+void AdaptiveRectangleSearch::ensure_level(int idx) {
     while (static_cast<int>(rect.size()) <= idx) {
         rect.push_back(set<Entry>());
         ec.push_back(0);
     }
 }
 
-bool RectangleSearch::has_non_empty_rect() const {
+bool AdaptiveRectangleSearch::has_non_empty_rect() const {
     for (const set<Entry> &bucket : rect) {
         if (!bucket.empty())
             return true;
@@ -137,7 +150,7 @@ bool RectangleSearch::has_non_empty_rect() const {
 
 // Insert a frontier node into its rectangle depth bucket, keyed on the eval
 // value used for the within-depth ordering.
-void RectangleSearch::frontier_insert(const State &state) {
+void AdaptiveRectangleSearch::frontier_insert(const State &state) {
     int seq = node_seq[state];
     int de = node_de[state];
     ensure_level(de);
@@ -147,17 +160,32 @@ void RectangleSearch::frontier_insert(const State &state) {
 // Remove a frontier node from its rectangle depth bucket. Must be called with
 // the node's current de/h (i.e. before those are changed) so the stored key
 // matches.
-void RectangleSearch::frontier_erase(const State &state) {
+void AdaptiveRectangleSearch::frontier_erase(const State &state) {
     int seq = node_seq[state];
     int de = node_de[state];
     rect[de].erase({node_h[state], seq});
 }
 
+// Best-first-chain ratchet, applied at each completed rectangle sweep. Rotate
+// deeper (a *= 2) when chain-intact votes strictly dominate, wider (a /= 2)
+// when chain-broken votes strictly dominate, hold on a tie or no data. Then
+// reset the tallies and the per-sweep spine tracker and recompute the split.
+void AdaptiveRectangleSearch::apply_aspect_ratchet() {
+    if (chain_intact_votes > chain_broken_votes) {
+        aspect = min(aspect * 2.0, ASPECT_CEILING);
+    } else if (chain_broken_votes > chain_intact_votes) {
+        aspect = max(aspect / 2.0, ASPECT_FLOOR);
+    }
+    chain_intact_votes = 0;
+    chain_broken_votes = 0;
+    spine_level = -1;
+    recompute_deltas();
+}
+
 // NEXT: advance `iteration`/`level` to the next rectangle cell that is
-// eligible for expansion, or report that none remain. The rectangle grows with
-// `iteration`: each depth level admits iteration * delta_across expansions and
-// the rectangle reaches depth iteration * delta_down.
-bool RectangleSearch::advance_rectangle() {
+// eligible for expansion, or report that none remain. The aspect ratchet fires
+// at each `iteration` boundary (a completed sweep).
+bool AdaptiveRectangleSearch::advance_rectangle() {
     while (true) {
         if (level < static_cast<int>(rect.size()) && !rect[level].empty() &&
             ec[level] < iteration * delta_across) {
@@ -166,6 +194,7 @@ bool RectangleSearch::advance_rectangle() {
         if (level < iteration * delta_down - 1) {
             ++level;
         } else if (has_non_empty_rect()) {
+            apply_aspect_ratchet();
             ++iteration;
             level = 0;
         } else {
@@ -176,13 +205,19 @@ bool RectangleSearch::advance_rectangle() {
 
 // EXPAND. `state` has already been removed from its rectangle bucket. Returns
 // true iff the search should stop now (first solution found with anytime off).
-bool RectangleSearch::expand(const State &state) {
+// When `first_in_beam` (this is the best node expanded at its depth level this
+// sweep), casts the best-first-chain vote for the aspect ratchet.
+bool AdaptiveRectangleSearch::expand(const State &state, bool first_in_beam) {
     SearchNode node = search_space.get_node(state);
     node.close();
     statistics.inc_expanded();
 
     int g = node.get_g();
     int de = node_de[state];
+
+    // Successors this node places on the next depth bucket (de + 1); used for
+    // the best-first-chain vote below.
+    vector<int> inserted_children;
 
     vector<OperatorID> applicable_ops;
     successor_generator.generate_applicable_ops(state, applicable_ops);
@@ -250,6 +285,7 @@ bool RectangleSearch::expand(const State &state) {
             node_de[succ_state] = de + 1;
             node_h[succ_state] = h;
             frontier_insert(succ_state);
+            inserted_children.push_back(node_seq[succ_state]);
         } else if (succ_g < succ_node.get_g()) {
             // A strictly cheaper path to a known state. Duplicates without a
             // lower g are pruned (no else branch).
@@ -259,6 +295,7 @@ bool RectangleSearch::expand(const State &state) {
                     node, op, get_adjusted_cost(op));
                 node_de[succ_state] = de + 1;
                 frontier_insert(succ_state);
+                inserted_children.push_back(node_seq[succ_state]);
             } else {
                 assert(succ_node.is_closed());
                 if (!reopen_closed_nodes)
@@ -267,8 +304,31 @@ bool RectangleSearch::expand(const State &state) {
                 succ_node.reopen_closed_node(node, op, get_adjusted_cost(op));
                 node_de[succ_state] = de + 1;
                 frontier_insert(succ_state);
+                inserted_children.push_back(node_seq[succ_state]);
             }
         }
+    }
+
+    // Best-first-chain vote (only for the head of this level's beam): did the
+    // node just expanded produce the node now at the front of the next depth's
+    // bucket? If so the greedy best-first chain is intact (deepen); otherwise
+    // the best path is scattering across the frontier (widen).
+    if (first_in_beam) {
+        int next = de + 1;
+        bool chain_intact = false;
+        if (next < static_cast<int>(rect.size()) && !rect[next].empty()) {
+            int front_seq = rect[next].begin()->second;
+            for (int child_seq : inserted_children) {
+                if (child_seq == front_seq) {
+                    chain_intact = true;
+                    break;
+                }
+            }
+        }
+        if (chain_intact)
+            ++chain_intact_votes;
+        else
+            ++chain_broken_votes;
     }
 
     return false;
@@ -276,7 +336,7 @@ bool RectangleSearch::expand(const State &state) {
 
 // Record the plan reaching `parent_state` then applying `op_id` as the new
 // incumbent iff it is cheaper than the current one.
-bool RectangleSearch::try_improve_incumbent(
+bool AdaptiveRectangleSearch::try_improve_incumbent(
     const State &parent_state, OperatorID op_id, int succ_g) {
     if (found_solution() && succ_g >= bound)
         return false;
@@ -291,14 +351,15 @@ bool RectangleSearch::try_improve_incumbent(
 
     set_plan(plan);
     bound = cost;
-    log << "RectangleSearch: improved incumbent with cost " << cost << endl;
+    log << "AdaptiveRectangleSearch: improved incumbent with cost " << cost
+        << " (aspect " << aspect << ")" << endl;
     if (anytime_search) {
         plan_manager.save_plan(plan, task_proxy, true);
     }
     return true;
 }
 
-SearchStatus RectangleSearch::step() {
+SearchStatus AdaptiveRectangleSearch::step() {
     if (found_solution() && bound == 0)
         return SOLVED;
     if (!anytime_search && found_solution())
@@ -333,12 +394,20 @@ SearchStatus RectangleSearch::step() {
         }
     }
 
+    // This node is the head of its level's beam iff it is the first node
+    // expanded at this depth in the current sweep (levels are served in
+    // increasing order, and skipped/pruned nodes do not vote). Only the head
+    // casts the best-first-chain vote (see expand()).
+    bool first_in_beam = level > spine_level;
+    if (first_in_beam)
+        spine_level = level;
+
     // Lazily create the next depth level just before it may be needed, then
     // count this expansion.
     if (static_cast<double>(level) >= (iteration - 1) * delta_down)
         ensure_level(level + 1);
     ++ec[level];
-    if (expand(n))
+    if (expand(n, first_in_beam))
         return SOLVED;
 
     return IN_PROGRESS;
