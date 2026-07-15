@@ -29,12 +29,14 @@ Modeled on ../2026-05-triangle-vs-lama-arrhenius/2026-05-26-A-triangle-anytime-v
 same Lab scaffolding and Arrhenius/local environment handling.
 
 Environment variables (defaults shown; Arrhenius overrides marked):
+  TSPC_SET                     all|shard1..4|combined; default all
+  TSPC_MERGE_SETS              combined-only; shards to merge, default=existing
   TSPC_BUDGET                  default 5m local / 30m Arrhenius
   TSPC_MEMORY                  default 8G (solver soft limit)
   TSPC_PROCESSES               local-only, default 2
   TSPC_INSTANCES_PER_DOMAIN    default 0=all (whole suite everywhere)
   TSPC_INSTANCE_STEP           default 1 (every instance everywhere)
-  TSPC_DOMAINS                 comma-separated; default all-discovered
+  TSPC_DOMAINS                 comma-separated; power-user override of the SET
   TSPC_TRIANGLE_SLOPES         comma-separated; default "50,500"
   TSPC_RECT_ASPECTS            comma-separated; default "1,50,500"
   TSPC_WALL_TIME_FLOOR         Arrhenius reservation floor, default 10:00:00
@@ -51,6 +53,24 @@ Default scope is the whole agile-strips suite (all 42 domains, all instances)
 everywhere; only budget (5m local / 30m Arrhenius) and parallelism differ. For
 a quick local sanity run, set TSPC_INSTANCES_PER_DOMAIN / TSPC_INSTANCE_STEP
 explicitly.
+
+Incremental sharded workflow (TSPC_SET). Each set writes its own
+data/<stem>-<set> eval dir, so pieces never collide and merge cleanly (merge is
+on run-id [algorithm, domain, problem]; the four fixed domain-group shards are
+disjoint in domains, hence in ids). Run a shard, evaluate it, run the next, and
+regenerate the combined report + anytime profile over every shard run so far --
+no searches are repeated:
+
+  TSPC_SET=shard1    ... --all   # run shard1; writes its own report + plot
+  TSPC_SET=combined  ... --all   # regenerate over {shard1}
+  TSPC_SET=shard2    ... --all   # run shard2
+  TSPC_SET=combined  ... --all   # regenerate over {shard1, shard2}
+  ...  shard3, shard4, re-running combined after each ...
+
+The combined set owns no runs; by default it merges whichever shard eval dirs
+already exist on disk, so "regenerate from what I've run so far" is one command.
+Override with TSPC_MERGE_SETS=shard1,shard3 to pick specific shards.
+TSPC_SET=all runs the whole suite in one shot, unsharded.
 """
 
 import math
@@ -132,6 +152,11 @@ def _int_list(env_name, default):
     return [int(x.strip()) for x in raw.split(",") if x.strip()]
 
 
+def _str_list(env_name, default):
+    raw = os.environ.get(env_name, default)
+    return [x.strip() for x in raw.split(",") if x.strip()]
+
+
 TRIANGLE_SLOPES = _int_list("TSPC_TRIANGLE_SLOPES", "48") #Determined experimentally in HSDIP paper
 RECT_ASPECTS = _int_list("TSPC_RECT_ASPECTS", "1,500") #50 removed experimentally
 
@@ -184,17 +209,89 @@ def list_domains(benchmarks_dir):
     )
 
 
-SUITE = list_domains(BENCHMARKS_DIR)
+ALL_DOMAINS = list_domains(BENCHMARKS_DIR)
+
+# ---- Run sets: split the suite into independently-runnable pieces ----------
+# Each TSPC_SET writes its own data/<stem>-<SET> eval dir, so pieces never
+# collide and can be merged after the fact. Merging is on run-id =
+# [algorithm, domain, problem]; the shards below are DISJOINT in domains, so
+# their ids are disjoint and 'combined' can union them without clobbering.
+#
+#   all         every domain (default; single-shot full run)
+#   shard1..4   fixed domain-group shards partitioning ALL_DOMAINS; run these
+#               one at a time and evaluate each as it lands
+#   combined    owns no runs; merges the eval dirs named in TSPC_MERGE_SETS
+#               (default: whichever shards already exist) into one report +
+#               anytime profile -- regenerate incrementally after each shard
+#
+# A random (seed=20260715) shuffle of the 42 agile-strips domains split into
+# sizes 11/11/10/10, so hard domains spread roughly evenly across shards rather
+# than clustering alphabetically. Edit freely, but they must stay a disjoint
+# partition of ALL_DOMAINS (checked below). To regenerate:
+#   python -c "import os,random; d=sorted(...); random.Random(20260715).shuffle(d)"
+DOMAIN_SHARDS = {
+    "shard1": [
+        "agricola", "airport", "data-network", "floortile", "nomystery",
+        "parking", "pegsol", "pipesworld-tankage", "sokoban", "tetris",
+        "woodworking",
+    ],
+    "shard2": [
+        "blocksworld", "elevators", "mprime", "pathways",
+        "pipesworld-notankage", "satellite", "termes", "thoughtful",
+        "tidybot", "tpp", "zenotravel",
+    ],
+    "shard3": [
+        "barman", "depots", "freecell", "miconic", "openstacks",
+        "organic-synthesis-split", "rovers", "snake", "storage", "visitall",
+    ],
+    "shard4": [
+        "childsnack", "driverlog", "ged", "grid", "gripper", "hiking",
+        "logistics", "parcprinter", "scanalyzer", "transport",
+    ],
+}
+SHARD_NAMES = sorted(DOMAIN_SHARDS)
+SET = os.environ.get("TSPC_SET", "all").lower()
+VALID_SETS = ["all", "combined"] + SHARD_NAMES
+if SET not in VALID_SETS:
+    raise ValueError(f"TSPC_SET={SET!r} must be one of {VALID_SETS}")
+IS_COMBINED = SET == "combined"
+
+# The shards must be a clean partition of the discovered domains. Fatal only on
+# the correctness-critical paths (a shard, or the merge); a rough/all run does
+# not depend on the partition, so there we only warn.
+_shard_domains = [d for ds in DOMAIN_SHARDS.values() for d in ds]
+_dupes = sorted({d for d in _shard_domains if _shard_domains.count(d) > 1})
+_unassigned = sorted(set(ALL_DOMAINS) - set(_shard_domains))
+_unknown_shard = sorted(set(_shard_domains) - set(ALL_DOMAINS))
+if _dupes or _unassigned or _unknown_shard:
+    _msg = (
+        f"DOMAIN_SHARDS is not a clean partition of the {len(ALL_DOMAINS)} "
+        f"discovered domains: dupes={_dupes}, unassigned={_unassigned}, "
+        f"unknown={_unknown_shard}"
+    )
+    if SET in SHARD_NAMES or IS_COMBINED:
+        raise ValueError(_msg)
+    print(f"[param-config] WARNING: {_msg}")
+
+# Select this SET's domains; TSPC_DOMAINS (if set) is a power-user override.
+if SET == "all":
+    SUITE = list(ALL_DOMAINS)
+elif SET in DOMAIN_SHARDS:
+    SUITE = list(DOMAIN_SHARDS[SET])
+else:  # combined: no runs of our own
+    SUITE = []
+
 _domains_filter = os.environ.get("TSPC_DOMAINS")
-if _domains_filter:
-    requested = [d.strip() for d in _domains_filter.split(",") if d.strip()]
-    missing = [d for d in requested if d not in SUITE]
-    if missing:
-        raise ValueError(
-            f"TSPC_DOMAINS includes unknown: {missing}; available: {SUITE}"
-        )
-    SUITE = requested
-print(f"[param-config] {len(SUITE)} domains under {BENCHMARKS_DIR}")
+if _domains_filter and not IS_COMBINED:
+    SUITE = _str_list("TSPC_DOMAINS", "")
+
+_unknown_suite = [d for d in SUITE if d not in ALL_DOMAINS]
+if _unknown_suite:
+    raise ValueError(
+        f"set={SET!r} references unknown domains: {_unknown_suite}; "
+        f"available: {ALL_DOMAINS}"
+    )
+print(f"[param-config] set={SET}: {len(SUITE)} domains under {BENCHMARKS_DIR}")
 
 
 def build_limited_suite(benchmarks_dir, domains, instances_per_domain, instance_step):
@@ -215,7 +312,9 @@ def build_limited_suite(benchmarks_dir, domains, instances_per_domain, instance_
     return tasks
 
 
-TASKS = build_limited_suite(BENCHMARKS_DIR, SUITE, INSTANCES_PER_DOMAIN, INSTANCE_STEP)
+TASKS = [] if IS_COMBINED else build_limited_suite(
+    BENCHMARKS_DIR, SUITE, INSTANCES_PER_DOMAIN, INSTANCE_STEP
+)
 
 
 # ----------------------------------------------------------------------------
@@ -309,7 +408,7 @@ def _seconds_to_hms(seconds):
     return f"{hours}:{minutes:02d}:{secs:02d}"
 
 
-if IS_ARRHENIUS:
+if IS_ARRHENIUS and not IS_COMBINED:
     NUM_RUNS = len(CONFIGS) * len(TASKS)
     RUNS_PER_TASK = math.ceil(NUM_RUNS / ENV.MAX_TASKS)
     EST_SECONDS = RUNS_PER_TASK * (
@@ -393,24 +492,59 @@ ATTRIBUTES = [
 ]
 
 
-exp = Experiment(environment=ENV)
+# Each SET targets its own experiment/eval dir under data/, so shards never
+# collide and can be merged after the fact. The "combined" set owns no runs --
+# it fetches (merges) the sibling shard eval dirs.
+DATA_DIR = DIR / "data"
+STEM = Path(__file__).stem
+exp = Experiment(path=str(DATA_DIR / f"{STEM}-{SET}"), environment=ENV)
 
-for config_name, config in CONFIGS:
-    algo = FastDownwardAlgorithm(config_name, None, DRIVER_OPTIONS, config)
-    for task in TASKS:
-        run = LocalFastDownwardRun(exp, algo, task, LOCAL_DRIVER, LOCAL_BUILD)
-        exp.add_run(run)
+if IS_COMBINED:
+    # No runs of our own: merge the shard eval dirs, then report/plot over the
+    # union. Default is whichever shards already exist on disk, so regenerating
+    # after each new shard is a single command; TSPC_MERGE_SETS overrides.
+    def _shard_eval_dir(s):
+        return DATA_DIR / f"{STEM}-{s}-eval"
 
-exp.add_parser(project.FastDownwardExperiment.EXITCODE_PARSER)
-exp.add_parser(project.FastDownwardExperiment.TRANSLATOR_PARSER)
-exp.add_parser(project.FastDownwardExperiment.ANYTIME_SEARCH_PARSER)
-exp.add_parser(custom_parser.get_parser())
-exp.add_parser(project.FastDownwardExperiment.PLANNER_PARSER)
+    _existing = [s for s in SHARD_NAMES if _shard_eval_dir(s).is_dir()]
+    MERGE_SETS = _str_list("TSPC_MERGE_SETS", ",".join(_existing))
+    _bad_merge = [s for s in MERGE_SETS if s not in SHARD_NAMES]
+    if _bad_merge:
+        raise ValueError(
+            f"TSPC_MERGE_SETS includes non-shard sets {_bad_merge}; "
+            f"valid shards: {SHARD_NAMES}"
+        )
+    if not MERGE_SETS:
+        raise ValueError(
+            f"combined: no shard eval dirs found under {DATA_DIR}. Run a shard "
+            f"first (e.g. TSPC_SET=shard1 ... --all) or set TSPC_MERGE_SETS."
+        )
+    _no_dir = [s for s in MERGE_SETS if not _shard_eval_dir(s).is_dir()]
+    if _no_dir:
+        raise ValueError(
+            f"combined: requested shards {_no_dir} have no eval dir under "
+            f"{DATA_DIR}; run them first."
+        )
+    print(f"[param-config] combined merges: {MERGE_SETS}")
+    for s in MERGE_SETS:
+        exp.add_fetcher(str(_shard_eval_dir(s)), merge=True, name=f"fetch-{s}")
+else:
+    for config_name, config in CONFIGS:
+        algo = FastDownwardAlgorithm(config_name, None, DRIVER_OPTIONS, config)
+        for task in TASKS:
+            run = LocalFastDownwardRun(exp, algo, task, LOCAL_DRIVER, LOCAL_BUILD)
+            exp.add_run(run)
 
-exp.add_step("build", exp.build)
-exp.add_step("start", exp.start_runs)
-exp.add_step("parse", exp.parse)
-exp.add_fetcher(name="fetch")
+    exp.add_parser(project.FastDownwardExperiment.EXITCODE_PARSER)
+    exp.add_parser(project.FastDownwardExperiment.TRANSLATOR_PARSER)
+    exp.add_parser(project.FastDownwardExperiment.ANYTIME_SEARCH_PARSER)
+    exp.add_parser(custom_parser.get_parser())
+    exp.add_parser(project.FastDownwardExperiment.PLANNER_PARSER)
+
+    exp.add_step("build", exp.build)
+    exp.add_step("start", exp.start_runs)
+    exp.add_step("parse", exp.parse)
+    exp.add_fetcher(name="fetch")
 
 project.add_absolute_report(
     exp,
@@ -418,6 +552,7 @@ project.add_absolute_report(
     filter=[project.add_evaluations_per_time],
 )
 project.add_anytime_profile_plot_step(exp, max_time=_duration_to_seconds(BUDGET))
-project.add_compress_exp_dir_step(exp)
+if not IS_COMBINED:
+    project.add_compress_exp_dir_step(exp)
 
 exp.run_steps()

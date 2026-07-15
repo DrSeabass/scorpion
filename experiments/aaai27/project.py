@@ -539,6 +539,173 @@ def add_bounded_suboptimal_plot_step(
     exp.add_step(name, make_plot)
 
 
+def _incumbent_cost(pairs, t):
+    """Best (min) cost among solutions found at wall-clock time <= *t*.
+
+    *pairs* is a time-sorted list of (time, cost). Returns None if the config
+    has no solution by *t* (i.e. before its first plan)."""
+    best = None
+    for ti, ci in pairs:
+        if ti > t:
+            break
+        best = ci if best is None else min(best, ci)
+    return best
+
+
+def render_anytime_profile(
+    properties, outfile, *, max_time=None, num_points=200
+):
+    """Render anytime profile curves (one line per config) to *outfile*.
+
+    Reads the (time, cost) trajectory each run recorded -- ``cost_times:all``
+    (from custom_parser) paired element-wise with the standard ``cost:all`` --
+    and draws two panels over a log time axis:
+
+      * IPC anytime quality vs time. For each instance the reference cost is the
+        best (min) cost *any* config ever found on it; a config's quality at
+        time t is ref / (its incumbent cost by t), in (0, 1], and 0 before its
+        first solution. Averaged over *all* instances, so the curve folds in
+        coverage (unsolved-by-t counts as 0) -- this is the usual IPC-style
+        anytime score.
+      * Coverage vs time: fraction of instances solved (any plan found) by t.
+
+    *max_time* bounds the x-axis; if None it is taken from the runs'
+    ``limit_search_time`` (the search cutoff), falling back to the latest
+    observed solution time. Returns True if a plot was written, else False
+    (e.g. matplotlib missing or no trajectory data).
+    """
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print("matplotlib not available; skipping anytime-profile plot.")
+        return False
+
+    # algo -> instance -> time-sorted [(t, cost)]; plus per-instance best cost.
+    trajectories = defaultdict(dict)
+    best_cost = {}
+    instances = set()
+    limit_times = []
+    observed_tmax = 0.0
+
+    for run in properties.values():
+        algo = run.get("algorithm")
+        domain = run.get("domain")
+        problem = run.get("problem")
+        if algo is None or domain is None or problem is None:
+            continue
+        inst = (domain, problem)
+        instances.add(inst)
+        lt = run.get("limit_search_time")
+        if lt:
+            limit_times.append(float(lt))
+        costs = run.get("cost:all") or []
+        times = run.get("cost_times:all") or []
+        pairs = sorted((float(t), float(c)) for t, c in zip(times, costs))
+        trajectories[algo][inst] = pairs
+        if pairs:
+            observed_tmax = max(observed_tmax, pairs[-1][0])
+            cmin = min(c for _, c in pairs)
+            if inst not in best_cost or cmin < best_cost[inst]:
+                best_cost[inst] = cmin
+
+    if not instances or not trajectories:
+        print("No runs with (algorithm, domain, problem); nothing to plot.")
+        return False
+
+    if max_time is None:
+        max_time = max(limit_times) if limit_times else observed_tmax
+    if not max_time or max_time <= 0:
+        max_time = observed_tmax or 1.0
+
+    first_times = [
+        pairs[0][0]
+        for algo in trajectories
+        for pairs in trajectories[algo].values()
+        if pairs
+    ]
+    tmin = min((t for t in first_times if t > 0), default=max_time / 1000.0)
+    tmin = max(tmin, 1e-3)
+    if tmin >= max_time:
+        tmin = max_time / 1000.0
+
+    grid = [
+        tmin * (max_time / tmin) ** (i / (num_points - 1))
+        for i in range(num_points)
+    ]
+    n_inst = len(instances)
+
+    def quality_curve(algo):
+        by_inst = trajectories[algo]
+        qs, covs = [], []
+        for t in grid:
+            q_sum = 0.0
+            solved = 0
+            for inst in instances:
+                inc = _incumbent_cost(by_inst.get(inst, []), t)
+                if inc is None:
+                    continue
+                solved += 1
+                ref = best_cost.get(inst)
+                if ref is not None and inc > 0:
+                    q_sum += ref / inc
+            qs.append(q_sum / n_inst)
+            covs.append(solved / n_inst)
+        return qs, covs
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.6), squeeze=False)
+    ax_q, ax_c = axes[0]
+    for algo in sorted(trajectories):
+        qs, covs = quality_curve(algo)
+        ax_q.plot(grid, qs, label=algo)
+        ax_c.plot(grid, covs, label=algo)
+    for ax in (ax_q, ax_c):
+        ax.set_xscale("log")
+        ax.set_xlabel("elapsed search time (s)")
+        ax.grid(True, alpha=0.3)
+    ax_q.set_ylabel("mean IPC anytime quality")
+    ax_q.set_title("anytime quality vs time")
+    ax_q.set_ylim(0, 1.02)
+    ax_c.set_ylabel("coverage (fraction solved)")
+    ax_c.set_title("coverage vs time")
+    ax_c.set_ylim(0, 1.02)
+    ax_q.legend(fontsize=7, loc="best")
+    fig.suptitle(
+        f"anytime profiles over {n_inst} instances "
+        f"(quality ref = best cost found by any config)"
+    )
+    fig.tight_layout()
+    fig.savefig(outfile, dpi=110)
+    print(f"Wrote {outfile}")
+    return True
+
+
+def add_anytime_profile_plot_step(
+    exp, name="anytime-plot", outfile=None, max_time=None
+):
+    """Add a step drawing anytime profile curves from the fetched properties.
+
+    Runs locally after ``fetch``; a no-op (with a message) if the properties
+    file is missing or carries no (time, cost) trajectories. See
+    :func:`render_anytime_profile` for the metric definition."""
+
+    def make_plot():
+        import json
+
+        properties_path = Path(exp.eval_dir) / "properties"
+        if not properties_path.exists():
+            print(f"No properties file at {properties_path}; run fetch first.")
+            return
+        with open(properties_path) as f:
+            props = json.load(f)
+        out = outfile or (Path(exp.eval_dir) / f"{exp.name}-anytime-profile.png")
+        render_anytime_profile(props, out, max_time=max_time)
+
+    exp.add_step(name, make_plot)
+
+
 def fetch_algorithm(exp, expname, algo, *, new_algo=None):
     """Fetch (and possibly rename) a single algorithm from *expname*."""
     new_algo = new_algo or algo
