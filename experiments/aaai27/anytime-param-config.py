@@ -12,7 +12,7 @@ LAMA's first phase uses). LAMA runs as advertised via its alias.
 Configs (all anytime):
   triangle-s50         triangle(eval=lmcount, slope=50)
   triangle-s500        triangle(eval=lmcount, slope=500)
-  adaptive-triangle    adaptive_triangle(eval=lmcount)      -- token/budget slope
+  adaptive-triangle    adaptive_triangle(eval=lmcount, non_progress_penalty=0)
   ratchet-triangle     ratchet_triangle(eval=lmcount)       -- doubling/halving slope
   rectangle-a1         rectangle(eval=lmcount, aspect=1)     -- square RS
   rectangle-a50        rectangle(eval=lmcount, aspect=50)
@@ -39,6 +39,7 @@ Environment variables (defaults shown; Arrhenius overrides marked):
   TSPC_DOMAINS                 comma-separated; power-user override of the SET
   TSPC_TRIANGLE_SLOPES         comma-separated; default "50,500"
   TSPC_RECT_ASPECTS            comma-separated; default "1,50,500"
+  TSPC_NONPROGRESS_PENALTY     adaptive_triangle budget decrement; default 0
   TSPC_WALL_TIME_FLOOR         Arrhenius reservation floor, default 10:00:00
   TSPC_BENCHMARK_TARGET        default autoscale-agile-21.11-strips
   DOWNWARD_REPO                default <repo root>
@@ -159,6 +160,10 @@ def _str_list(env_name, default):
 
 TRIANGLE_SLOPES = _int_list("TSPC_TRIANGLE_SLOPES", "48") #Determined experimentally in HSDIP paper
 RECT_ASPECTS = _int_list("TSPC_RECT_ASPECTS", "1,500") #50 removed experimentally
+# adaptive_triangle's per-non-improving-transition budget decrement. The plugin
+# default is 1 (+1/-1 rule); this paper runs 0 so the cascade keeps running
+# through non-improving transitions. Only adaptive_triangle has this parameter.
+NONPROGRESS_PENALTY = int(os.environ.get("TSPC_NONPROGRESS_PENALTY", "0"))
 
 
 # ----------------------------------------------------------------------------
@@ -334,7 +339,8 @@ for s in TRIANGLE_SLOPES:
         f"triangle(eval={LMCOUNT}, slope={s}, anytime=true)"
     )
 SEARCH_TEMPLATES["adaptive-triangle"] = (
-    f"adaptive_triangle(eval={LMCOUNT}, anytime=true)"
+    f"adaptive_triangle(eval={LMCOUNT}, anytime=true, "
+    f"non_progress_penalty={NONPROGRESS_PENALTY})"
 )
 SEARCH_TEMPLATES["ratchet-triangle"] = (
     f"ratchet_triangle(eval={LMCOUNT}, anytime=true)"
