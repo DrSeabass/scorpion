@@ -417,6 +417,7 @@ project.add_absolute_report(
     attributes=ATTRIBUTES,
     filter=[project.add_evaluations_per_time],
 )
+project.add_anytime_profile_plot_step(exp, max_time=_duration_to_seconds(BUDGET))
 project.add_compress_exp_dir_step(exp)
 
 exp.run_steps()
