@@ -132,7 +132,7 @@ BENCHMARKS_DIR = os.path.expanduser(
 # Scope (default tight for local sanity; Arrhenius goes wider)
 # ----------------------------------------------------------------------------
 if IS_ARRHENIUS:
-    BUDGET = os.environ.get("TSPC_BUDGET", "30m")
+    BUDGET = os.environ.get("TSPC_BUDGET", "15m")
     MEMORY = os.environ.get("TSPC_MEMORY", "8G")
     INSTANCES_PER_DOMAIN = int(os.environ.get("TSPC_INSTANCES_PER_DOMAIN", "0"))
     INSTANCE_STEP = int(os.environ.get("TSPC_INSTANCE_STEP", "1"))
