@@ -831,6 +831,27 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME focal_bsor_search
+    HELP "Focal bounded-suboptimal rectangle search"
+    SOURCES
+        search_algorithms/focal_bsor_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_focal_bsor
+    HELP "Focal bounded-suboptimal rectangle search (plugin)"
+    SOURCES
+        search_algorithms/plugin_focal_bsor
+    DEPENDS
+        focal_bsor_search
+)
+
+create_fast_downward_library(
     NAME ees_search
     HELP "Explicit Estimation Search (EES)"
     SOURCES
