@@ -39,6 +39,9 @@ class RectangleSearch : public SearchAlgorithm {
     const double aspect;
     const bool reopen_closed_nodes;
     const bool anytime_search;
+    // If true, prune against the incumbent using f = g + h (only sound when
+    // `eval` is admissible); if false, prune using g alone.
+    const bool prune_with_h;
 
     std::shared_ptr<Evaluator> eval;
 
@@ -84,7 +87,7 @@ protected:
 public:
     RectangleSearch(
         const std::shared_ptr<Evaluator> &eval, double aspect,
-        bool reopen_closed, bool anytime,
+        bool reopen_closed, bool anytime, bool prune_with_h,
         const std::shared_ptr<PruningMethod> &pruning, OperatorCost cost_type,
         int bound, double max_time, const std::string &description,
         utils::Verbosity verbosity);

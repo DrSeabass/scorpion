@@ -36,6 +36,12 @@ public:
             "continue search after finding a solution to improve the incumbent "
             "(converges to the optimal cost)",
             "false");
+        add_option<bool>(
+            "prune_with_h",
+            "prune nodes that cannot improve the incumbent using f = g + h. "
+            "This is only sound when eval is admissible; set to false to prune "
+            "on g alone when eval may overestimate.",
+            "true");
         add_search_pruning_options_to_feature(*this);
         add_search_algorithm_options_to_feature(*this, "rectangle");
     }
@@ -46,6 +52,7 @@ public:
             rectangle_search::RectangleSearch>(
             opts.get<shared_ptr<Evaluator>>("eval"), opts.get<double>("aspect"),
             opts.get<bool>("reopen_closed"), opts.get<bool>("anytime"),
+            opts.get<bool>("prune_with_h"),
             get_search_pruning_arguments_from_options(opts),
             get_search_algorithm_arguments_from_options(opts));
     }

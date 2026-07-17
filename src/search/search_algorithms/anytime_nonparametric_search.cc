@@ -23,12 +23,14 @@ AnytimeNonparametricSearch::AnytimeNonparametricSearch(
     const shared_ptr<Evaluator> &eval,
     bool reopen_closed,
     bool anytime,
+    bool prune_with_h,
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
     const string &description, utils::Verbosity verbosity)
     : SearchAlgorithm(cost_type, bound, max_time, description, verbosity),
       reopen_closed_nodes(reopen_closed),
       anytime_search(anytime),
+      prune_with_h(prune_with_h),
       eval(eval),
       pruning_method(pruning),
       // The comparator reads the incumbent bound G through &bound; the base
@@ -132,7 +134,10 @@ void AnytimeNonparametricSearch::reorder_open() {
         SearchNode node = search_space.get_node(state);
         if (entry.g > node.get_g() || node.is_dead_end() || node.is_closed())
             continue;
-        if (static_cast<long long>(entry.g) + entry.h >= bound)
+        long long f = prune_with_h
+                          ? static_cast<long long>(entry.g) + entry.h
+                          : entry.g;
+        if (f >= bound)
             continue;
         kept.push_back(entry);
     }
@@ -176,7 +181,10 @@ SearchStatus AnytimeNonparametricSearch::step() {
         if (candidate.g > node.get_g() || node.is_dead_end() ||
             node.is_closed())
             continue;
-        if (static_cast<long long>(candidate.g) + candidate.h >= bound)
+        long long f = prune_with_h
+                          ? static_cast<long long>(candidate.g) + candidate.h
+                          : candidate.g;
+        if (f >= bound)
             continue;
         current = candidate;
         found_expandable = true;
@@ -273,7 +281,10 @@ SearchStatus AnytimeNonparametricSearch::step() {
 
         // ANA* line 13: keep s only if it can still improve the incumbent.
         int succ_g_now = succ_node.get_g();
-        if (static_cast<long long>(succ_g_now) + succ_h >= bound)
+        long long succ_f = prune_with_h
+                               ? static_cast<long long>(succ_g_now) + succ_h
+                               : succ_g_now;
+        if (succ_f >= bound)
             continue;
 
         open_list.push({succ_state.get_id(), succ_g_now, succ_h});

@@ -32,6 +32,12 @@ public:
             "anytime",
             "continue search after finding a solution to improve the incumbent",
             "false");
+        add_option<bool>(
+            "prune_with_h",
+            "prune nodes that cannot improve the incumbent using f = g + h "
+            "(g(s) + h(s) >= G). This is only sound when eval is admissible; "
+            "set to false to prune on g alone when eval may overestimate.",
+            "true");
         add_search_pruning_options_to_feature(*this);
         add_search_algorithm_options_to_feature(*this, "ana");
     }
@@ -43,6 +49,7 @@ public:
             opts.get<shared_ptr<Evaluator>>("eval"),
             opts.get<bool>("reopen_closed"),
             opts.get<bool>("anytime"),
+            opts.get<bool>("prune_with_h"),
             get_search_pruning_arguments_from_options(opts),
             get_search_algorithm_arguments_from_options(opts));
     }
