@@ -4,6 +4,7 @@
 #include "../search_algorithm.h"
 
 #include <deque>
+#include <fstream>
 #include <memory>
 #include <queue>
 #include <string>
@@ -55,6 +56,11 @@ class AdaptiveTriangleSearch : public SearchAlgorithm {
     // long as no frontier extension is needed -- so a single bad transition
     // mid-step no longer halts forward progress.
     const int non_progress_penalty;
+    // When true, append one CSV row per expansion (expansions,budget) to the
+    // hardcoded file adaptive_triangle_budget.csv, tracing the per-expansion
+    // depth budget. Off => no file is opened and the hot loop pays only one
+    // predicted branch.
+    const bool log_budget;
 
     std::shared_ptr<Evaluator> eval;
     std::shared_ptr<Evaluator> pruning_heuristic;
@@ -63,6 +69,9 @@ class AdaptiveTriangleSearch : public SearchAlgorithm {
 
     std::deque<OpenList> open_lists;
     int max_active_layer = -1;
+    // Absolute depth of open_lists[0]: incremented whenever an empty front
+    // layer is popped, so reported depths stay absolute despite front-draining.
+    int depth_offset = 0;
     // Number of new frontier layers the previous step instantiated (its
     // realized dive depth past the frontier -- the emergent analog of
     // ratchet's persistent slope). Drives the LAYERS_ADDED floor proxy.
@@ -78,6 +87,15 @@ class AdaptiveTriangleSearch : public SearchAlgorithm {
     // still gets one unit to make forward progress.
     int budget = 1;
 
+    // Open when log_budget is set; one row per expansion.
+    std::ofstream budget_log_file;
+    // Open when log_budget is set; one row index per incumbent improvement,
+    // marking the extension-check log element at which a solution was found.
+    std::ofstream budget_solution_file;
+    // Count of rows written to budget_log_file so far (one per frontier-
+    // extension check); used to place solution markers on that same axis.
+    int budget_log_rows = 0;
+
     void start_evaluator_statistics(EvaluationContext &eval_context);
     void extend_open_lists(int num_lists);
     void recompute_max_active_layer();
@@ -86,6 +104,9 @@ class AdaptiveTriangleSearch : public SearchAlgorithm {
         const State &state, SearchNode &node, int g, int &h_out,
         bool is_new_evaluation);
     void insert_into_open_list(int list_index, const OpenEntry &entry);
+    // Absolute depths of the shallowest / deepest non-empty open list (-1 if
+    // all empty), used for the mindepth/maxdepth logging columns.
+    void current_depth_range(int &mind, int &maxd) const;
 
 protected:
     virtual void initialize() override;
@@ -99,6 +120,7 @@ public:
         bool lift_floor,
         FloorProxy floor_proxy,
         int non_progress_penalty,
+        bool log_budget,
         const std::shared_ptr<Evaluator> &pruning_heuristic,
         const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,

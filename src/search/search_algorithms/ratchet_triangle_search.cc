@@ -26,6 +26,7 @@ RatchetTriangleSearch::RatchetTriangleSearch(
     bool reopen_closed,
     bool anytime,
     bool lift_floor,
+    bool log_slope,
     const shared_ptr<Evaluator> &pruning_heuristic,
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
@@ -35,6 +36,7 @@ RatchetTriangleSearch::RatchetTriangleSearch(
       reopen_closed_nodes(reopen_closed),
       anytime_search(anytime),
       lift_floor(lift_floor),
+      log_slope(log_slope),
       eval(eval),
       pruning_heuristic(pruning_heuristic),
       pruning_method(pruning) {
@@ -50,6 +52,20 @@ void RatchetTriangleSearch::initialize() {
         << ", (real) bound = " << bound << endl;
 
     assert(eval);
+
+    if (log_slope) {
+        slope_log_file.open("ratchet_triangle_slope.csv");
+        slope_log_file << "expansions,slope,mindepth,maxdepth\n";
+        {
+            int mind, maxd;
+            current_depth_range(mind, maxd);
+            slope_log_file << statistics.get_expanded() << "," << slope << ","
+                           << mind << "," << maxd << "\n";
+        }
+        ++log_rows_written;
+        slope_solution_file.open("ratchet_triangle_solutions.csv");
+        slope_solution_file << "log_element\n";
+    }
 
     set<Evaluator *> evals;
     eval->get_path_dependent_evaluators(evals);
@@ -128,6 +144,10 @@ void RatchetTriangleSearch::update_incumbent(const State &goal_state) {
     if (!found_solution() || candidate_cost < bound) {
         set_plan(candidate_plan);
         bound = candidate_cost;
+        // Mark the log element for the (upcoming) end of the step in which this
+        // solution was found.
+        if (log_slope)
+            slope_solution_file << log_rows_written << "\n";
         log << "RatchetTriangleSearch: improved incumbent with cost " << candidate_cost << endl;
         if (anytime_search) {
             plan_manager.save_plan(candidate_plan, task_proxy, true);
@@ -167,10 +187,28 @@ void RatchetTriangleSearch::insert_into_open_list(int list_index, const OpenEntr
         max_active_layer = list_index;
 }
 
+void RatchetTriangleSearch::current_depth_range(int &mind, int &maxd) const {
+    int n = static_cast<int>(open_lists.size());
+    mind = maxd = -1;
+    for (int i = 0; i < n; ++i) {
+        if (!open_lists[i].empty()) {
+            mind = depth_offset + i;
+            break;
+        }
+    }
+    for (int i = n - 1; i >= 0; --i) {
+        if (!open_lists[i].empty()) {
+            maxd = depth_offset + i;
+            break;
+        }
+    }
+}
+
 SearchStatus RatchetTriangleSearch::step() {
     while (!open_lists.empty() && open_lists.front().empty()) {
         open_lists.pop_front();
         --max_active_layer;
+        ++depth_offset;
     }
     max_active_layer = max(max_active_layer, 0);
 
@@ -335,6 +373,14 @@ SearchStatus RatchetTriangleSearch::step() {
             slope *= 2;
     } else {
         slope = max(1, slope / 2);
+    }
+
+    if (log_slope) {
+        int mind, maxd;
+        current_depth_range(mind, maxd);
+        slope_log_file << statistics.get_expanded() << "," << slope << ","
+                       << mind << "," << maxd << "\n";
+        ++log_rows_written;
     }
 
     return IN_PROGRESS;

@@ -44,6 +44,12 @@ public:
             "shallowest active layer instead of at the root, skipping the "
             "shallow layers the current slope trusts",
             "false");
+        add_option<bool>(
+            "log_slope",
+            "append one CSV row per step (expansions,slope) to "
+            "ratchet_triangle_slope.csv in the working directory, tracing the "
+            "ratcheted slope. Off => no file is written.",
+            "false");
         add_option<shared_ptr<Evaluator>>(
             "pruning_heuristic",
             "admissible evaluator used for f-pruning successors "
@@ -62,6 +68,7 @@ public:
             opts.get<bool>("reopen_closed"),
             opts.get<bool>("anytime"),
             opts.get<bool>("lift_floor"),
+            opts.get<bool>("log_slope"),
             opts.get<shared_ptr<Evaluator>>("pruning_heuristic", nullptr),
             get_search_pruning_arguments_from_options(opts),
             get_search_algorithm_arguments_from_options(opts));

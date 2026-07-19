@@ -25,11 +25,13 @@ static const double ASPECT_CEILING = 1024.0;
 
 AdaptiveRectangleSearch::AdaptiveRectangleSearch(
     const shared_ptr<Evaluator> &eval, bool reopen_closed, bool anytime,
-    const shared_ptr<PruningMethod> &pruning, OperatorCost cost_type, int bound,
-    double max_time, const string &description, utils::Verbosity verbosity)
+    bool log_aspect, const shared_ptr<PruningMethod> &pruning,
+    OperatorCost cost_type, int bound, double max_time,
+    const string &description, utils::Verbosity verbosity)
     : SearchAlgorithm(cost_type, bound, max_time, description, verbosity),
       reopen_closed_nodes(reopen_closed),
       anytime_search(anytime),
+      log_aspect(log_aspect),
       eval(eval),
       pruning_method(pruning),
       aspect(1.0),
@@ -59,6 +61,20 @@ void AdaptiveRectangleSearch::initialize() {
         << "(real) bound = " << bound << endl;
 
     assert(eval);
+
+    if (log_aspect) {
+        aspect_log_file.open("adaptive_rectangle_aspect.csv");
+        aspect_log_file << "expansions,aspect,mindepth,maxdepth\n";
+        {
+            int mind, maxd;
+            current_depth_range(mind, maxd);
+            aspect_log_file << statistics.get_expanded() << "," << 1.0 << ","
+                            << mind << "," << maxd << "\n";
+        }
+        ++log_rows_written;
+        aspect_solution_file.open("adaptive_rectangle_solutions.csv");
+        aspect_solution_file << "log_element\n";
+    }
 
     aspect = 1.0;
     recompute_deltas();
@@ -148,6 +164,23 @@ bool AdaptiveRectangleSearch::has_non_empty_rect() const {
     return false;
 }
 
+void AdaptiveRectangleSearch::current_depth_range(int &mind, int &maxd) const {
+    int n = static_cast<int>(rect.size());
+    mind = maxd = -1;
+    for (int i = 0; i < n; ++i) {
+        if (!rect[i].empty()) {
+            mind = i;
+            break;
+        }
+    }
+    for (int i = n - 1; i >= 0; --i) {
+        if (!rect[i].empty()) {
+            maxd = i;
+            break;
+        }
+    }
+}
+
 // Insert a frontier node into its rectangle depth bucket, keyed on the eval
 // value used for the within-depth ordering.
 void AdaptiveRectangleSearch::frontier_insert(const State &state) {
@@ -180,6 +213,14 @@ void AdaptiveRectangleSearch::apply_aspect_ratchet() {
     chain_broken_votes = 0;
     spine_level = -1;
     recompute_deltas();
+
+    if (log_aspect) {
+        int mind, maxd;
+        current_depth_range(mind, maxd);
+        aspect_log_file << statistics.get_expanded() << "," << aspect << ","
+                        << mind << "," << maxd << "\n";
+        ++log_rows_written;
+    }
 }
 
 // NEXT: advance `iteration`/`level` to the next rectangle cell that is
@@ -351,6 +392,10 @@ bool AdaptiveRectangleSearch::try_improve_incumbent(
 
     set_plan(plan);
     bound = cost;
+    // Mark the log element for the (upcoming) end of the sweep in which this
+    // solution was found.
+    if (log_aspect)
+        aspect_solution_file << log_rows_written << "\n";
     log << "AdaptiveRectangleSearch: improved incumbent with cost " << cost
         << " (aspect " << aspect << ")" << endl;
     if (anytime_search) {

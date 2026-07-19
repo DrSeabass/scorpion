@@ -1,6 +1,7 @@
 callgrind.out.*
 *.sas
 *.png
+*.pddl
 *.tar.bz2
 __pycache__/
 /docs/search/*.md
@@ -17,3 +18,10 @@ __pycache__/
 /misc/tests/regression-baselines/dev/
 .venv/
 /.claude/
+sas_*
+*.csv
+*.log
+*.lock
+*.tar.gz
+*.tar.bz
+/rust_impl/

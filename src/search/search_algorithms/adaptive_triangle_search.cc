@@ -27,6 +27,7 @@ AdaptiveTriangleSearch::AdaptiveTriangleSearch(
     bool lift_floor,
     FloorProxy floor_proxy,
     int non_progress_penalty,
+    bool log_budget,
     const shared_ptr<Evaluator> &pruning_heuristic,
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
@@ -37,6 +38,7 @@ AdaptiveTriangleSearch::AdaptiveTriangleSearch(
       lift_floor(lift_floor),
       floor_proxy(floor_proxy),
       non_progress_penalty(non_progress_penalty),
+      log_budget(log_budget),
       eval(eval),
       pruning_heuristic(pruning_heuristic),
       pruning_method(pruning) {
@@ -50,6 +52,13 @@ void AdaptiveTriangleSearch::initialize() {
         << ", (real) bound = " << bound << endl;
 
     assert(eval);
+
+    if (log_budget) {
+        budget_log_file.open("adaptive_triangle_budget.csv");
+        budget_log_file << "expansions,budget,mindepth,maxdepth\n";
+        budget_solution_file.open("adaptive_triangle_solutions.csv");
+        budget_solution_file << "log_element\n";
+    }
 
     set<Evaluator *> evals;
     eval->get_path_dependent_evaluators(evals);
@@ -129,6 +138,11 @@ void AdaptiveTriangleSearch::update_incumbent(const State &goal_state) {
         set_plan(candidate_plan);
         bound = candidate_cost;
         log << "AdaptiveTriangleSearch: improved incumbent with cost " << candidate_cost << endl;
+        if (log_budget) {
+            // Place the marker at the most recent extension-check log element.
+            budget_solution_file
+                << (budget_log_rows > 0 ? budget_log_rows - 1 : 0) << "\n";
+        }
         if (anytime_search) {
             plan_manager.save_plan(candidate_plan, task_proxy, true);
         }
@@ -169,10 +183,28 @@ void AdaptiveTriangleSearch::insert_into_open_list(int list_index, const OpenEnt
         max_active_layer = list_index;
 }
 
+void AdaptiveTriangleSearch::current_depth_range(int &mind, int &maxd) const {
+    int n = static_cast<int>(open_lists.size());
+    mind = maxd = -1;
+    for (int i = 0; i < n; ++i) {
+        if (!open_lists[i].empty()) {
+            mind = depth_offset + i;
+            break;
+        }
+    }
+    for (int i = n - 1; i >= 0; --i) {
+        if (!open_lists[i].empty()) {
+            maxd = depth_offset + i;
+            break;
+        }
+    }
+}
+
 SearchStatus AdaptiveTriangleSearch::step() {
     while (!open_lists.empty() && open_lists.front().empty()) {
         open_lists.pop_front();
         --max_active_layer;
+        ++depth_offset;
     }
     max_active_layer = max(max_active_layer, 0);
 
@@ -260,10 +292,24 @@ SearchStatus AdaptiveTriangleSearch::step() {
 
         // We have an expandable top. Ensure layer i+1 exists to receive its
         // successors; free if already in the deque, otherwise pay one budget
-        // unit. If we can't afford it, halt the cascade with the expandable
-        // entry still in place for the next step.
+        // unit. Every pass lays at least one new frontier layer: the first
+        // extension of the step is granted unconditionally (even with a
+        // depleted/negative budget), and the budget gate is consulted only for
+        // extensions beyond that first one. If a later extension can't be
+        // afforded, halt the cascade with the expandable entry still in place
+        // for the next step.
         if (i + 1 >= static_cast<int>(open_lists.size())) {
-            if (budget <= 0)
+            // Budget is consulted here to decide whether we can afford a new
+            // frontier layer -- record what it holds at the moment of the
+            // check, before the gate consumes it.
+            if (log_budget) {
+                int mind, maxd;
+                current_depth_range(mind, maxd);
+                budget_log_file << statistics.get_expanded() << "," << budget
+                                << "," << mind << "," << maxd << "\n";
+                ++budget_log_rows;
+            }
+            if (layers_added > 0 && budget <= 0)
                 break;
             --budget;
             extend_open_lists(1);

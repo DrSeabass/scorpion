@@ -34,6 +34,12 @@ public:
             "(converges to the optimal cost); the dynamic aspect is designed "
             "for this mode",
             "true");
+        add_option<bool>(
+            "log_aspect",
+            "append one CSV row per completed sweep (expansions,aspect) to "
+            "adaptive_rectangle_aspect.csv in the working directory, tracing "
+            "the ratcheted aspect ratio. Off => no file is written.",
+            "false");
         add_search_pruning_options_to_feature(*this);
         add_search_algorithm_options_to_feature(*this, "adaptive_rectangle");
     }
@@ -44,6 +50,7 @@ public:
             adaptive_rectangle_search::AdaptiveRectangleSearch>(
             opts.get<shared_ptr<Evaluator>>("eval"),
             opts.get<bool>("reopen_closed"), opts.get<bool>("anytime"),
+            opts.get<bool>("log_aspect"),
             get_search_pruning_arguments_from_options(opts),
             get_search_algorithm_arguments_from_options(opts));
     }

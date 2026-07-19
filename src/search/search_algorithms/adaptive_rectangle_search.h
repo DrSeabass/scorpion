@@ -4,6 +4,7 @@
 #include "../per_state_information.h"
 #include "../search_algorithm.h"
 
+#include <fstream>
 #include <memory>
 #include <set>
 #include <string>
@@ -54,6 +55,10 @@ namespace adaptive_rectangle_search {
 class AdaptiveRectangleSearch : public SearchAlgorithm {
     const bool reopen_closed_nodes;
     const bool anytime_search;
+    // When true, append one CSV row per completed sweep (expansions,aspect) to
+    // the hardcoded file adaptive_rectangle_aspect.csv, tracing the ratcheted
+    // aspect ratio. Off => no file is opened.
+    const bool log_aspect;
 
     std::shared_ptr<Evaluator> eval;
 
@@ -94,10 +99,23 @@ class AdaptiveRectangleSearch : public SearchAlgorithm {
     std::vector<StateID> seq_to_state;
     int next_seq;
 
+    // Open when log_aspect is set; one row per completed sweep.
+    std::ofstream aspect_log_file;
+    // Open when log_aspect is set; one row index per incumbent improvement,
+    // marking the end-of-sweep log element at which a solution was found.
+    std::ofstream aspect_solution_file;
+    // Count of rows written to aspect_log_file so far; equals the index of the
+    // next (upcoming) sweep-end row.
+    int log_rows_written = 0;
+
     void start_evaluator_statistics(EvaluationContext &eval_context);
     int assign_seq(const State &state);
     void ensure_level(int idx);
     bool has_non_empty_rect() const;
+    // Depths of the shallowest / deepest non-empty rect bucket (-1 if all
+    // empty); rect is indexed by absolute search depth. Used for the
+    // mindepth/maxdepth logging columns.
+    void current_depth_range(int &mind, int &maxd) const;
     void frontier_insert(const State &state);
     void frontier_erase(const State &state);
     void recompute_deltas();
@@ -114,7 +132,8 @@ protected:
 public:
     AdaptiveRectangleSearch(
         const std::shared_ptr<Evaluator> &eval, bool reopen_closed,
-        bool anytime, const std::shared_ptr<PruningMethod> &pruning,
+        bool anytime, bool log_aspect,
+        const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,
         const std::string &description, utils::Verbosity verbosity);
     virtual ~AdaptiveRectangleSearch() = default;
