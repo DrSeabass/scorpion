@@ -126,6 +126,13 @@ EVALUATIONS_PER_TIME = Attribute(
     "evaluations_per_time", min_wins=False, function=geometric_mean, digits=1
 )
 
+# Per-task time-integrated anytime quality in [0, 1] (see AnytimeQualityFilter);
+# summed over tasks in the report, IPC-style, so higher is better. Named in the
+# score_* family so downward's reports format it consistently.
+SCORE_ANYTIME = Attribute(
+    "score_anytime", absolute=True, min_wins=False, function=sum, digits=2
+)
+
 UNSOLVABLE_TASKS = {
     "mystery:prob%02d.pddl" % index
     for index in [4, 5, 7, 8, 12, 16, 18, 21, 22, 23, 24]
@@ -552,42 +559,148 @@ def _incumbent_cost(pairs, t):
     return best
 
 
-def render_anytime_profile(
-    properties, outfile, *, max_time=None, num_points=200
-):
-    """Render anytime profile curves (one line per config) to *outfile*.
+def _run_pairs(run):
+    """Time-sorted [(t, cost)] trajectory for a single run.
+
+    Pairs the standard ``cost:all`` list element-wise with ``cost_times:all``
+    (the wall-clock timestamp on each "Plan cost:" line, from custom_parser).
+    Empty if the run recorded no plans."""
+    costs = run.get("cost:all") or []
+    times = run.get("cost_times:all") or []
+    return sorted((float(t), float(c)) for t, c in zip(times, costs))
+
+
+def _anytime_grid(first_times, limit_times, observed_tmax, max_time, num_points):
+    """Shared log-spaced sampling grid for anytime curves and scores.
+
+    Bounding the grid identically for the plot and the per-run score keeps the
+    two consistent: a run's score is exactly the area under its own quality
+    curve, and the mean of the scores is the area under the plotted mean curve.
+
+    *max_time* (upper bound) defaults to the largest ``limit_search_time``,
+    falling back to *observed_tmax* (the latest observed solution time); the
+    lower bound is the earliest observed solution time in *first_times*, floored
+    at 1ms. Returns ``(grid, max_time)``."""
+    if max_time is None:
+        max_time = max(limit_times) if limit_times else observed_tmax
+    if not max_time or max_time <= 0:
+        max_time = observed_tmax or 1.0
+
+    tmin = min((t for t in first_times if t > 0), default=max_time / 1000.0)
+    tmin = max(tmin, 1e-3)
+    if tmin >= max_time:
+        tmin = max_time / 1000.0
+
+    grid = [
+        tmin * (max_time / tmin) ** (i / (num_points - 1))
+        for i in range(num_points)
+    ]
+    return grid, max_time
+
+
+class AnytimeQualityFilter:
+    """Two-pass report filter adding a per-run time-integrated anytime score.
+
+    The score is the scalar counterpart of :func:`render_anytime_profile`'s
+    quality curve: for a task whose best cost across *all* configs is ``ref``, a
+    run's quality at time t is ``ref / incumbent_cost(t)`` in (0, 1] (0 before
+    its first plan), and the score is the mean of that quality over the shared
+    log-spaced time grid -- i.e. the (normalised) area under the run's quality
+    vs. log-time curve. Unsolved runs score 0. Because the grid is shared, the
+    mean of the per-run scores equals the area under the plotted mean curve.
+
+    Reference costs are cross-run, so this needs two passes; lab applies each
+    filter in a list to every run before the next, so pass it as::
+
+        f = AnytimeQualityFilter(max_time=<cutoff>)
+        add_absolute_report(exp, filter=[f.collect, f.add_score])
+
+    *max_time* should match the search cutoff (as passed to the plot) so the
+    score and the figure share an x-axis; if None it is inferred from the runs'
+    ``limit_search_time``."""
+
+    def __init__(self, *, max_time=None, num_points=200, attribute="score_anytime"):
+        self.max_time = max_time
+        self.num_points = num_points
+        self.attribute = attribute
+        self._best_cost = {}
+        self._limit_times = []
+        self._first_times = []
+        self._observed_tmax = 0.0
+        self._grid = None
+
+    @staticmethod
+    def _task(run):
+        return (run.get("domain"), run.get("problem"))
+
+    def collect(self, run):
+        """Pass 1: record each task's best cost and the global grid bounds."""
+        lt = run.get("limit_search_time")
+        if lt:
+            self._limit_times.append(float(lt))
+        pairs = _run_pairs(run)
+        if pairs:
+            self._first_times.append(pairs[0][0])
+            self._observed_tmax = max(self._observed_tmax, pairs[-1][0])
+            cmin = min(c for _, c in pairs)
+            task = self._task(run)
+            if task not in self._best_cost or cmin < self._best_cost[task]:
+                self._best_cost[task] = cmin
+        return True
+
+    def add_score(self, run):
+        """Pass 2: set ``run[attribute]`` to the integrated anytime quality."""
+        if self._grid is None:
+            self._grid, _ = _anytime_grid(
+                self._first_times,
+                self._limit_times,
+                self._observed_tmax,
+                self.max_time,
+                self.num_points,
+            )
+        pairs = _run_pairs(run)
+        ref = self._best_cost.get(self._task(run))
+        if not pairs or ref is None:
+            run[self.attribute] = 0.0
+            return run
+        total = 0.0
+        for t in self._grid:
+            inc = _incumbent_cost(pairs, t)
+            if inc and inc > 0:
+                total += ref / inc
+        run[self.attribute] = total / len(self._grid)
+        return run
+
+
+def _compute_anytime_curves(properties, *, max_time=None, num_points=200):
+    """Reduce fetched *properties* to plottable anytime curves.
 
     Reads the (time, cost) trajectory each run recorded -- ``cost_times:all``
     (from custom_parser) paired element-wise with the standard ``cost:all`` --
-    and draws two panels over a log time axis:
+    and returns, for each algorithm, two curves sampled on a shared log-spaced
+    time grid:
 
-      * IPC anytime quality vs time. For each instance the reference cost is the
-        best (min) cost *any* config ever found on it; a config's quality at
-        time t is ref / (its incumbent cost by t), in (0, 1], and 0 before its
-        first solution. Averaged over *all* instances, so the curve folds in
-        coverage (unsolved-by-t counts as 0) -- this is the usual IPC-style
-        anytime score.
-      * Coverage vs time: fraction of instances solved (any plan found) by t.
+      * IPC anytime quality. For each instance the reference cost is the best
+        (min) cost *any* config ever found on it; a config's quality at time t
+        is ref / (its incumbent cost by t), in (0, 1], and 0 before its first
+        solution. Averaged over *all* instances, so the curve folds in coverage
+        (unsolved-by-t counts as 0) -- the usual IPC-style anytime score.
+      * Coverage: fraction of instances solved (any plan found) by t.
 
-    *max_time* bounds the x-axis; if None it is taken from the runs'
+    *max_time* bounds the grid; if None it is taken from the runs'
     ``limit_search_time`` (the search cutoff), falling back to the latest
-    observed solution time. Returns True if a plot was written, else False
-    (e.g. matplotlib missing or no trajectory data).
+    observed solution time.
+
+    Returns ``(grid, curves, n_inst)`` where *curves* maps algorithm ->
+    ``(quality, coverage)`` lists aligned with *grid*, or ``None`` if there is
+    no trajectory data to plot.
     """
-    try:
-        import matplotlib
-
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-    except ImportError:
-        print("matplotlib not available; skipping anytime-profile plot.")
-        return False
-
     # algo -> instance -> time-sorted [(t, cost)]; plus per-instance best cost.
     trajectories = defaultdict(dict)
     best_cost = {}
     instances = set()
     limit_times = []
+    first_times = []
     observed_tmax = 0.0
 
     for run in properties.values():
@@ -601,11 +714,10 @@ def render_anytime_profile(
         lt = run.get("limit_search_time")
         if lt:
             limit_times.append(float(lt))
-        costs = run.get("cost:all") or []
-        times = run.get("cost_times:all") or []
-        pairs = sorted((float(t), float(c)) for t, c in zip(times, costs))
+        pairs = _run_pairs(run)
         trajectories[algo][inst] = pairs
         if pairs:
+            first_times.append(pairs[0][0])
             observed_tmax = max(observed_tmax, pairs[-1][0])
             cmin = min(c for _, c in pairs)
             if inst not in best_cost or cmin < best_cost[inst]:
@@ -613,28 +725,11 @@ def render_anytime_profile(
 
     if not instances or not trajectories:
         print("No runs with (algorithm, domain, problem); nothing to plot.")
-        return False
+        return None
 
-    if max_time is None:
-        max_time = max(limit_times) if limit_times else observed_tmax
-    if not max_time or max_time <= 0:
-        max_time = observed_tmax or 1.0
-
-    first_times = [
-        pairs[0][0]
-        for algo in trajectories
-        for pairs in trajectories[algo].values()
-        if pairs
-    ]
-    tmin = min((t for t in first_times if t > 0), default=max_time / 1000.0)
-    tmin = max(tmin, 1e-3)
-    if tmin >= max_time:
-        tmin = max_time / 1000.0
-
-    grid = [
-        tmin * (max_time / tmin) ** (i / (num_points - 1))
-        for i in range(num_points)
-    ]
+    grid, max_time = _anytime_grid(
+        first_times, limit_times, observed_tmax, max_time, num_points
+    )
     n_inst = len(instances)
 
     def quality_curve(algo):
@@ -655,22 +750,71 @@ def render_anytime_profile(
             covs.append(solved / n_inst)
         return qs, covs
 
+    curves = {algo: quality_curve(algo) for algo in sorted(trajectories)}
+    return grid, curves, n_inst
+
+
+# Panel definitions shared by the combined and per-panel renderers, keyed by a
+# short id: (y-axis label, index into the (quality, coverage) curve tuple).
+_ANYTIME_PANELS = {
+    "quality": ("mean IPC anytime quality", 0),
+    "coverage": ("coverage (fraction solved)", 1),
+}
+
+# Cycled per-algorithm styles so a config keeps the same colour *and* line
+# style across both panels and stays distinguishable in greyscale print.
+_ANYTIME_LINESTYLES = ["-", "--", "-.", ":"]
+
+
+def _anytime_style(algorithms):
+    """Map each algorithm to a stable ``(color, linestyle)`` for print."""
+    return {
+        algo: (f"C{i % 10}", _ANYTIME_LINESTYLES[i % len(_ANYTIME_LINESTYLES)])
+        for i, algo in enumerate(algorithms)
+    }
+
+
+def render_anytime_profile(
+    properties, outfile, *, max_time=None, num_points=200
+):
+    """Render both anytime panels side by side to a single *outfile*.
+
+    A quick-look combined figure (with a descriptive suptitle) intended for
+    browsing during a run -- not for paper inclusion; use
+    :func:`render_anytime_profile_pdfs` for that. Returns True if a plot was
+    written, else False (matplotlib missing or no trajectory data)."""
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print("matplotlib not available; skipping anytime-profile plot.")
+        return False
+
+    computed = _compute_anytime_curves(
+        properties, max_time=max_time, num_points=num_points
+    )
+    if computed is None:
+        return False
+    grid, curves, n_inst = computed
+    style = _anytime_style(curves)
+
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.6), squeeze=False)
     ax_q, ax_c = axes[0]
-    for algo in sorted(trajectories):
-        qs, covs = quality_curve(algo)
-        ax_q.plot(grid, qs, label=algo)
-        ax_c.plot(grid, covs, label=algo)
+    for algo, (qs, covs) in curves.items():
+        color, ls = style[algo]
+        ax_q.plot(grid, qs, label=algo, color=color, linestyle=ls)
+        ax_c.plot(grid, covs, label=algo, color=color, linestyle=ls)
     for ax in (ax_q, ax_c):
         ax.set_xscale("log")
         ax.set_xlabel("elapsed search time (s)")
         ax.grid(True, alpha=0.3)
-    ax_q.set_ylabel("mean IPC anytime quality")
+        ax.set_ylim(0, 1.02)
+    ax_q.set_ylabel(_ANYTIME_PANELS["quality"][0])
     ax_q.set_title("anytime quality vs time")
-    ax_q.set_ylim(0, 1.02)
-    ax_c.set_ylabel("coverage (fraction solved)")
+    ax_c.set_ylabel(_ANYTIME_PANELS["coverage"][0])
     ax_c.set_title("coverage vs time")
-    ax_c.set_ylim(0, 1.02)
     ax_q.legend(fontsize=7, loc="best")
     fig.suptitle(
         f"anytime profiles over {n_inst} instances "
@@ -679,17 +823,101 @@ def render_anytime_profile(
     fig.tight_layout()
     fig.savefig(outfile, dpi=110)
     print(f"Wrote {outfile}")
+    plt.close(fig)
     return True
 
 
+def render_anytime_profile_pdfs(
+    properties,
+    stem,
+    *,
+    max_time=None,
+    num_points=200,
+    panels=("quality", "coverage"),
+    figsize=(3.5, 2.7),
+):
+    """Render each anytime panel to its own paper-ready vector PDF.
+
+    Writes ``<stem>-<panel>.pdf`` for each requested panel (default: both
+    ``quality`` and ``coverage``). Each figure is self-contained and sized for
+    a two-column layout (~half text width): no suptitle or axes title (the
+    LaTeX caption carries that), print-legible fonts, an embedded legend, and
+    TrueType-embedded fonts so venues that reject Type-3 fonts accept it.
+
+    Returns the list of paths written (empty if matplotlib is missing or there
+    is no trajectory data)."""
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print("matplotlib not available; skipping anytime-profile PDFs.")
+        return []
+
+    computed = _compute_anytime_curves(
+        properties, max_time=max_time, num_points=num_points
+    )
+    if computed is None:
+        return []
+    grid, curves, _ = computed
+    style = _anytime_style(curves)
+    stem = Path(stem)
+
+    # Embed TrueType (type 42) rather than Type 3 fonts -- AAAI/IEEE reject the
+    # latter -- and use print-legible sizes for a half-text-width figure.
+    rc = {
+        "pdf.fonttype": 42,
+        "ps.fonttype": 42,
+        "font.size": 9,
+        "axes.labelsize": 10,
+        "axes.titlesize": 10,
+        "legend.fontsize": 7,
+        "xtick.labelsize": 8,
+        "ytick.labelsize": 8,
+    }
+
+    written = []
+    with plt.rc_context(rc):
+        for panel in panels:
+            if panel not in _ANYTIME_PANELS:
+                print(f"Unknown anytime panel {panel!r}; skipping.")
+                continue
+            ylabel, idx = _ANYTIME_PANELS[panel]
+            fig, ax = plt.subplots(figsize=figsize)
+            for algo, series in curves.items():
+                color, ls = style[algo]
+                ax.plot(
+                    grid, series[idx], label=algo, color=color, linestyle=ls
+                )
+            ax.set_xscale("log")
+            ax.set_xlabel("elapsed search time (s)")
+            ax.set_ylabel(ylabel)
+            ax.set_ylim(0, 1.02)
+            ax.grid(True, alpha=0.3)
+            ax.legend(loc="best", framealpha=0.9)
+            out = stem.with_name(f"{stem.name}-{panel}.pdf")
+            fig.savefig(out, bbox_inches="tight")
+            plt.close(fig)
+            print(f"Wrote {out}")
+            written.append(out)
+    return written
+
+
 def add_anytime_profile_plot_step(
-    exp, name="anytime-plot", outfile=None, max_time=None
+    exp, name="anytime-plot", outfile=None, max_time=None, *, pdf=False
 ):
     """Add a step drawing anytime profile curves from the fetched properties.
 
     Runs locally after ``fetch``; a no-op (with a message) if the properties
-    file is missing or carries no (time, cost) trajectories. See
-    :func:`render_anytime_profile` for the metric definition."""
+    file is missing or carries no (time, cost) trajectories.
+
+    With ``pdf=False`` (default) draws the combined browsing PNG via
+    :func:`render_anytime_profile`. With ``pdf=True`` writes one paper-ready
+    vector PDF per panel via :func:`render_anytime_profile_pdfs`; here
+    *outfile* is used as the filename stem (default
+    ``<eval_dir>/<exp.name>-anytime-profile``), each panel appending
+    ``-<panel>.pdf``."""
 
     def make_plot():
         import json
@@ -700,8 +928,16 @@ def add_anytime_profile_plot_step(
             return
         with open(properties_path) as f:
             props = json.load(f)
-        out = outfile or (Path(exp.eval_dir) / f"{exp.name}-anytime-profile.png")
-        render_anytime_profile(props, out, max_time=max_time)
+        if pdf:
+            stem = outfile or (
+                Path(exp.eval_dir) / f"{exp.name}-anytime-profile"
+            )
+            render_anytime_profile_pdfs(props, stem, max_time=max_time)
+        else:
+            out = outfile or (
+                Path(exp.eval_dir) / f"{exp.name}-anytime-profile.png"
+            )
+            render_anytime_profile(props, out, max_time=max_time)
 
     exp.add_step(name, make_plot)
 

@@ -491,6 +491,7 @@ ATTRIBUTES = [
     "coverage",
     "cost",
     "cost:all",
+    project.SCORE_ANYTIME,
     Attribute("expansions", function=arithmetic_mean),
     Attribute("generated", function=arithmetic_mean),
     "memory",
@@ -552,12 +553,25 @@ else:
     exp.add_step("parse", exp.parse)
     exp.add_fetcher(name="fetch")
 
+# Two-pass filter for the time-integrated anytime score; its cutoff matches the
+# plot's so the score column and the anytime figures share an x-axis.
+_anytime_score = project.AnytimeQualityFilter(
+    max_time=_duration_to_seconds(BUDGET)
+)
 project.add_absolute_report(
     exp,
     attributes=ATTRIBUTES,
-    filter=[project.add_evaluations_per_time],
+    filter=[
+        _anytime_score.collect,
+        _anytime_score.add_score,
+        project.add_evaluations_per_time,
+    ],
 )
 project.add_anytime_profile_plot_step(exp, max_time=_duration_to_seconds(BUDGET))
+# Paper-ready per-panel vector PDFs (quality + coverage) for LaTeX inclusion.
+project.add_anytime_profile_plot_step(
+    exp, name="anytime-pdf", max_time=_duration_to_seconds(BUDGET), pdf=True
+)
 if not IS_COMBINED:
     project.add_compress_exp_dir_step(exp)
 
