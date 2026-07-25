@@ -14,10 +14,7 @@ the lab-idiomatic way to add algorithms without re-running the others:
     rrr-a{P}-w{W}:    bsor(eval=ff(), dist=[lmcut()], w=W, aspect=P, rr=true)
     rrdex-w{W}:       rrdex(h=lmcut(), hhat=ff(), dhat=[lmcount], w=W, debias=true)
 
-  "remainder" -- rectangle search at the SECONDARY aspect (1) plus weighted-A*;
-  writes data/<script>-remainder[-eval] --
-    bsor-a{S}-w{W}:   bsor(eval=ff(), dist=[lmcut()], w=W, aspect=S, rr=false)
-    rrr-a{S}-w{W}:    bsor(eval=ff(), dist=[lmcut()], w=W, aspect=S, rr=true)
+  "remainder" -- weighted-A* only; writes data/<script>-remainder[-eval] --
     wastar-w{W}:      eager_wastar([ff()], w=W)  # integer weights only
 
   "combined" -- owns no runs; merges the -min-eval and -remainder-eval dirs into
@@ -64,7 +61,6 @@ Environment variables (defaults shown; Arrhenius overrides marked):
                                          1,1.05,1.1,1.25,1.5,1.75,2,2.5,3,5
   AAAI27_SET                     min|remainder|combined; default min
   AAAI27_ASPECT_PRIMARY          rect aspect in min tier; default 500
-  AAAI27_ASPECT_SECONDARY        extra rect aspect (full only); default 1
   AAAI27_H_EVAL                  BSOR/RRR + wA* eval; default ff()
   AAAI27_D_EVAL                  BSOR d (rect) evaluator; default lmcut()
   AAAI27_RRDEX_H_EVAL              rrdex admissible h; default lmcut()
@@ -87,8 +83,8 @@ Default local scope is intentionally small (handful of instances, 5-minute
 budget, 2 parallel processes) so a first-cut run completes quickly.  Increase
 via env vars when you have headroom.  Config counts (10-weight schedule): the
 min set is bsor + rrr (primary aspect) + rrdex = 3 * 10 = 30 configs; the
-remainder set is bsor + rrr (secondary aspect) = 20 plus wA* at the 4 integer
-weights = 24 configs; combined merges the two eval dirs (54 rows, no new runs).
+remainder set is wA* at the 4 integer weights = 4 configs; combined merges
+the two eval dirs (34 rows, no new runs).
 """
 
 import math
@@ -198,7 +194,7 @@ WEIGHTS = _float_list_env(
 # The roster is split into two independently-run sets, each targeting its OWN
 # data/eval directory, to be merged after the fact (AAAI27_SET):
 #   "min"       -- minimum-viable: bsor + rrr at the primary aspect + rrdex
-#   "remainder" -- bsor + rrr at the secondary aspect + weighted-A*
+#   "remainder" -- weighted-A* only
 #   "combined"  -- no runs; merges the min and remainder eval dirs into one
 #                  combined report + plot (run after both sets have been fetched)
 # Typical workflow: run "min", run "remainder", then run "combined".
@@ -208,7 +204,6 @@ if SET not in ("min", "remainder", "combined"):
         f"AAAI27_SET must be 'min', 'remainder', or 'combined', got {SET!r}"
     )
 ASPECT_PRIMARY = int(os.environ.get("AAAI27_ASPECT_PRIMARY", "500"))
-ASPECT_SECONDARY = int(os.environ.get("AAAI27_ASPECT_SECONDARY", "1"))
 H_EVAL = os.environ.get("AAAI27_H_EVAL", "ff()")
 D_EVAL = os.environ.get("AAAI27_D_EVAL", "lmcut()")
 # Estimator triple for the rrdex baseline: an admissible h for the w-bound
@@ -355,9 +350,7 @@ if SET == "min":
     _add_rectangle("rrr", ASPECT_PRIMARY, rr=True)
     _add_rrdex()
 elif SET == "remainder":
-    # Remainder set: rectangle search at the secondary aspect, plus weighted-A*.
-    _add_rectangle("bsor", ASPECT_SECONDARY, rr=False)
-    _add_rectangle("rrr", ASPECT_SECONDARY, rr=True)
+    # Remainder set: weighted-A* only.
     _add_wastar()
 # SET == "combined" has no configs of its own; it merges the two eval dirs.
 
