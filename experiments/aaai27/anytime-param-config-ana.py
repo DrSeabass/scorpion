@@ -158,7 +158,10 @@ if IS_ARRHENIUS:
         qos=os.environ.get("ARRHENIUS_QOS") or "",
         memory_per_cpu="1G",
         cpus_per_task=ARRHENIUS_RESERVE_GIB,
-        setup=f'export PATH="{ARRHENIUS_VAL_BIN}:$PATH"',
+        setup=(
+            f'export PATH="{ARRHENIUS_VAL_BIN}:$PATH"\n'
+            f'export TSPC_SET="{os.environ.get("TSPC_SET", "all").lower()}"'
+        ),
         extra_options=f"#SBATCH --account={ARRHENIUS_ACCOUNT}",
     )
     _max_tasks_override = os.environ.get("ARRHENIUS_MAX_TASKS")
