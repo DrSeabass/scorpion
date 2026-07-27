@@ -25,16 +25,21 @@ Usage:
     TSPC_REHAB_TARGET=adaptive-rectangle ... build start parse fetch
 Then re-run anytime-param-config.py with TSPC_SET=combined to fold the fix in.
 
+Runs on Arrhenius, Tetralith, or locally; see detect_cluster() below for how
+the cluster is chosen.
+
 Environment variables (shared naming/defaults with anytime-param-config.py):
   TSPC_REHAB_TARGET             adaptive-triangle|adaptive-rectangle; required
-  TSPC_BUDGET                   default 5m local / 15m Arrhenius (matches main)
+  TSPC_CLUSTER                  force arrhenius|tetralith|local instead of
+                                 autodetecting from the hostname
+  TSPC_BUDGET                   default 5m local / 15m remote (matches main)
   TSPC_MEMORY                   default 8G (solver soft limit)
   TSPC_PROCESSES                local-only, default 2
   TSPC_INSTANCES_PER_DOMAIN     default 0=all -- MUST match the original run's
                                  scope or some buggy rows will go un-overwritten
   TSPC_INSTANCE_STEP            default 1 -- ditto
   TSPC_NONPROGRESS_PENALTY      adaptive-triangle only; default 0 (matches main)
-  TSPC_WALL_TIME_FLOOR          Arrhenius reservation floor, default 10:00:00
+  TSPC_WALL_TIME_FLOOR          Slurm reservation floor, default 10:00:00
   TSPC_BENCHMARK_TARGET         default autoscale-agile-21.11-strips
   DOWNWARD_REPO                 default <repo root>
   DOWNWARD_BUILD                default release
@@ -43,6 +48,10 @@ Environment variables (shared naming/defaults with anytime-param-config.py):
   ARRHENIUS_QOS                 default unset (no --qos emitted)
   ARRHENIUS_MAX_TASKS           Slurm MaxArraySize; default 1000
   ARRHENIUS_VAL_BIN             VAL bin dir prepended to PATH for --validate
+  ARRHENIUS_FORCE                set to 1 to force Arrhenius detection
+  TETRALITH_ACCOUNT             default naiss2026-4-694
+  TETRALITH_MAX_TASKS           Slurm MaxArraySize; default 2000
+  TETRALITH_FORCE                set to 1 to force Tetralith detection
 
 IMPORTANT: TSPC_INSTANCES_PER_DOMAIN/TSPC_INSTANCE_STEP must reproduce the
 same instance selection the original buggy shard1/shard2 runs used, or some
@@ -72,10 +81,40 @@ from lab.reports import Attribute, arithmetic_mean
 DIR = Path(__file__).resolve().parent
 SCORPION_REPO = DIR.parent.parent  # experiments/<name>/script.py -> repo root
 NODE = platform.node()
-IS_ARRHENIUS = (
-    project.ArrheniusEnvironment.is_present()
-    or os.environ.get("ARRHENIUS_FORCE") == "1"
-)
+
+
+def detect_cluster():
+    """Return 'arrhenius', 'tetralith', or 'local' for the current host.
+
+    TSPC_CLUSTER forces the choice (e.g. for testing generated commands off
+    the cluster); otherwise autodetect via each environment's is_present(),
+    checked in the same order the *_FORCE escape hatches have always used.
+    """
+    forced = os.environ.get("TSPC_CLUSTER", "").strip().lower()
+    if forced:
+        if forced not in ("arrhenius", "tetralith", "local"):
+            raise ValueError(
+                f"TSPC_CLUSTER must be one of arrhenius/tetralith/local, "
+                f"got {forced!r}"
+            )
+        return forced
+    if (
+        project.ArrheniusEnvironment.is_present()
+        or os.environ.get("ARRHENIUS_FORCE") == "1"
+    ):
+        return "arrhenius"
+    if (
+        project.TetralithEnvironment.is_present()
+        or os.environ.get("TETRALITH_FORCE") == "1"
+    ):
+        return "tetralith"
+    return "local"
+
+
+CLUSTER = detect_cluster()
+IS_ARRHENIUS = CLUSTER == "arrhenius"
+IS_TETRALITH = CLUSTER == "tetralith"
+IS_REMOTE = IS_ARRHENIUS or IS_TETRALITH
 
 LOCAL_REPO = os.path.expanduser(os.environ.get("DOWNWARD_REPO", str(SCORPION_REPO)))
 LOCAL_BUILD = os.environ.get("DOWNWARD_BUILD", "release")
@@ -94,7 +133,16 @@ ARRHENIUS_BENCHMARK_DIRS = {
     "autoscale-agile-21.11-strips":
         "/home/thayer/search/shared/instances/autoscale-benchmarks/21.11-agile-strips",
 }
-BENCHMARK_DIRS = ARRHENIUS_BENCHMARK_DIRS if IS_ARRHENIUS else LOCAL_BENCHMARK_DIRS
+TETRALITH_BENCHMARK_DIRS = {
+    "autoscale-agile-21.11-strips":
+        "/proj/mrlab_search_strategies/instances/autoscale-benchmarks/21.11-agile-strips",
+}
+BENCHMARK_DIRS_BY_CLUSTER = {
+    "arrhenius": ARRHENIUS_BENCHMARK_DIRS,
+    "tetralith": TETRALITH_BENCHMARK_DIRS,
+    "local": LOCAL_BENCHMARK_DIRS,
+}
+BENCHMARK_DIRS = BENCHMARK_DIRS_BY_CLUSTER[CLUSTER]
 
 BENCHMARK_TARGET_DEFAULT = "autoscale-agile-21.11-strips"
 BENCHMARK_TARGET = os.environ.get("TSPC_BENCHMARK_TARGET", BENCHMARK_TARGET_DEFAULT)
@@ -110,7 +158,7 @@ BENCHMARKS_DIR = os.path.expanduser(
 # ----------------------------------------------------------------------------
 # Scope (mirrors anytime-param-config.py's defaults)
 # ----------------------------------------------------------------------------
-if IS_ARRHENIUS:
+if IS_REMOTE:
     BUDGET = os.environ.get("TSPC_BUDGET", "15m")
     MEMORY = os.environ.get("TSPC_MEMORY", "8G")
     INSTANCES_PER_DOMAIN = int(os.environ.get("TSPC_INSTANCES_PER_DOMAIN", "0"))
@@ -162,6 +210,12 @@ ARRHENIUS_VAL_BIN = os.environ.get(
     "ARRHENIUS_VAL_BIN", "/home/thayer/search/shared/libs/VAL/bin"
 )
 
+# Tetralith gives memory_per_cpu directly (no need to scale cpus_per_task the
+# way Arrhenius's proportional-billing model requires); reserve solver memory
+# plus 1 GiB of headroom for translate/validate/lab, same margin as Arrhenius.
+TETRALITH_RESERVE_GIB = _mem_to_gib(MEMORY) + 1
+TETRALITH_ACCOUNT = os.environ.get("TETRALITH_ACCOUNT", HEURISTIC_SEARCH_NAISS_ID)
+
 if IS_ARRHENIUS:
     ENV = project.ArrheniusEnvironment(
         partition=os.environ.get("ARRHENIUS_PARTITION", "cpu"),
@@ -175,6 +229,19 @@ if IS_ARRHENIUS:
         extra_options=f"#SBATCH --account={ARRHENIUS_ACCOUNT}",
     )
     _max_tasks_override = os.environ.get("ARRHENIUS_MAX_TASKS")
+    if _max_tasks_override:
+        ENV.MAX_TASKS = int(_max_tasks_override)
+elif IS_TETRALITH:
+    ENV = project.TetralithEnvironment(
+        memory_per_cpu=f"{TETRALITH_RESERVE_GIB}G",
+        cpus_per_task=1,
+        setup=(
+            project.TetralithEnvironment.DEFAULT_SETUP
+            + f'\nexport TSPC_REHAB_TARGET="{TARGET}"'
+        ),
+        extra_options=f"#SBATCH --account={TETRALITH_ACCOUNT}",
+    )
+    _max_tasks_override = os.environ.get("TETRALITH_MAX_TASKS")
     if _max_tasks_override:
         ENV.MAX_TASKS = int(_max_tasks_override)
 else:
@@ -202,7 +269,7 @@ if _unknown_suite:
         f"available: {ALL_DOMAINS}"
     )
 print(
-    f"[param-config-rehab] target={TARGET}: {len(SUITE)} domains "
+    f"[param-config-rehab] cluster={CLUSTER} target={TARGET}: {len(SUITE)} domains "
     f"({REHAB_SHARDS[TARGET]}) under {BENCHMARKS_DIR}"
 )
 
@@ -303,7 +370,7 @@ def _seconds_to_hms(seconds):
     return f"{hours}:{minutes:02d}:{secs:02d}"
 
 
-if IS_ARRHENIUS:
+if IS_REMOTE:
     NUM_RUNS = len(CONFIGS) * len(TASKS)
     RUNS_PER_TASK = math.ceil(NUM_RUNS / ENV.MAX_TASKS)
     EST_SECONDS = RUNS_PER_TASK * (
