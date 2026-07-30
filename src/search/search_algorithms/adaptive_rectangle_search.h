@@ -55,6 +55,9 @@ namespace adaptive_rectangle_search {
 class AdaptiveRectangleSearch : public SearchAlgorithm {
     const bool reopen_closed_nodes;
     const bool anytime_search;
+    // If true, prune against the incumbent using f = g + h (only sound when
+    // `eval` is admissible); if false, prune using g alone.
+    const bool prune_with_h;
     // When true, append one CSV row per completed sweep (expansions,aspect) to
     // the hardcoded file adaptive_rectangle_aspect.csv, tracing the ratcheted
     // aspect ratio. Off => no file is opened.
@@ -132,7 +135,7 @@ protected:
 public:
     AdaptiveRectangleSearch(
         const std::shared_ptr<Evaluator> &eval, bool reopen_closed,
-        bool anytime, bool log_aspect,
+        bool anytime, bool prune_with_h, bool log_aspect,
         const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,
         const std::string &description, utils::Verbosity verbosity);

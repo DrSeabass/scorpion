@@ -25,3 +25,5 @@ sas_*
 *.tar.gz
 *.tar.bz
 /rust_impl/
+*.pdf
+*.png

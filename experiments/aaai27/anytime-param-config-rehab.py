@@ -312,7 +312,9 @@ REHAB_SEARCH = {
         f"adaptive_triangle(eval={LMCOUNT}, anytime=true, "
         f"non_progress_penalty={NONPROGRESS_PENALTY})"
     ),
-    "adaptive-rectangle": f"adaptive_rectangle(eval={LMCOUNT}, anytime=true)",
+    "adaptive-rectangle": (
+        f"adaptive_rectangle(eval={LMCOUNT}, anytime=true, prune_with_h=false)"
+    ),
 }
 SEARCH_TEMPLATES = {TARGET: REHAB_SEARCH[TARGET]}
 

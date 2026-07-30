@@ -35,6 +35,12 @@ public:
             "for this mode",
             "true");
         add_option<bool>(
+            "prune_with_h",
+            "prune nodes that cannot improve the incumbent using f = g + h. "
+            "This is only sound when eval is admissible; set to false to prune "
+            "on g alone when eval may overestimate.",
+            "true");
+        add_option<bool>(
             "log_aspect",
             "append one CSV row per completed sweep (expansions,aspect) to "
             "adaptive_rectangle_aspect.csv in the working directory, tracing "
@@ -50,7 +56,7 @@ public:
             adaptive_rectangle_search::AdaptiveRectangleSearch>(
             opts.get<shared_ptr<Evaluator>>("eval"),
             opts.get<bool>("reopen_closed"), opts.get<bool>("anytime"),
-            opts.get<bool>("log_aspect"),
+            opts.get<bool>("prune_with_h"), opts.get<bool>("log_aspect"),
             get_search_pruning_arguments_from_options(opts),
             get_search_algorithm_arguments_from_options(opts));
     }

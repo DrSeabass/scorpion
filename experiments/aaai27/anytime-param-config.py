@@ -14,16 +14,21 @@ Configs (all anytime):
   triangle-s500        triangle(eval=lmcount, slope=500)
   adaptive-triangle    adaptive_triangle(eval=lmcount, non_progress_penalty=0)
   ratchet-triangle     ratchet_triangle(eval=lmcount)       -- doubling/halving slope
-  rectangle-a1         rectangle(eval=lmcount, aspect=1)     -- square RS
-  rectangle-a50        rectangle(eval=lmcount, aspect=50)
-  rectangle-a500       rectangle(eval=lmcount, aspect=500)   -- deep RS
-  adaptive-rectangle   adaptive_rectangle(eval=lmcount)      -- best-first-chain aspect ratchet
+  rectangle-a1         rectangle(eval=lmcount, aspect=1, prune_with_h=false)     -- square RS
+  rectangle-a50        rectangle(eval=lmcount, aspect=50, prune_with_h=false)
+  rectangle-a500       rectangle(eval=lmcount, aspect=500, prune_with_h=false)   -- deep RS
+  adaptive-rectangle   adaptive_rectangle(eval=lmcount, prune_with_h=false)      -- best-first-chain aspect ratchet
   lama                 seq-sat-lama-2011 alias
 
 Static slopes {50, 500} and aspects {1, 50, 500} draw the static envelope the
 "no single static shape wins" argument needs; the adaptive/ratchet variants set
 the shape online. Planning-only for now; the classic-search track (15-puzzle,
 pancake) is a separate follow-up.
+
+Heuristic and prune_with_h: every rectangle/adaptive-rectangle config ranks on
+the same lm-count heuristic as the rest of the roster, and lm-count is NOT
+admissible (see anytime-param-config-ana.py, which makes the same call for its
+ana baseline).
 
 Two supplemental sibling scripts feed into the "combined" report below:
 anytime-param-config-rehab.py reruns adaptive-triangle (run with a bug on
@@ -331,10 +336,10 @@ SEARCH_TEMPLATES["ratchet-triangle"] = (
 )
 for a in RECT_ASPECTS:
     SEARCH_TEMPLATES[f"rectangle-a{a}"] = (
-        f"rectangle(eval={LMCOUNT}, aspect={a}, anytime=true)"
+        f"rectangle(eval={LMCOUNT}, aspect={a}, anytime=true, prune_with_h=false)"
     )
 SEARCH_TEMPLATES["adaptive-rectangle"] = (
-    f"adaptive_rectangle(eval={LMCOUNT}, anytime=true)"
+    f"adaptive_rectangle(eval={LMCOUNT}, anytime=true, prune_with_h=false)"
 )
 
 # Legend display names for the anytime-profile plots: adaptive-triangle's

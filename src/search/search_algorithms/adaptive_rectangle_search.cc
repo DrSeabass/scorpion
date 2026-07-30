@@ -25,12 +25,14 @@ static const double ASPECT_CEILING = 1024.0;
 
 AdaptiveRectangleSearch::AdaptiveRectangleSearch(
     const shared_ptr<Evaluator> &eval, bool reopen_closed, bool anytime,
-    bool log_aspect, const shared_ptr<PruningMethod> &pruning,
+    bool prune_with_h, bool log_aspect,
+    const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
     const string &description, utils::Verbosity verbosity)
     : SearchAlgorithm(cost_type, bound, max_time, description, verbosity),
       reopen_closed_nodes(reopen_closed),
       anytime_search(anytime),
+      prune_with_h(prune_with_h),
       log_aspect(log_aspect),
       eval(eval),
       pruning_method(pruning),
@@ -315,8 +317,9 @@ bool AdaptiveRectangleSearch::expand(const State &state, bool first_in_beam) {
             h = node_h[succ_state];
         }
 
-        int f = succ_g + h;
-        // Prune nodes that cannot improve on the incumbent.
+        // Prune nodes that cannot improve on the incumbent. With an admissible
+        // eval we can prune on f = g + h; otherwise only on g.
+        int f = prune_with_h ? succ_g + h : succ_g;
         if (found_solution() && f >= bound)
             continue;
 
@@ -431,7 +434,7 @@ SearchStatus AdaptiveRectangleSearch::step() {
         n = state_registry.lookup_state(seq_to_state[entry.second]);
         SearchNode n_node = search_space.get_node(n);
 
-        int f_n = n_node.get_g() + node_h[n];
+        int f_n = prune_with_h ? n_node.get_g() + node_h[n] : n_node.get_g();
         if (!found_solution() || f_n < bound) {
             have_node = true;
         } else {
