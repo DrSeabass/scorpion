@@ -2,6 +2,7 @@ import contextlib
 import os
 import platform
 import shutil
+import statistics
 import subprocess
 import sys
 import tarfile
@@ -672,6 +673,23 @@ class AnytimeQualityFilter:
         return run
 
 
+def _wilson_interval(k, n, z=1.959963984540054):
+    """95% Wilson score interval for a binomial proportion ``k`` of ``n``.
+
+    Preferred over the normal approximation for proportions, which can
+    produce out-of-[0, 1] bounds and is unreliable near p=0 or p=1 -- exactly
+    where a coverage curve starts (nothing solved yet) and often ends
+    (most/all instances solved). Returns ``(lo, hi)`` as fractions in [0, 1]."""
+    if n == 0:
+        return 0.0, 0.0
+    phat = k / n
+    z2 = z * z
+    denom = 1 + z2 / n
+    center = phat + z2 / (2 * n)
+    half = z * ((phat * (1 - phat) / n + z2 / (4 * n * n)) ** 0.5)
+    return max(0.0, (center - half) / denom), min(1.0, (center + half) / denom)
+
+
 def _compute_anytime_curves(properties, *, max_time=None, num_points=200):
     """Reduce fetched *properties* to plottable anytime curves.
 
@@ -685,15 +703,23 @@ def _compute_anytime_curves(properties, *, max_time=None, num_points=200):
         is ref / (its incumbent cost by t), in (0, 1], and 0 before its first
         solution. Averaged over *all* instances, so the curve folds in coverage
         (unsolved-by-t counts as 0) -- the usual IPC-style anytime score.
-      * Coverage: fraction of instances solved (any plan found) by t.
+      * Coverage: number of instances solved (any plan found) by t, out of
+        ``n_inst`` total.
+      * CI: half-width of the 95% confidence interval of the mean quality
+        across instances at t (normal approximation on the per-instance
+        quality values, which include 0 for unsolved instances), so the band
+        is ``quality +/- ci``.
+      * Coverage CI: 95% Wilson score interval on the coverage proportion at
+        t, rescaled to instance counts (``cov_lo``, ``cov_hi``), treating
+        solved-by-t as a Bernoulli indicator per instance.
 
     *max_time* bounds the grid; if None it is taken from the runs'
     ``limit_search_time`` (the search cutoff), falling back to the latest
     observed solution time.
 
     Returns ``(grid, curves, n_inst)`` where *curves* maps algorithm ->
-    ``(quality, coverage)`` lists aligned with *grid*, or ``None`` if there is
-    no trajectory data to plot.
+    ``(quality, coverage, ci, cov_lo, cov_hi)`` lists aligned with *grid*, or
+    ``None`` if there is no trajectory data to plot.
     """
     # algo -> instance -> time-sorted [(t, cost)]; plus per-instance best cost.
     trajectories = defaultdict(dict)
@@ -734,31 +760,50 @@ def _compute_anytime_curves(properties, *, max_time=None, num_points=200):
 
     def quality_curve(algo):
         by_inst = trajectories[algo]
-        qs, covs = [], []
+        qs, covs, cis, cov_los, cov_his = [], [], [], [], []
         for t in grid:
-            q_sum = 0.0
+            per_inst = []
             solved = 0
             for inst in instances:
                 inc = _incumbent_cost(by_inst.get(inst, []), t)
                 if inc is None:
+                    per_inst.append(0.0)
                     continue
                 solved += 1
                 ref = best_cost.get(inst)
-                if ref is not None and inc > 0:
-                    q_sum += ref / inc
-            qs.append(q_sum / n_inst)
-            covs.append(solved / n_inst)
-        return qs, covs
+                q = ref / inc if (ref is not None and inc > 0) else 0.0
+                per_inst.append(q)
+            qs.append(sum(per_inst) / n_inst)
+            covs.append(solved)
+            # 95% CI of the across-instance mean via the normal approximation
+            # (n_inst is typically large); 0 when there's no spread to estimate.
+            cis.append(
+                1.96 * statistics.stdev(per_inst) / n_inst**0.5
+                if n_inst > 1
+                else 0.0
+            )
+            lo, hi = _wilson_interval(solved, n_inst)
+            cov_los.append(lo * n_inst)
+            cov_his.append(hi * n_inst)
+        return qs, covs, cis, cov_los, cov_his
 
     curves = {algo: quality_curve(algo) for algo in sorted(trajectories)}
     return grid, curves, n_inst
 
 
 # Panel definitions shared by the combined and per-panel renderers, keyed by a
-# short id: (y-axis label, index into the (quality, coverage) curve tuple).
+# short id: (y-axis label, index into the (quality, coverage, ci, cov_lo,
+# cov_hi) curve tuple). "coverage-ci" plots the same counts as "coverage" but
+# as its own panel/figure with a Wilson-interval band -- kept separate rather
+# than overlaid on "coverage" so the plain browsing curve stays uncluttered.
+# "coverage-rate" is the same Wilson band again, rescaled to a [0, 1]
+# proportion instead of instance counts -- the more natural axis for the
+# interval, since Wilson is computed on the proportion in the first place.
 _ANYTIME_PANELS = {
-    "quality": ("mean IPC anytime quality", 0),
-    "coverage": ("coverage (fraction solved)", 1),
+    "quality": ("mean anytime quality", 0),
+    "coverage": ("coverage (instances solved)", 1),
+    "coverage-ci": ("coverage (instances solved)\n95% CI", 1),
+    "coverage-rate": ("coverage (fraction solved)\n95% CI", 1),
 }
 
 # Cycled per-algorithm styles so a config keeps the same colour *and* line
@@ -774,15 +819,27 @@ def _anytime_style(algorithms):
     }
 
 
+def _anytime_label(algo, display_names):
+    """Legend label for *algo*, substituted via *display_names* if given
+    (falls back to the raw algorithm/run-id name otherwise)."""
+    if not display_names:
+        return algo
+    return display_names.get(algo, algo)
+
+
 def render_anytime_profile(
-    properties, outfile, *, max_time=None, num_points=200
+    properties, outfile, *, max_time=None, num_points=200, display_names=None
 ):
-    """Render both anytime panels side by side to a single *outfile*.
+    """Render all four anytime panels side by side to a single *outfile*.
 
     A quick-look combined figure (with a descriptive suptitle) intended for
     browsing during a run -- not for paper inclusion; use
     :func:`render_anytime_profile_pdfs` for that. Returns True if a plot was
-    written, else False (matplotlib missing or no trajectory data)."""
+    written, else False (matplotlib missing or no trajectory data).
+
+    *display_names* optionally maps a raw algorithm/run-id name to the legend
+    label it should show instead (algorithms not in the map show their raw
+    name)."""
     try:
         import matplotlib
 
@@ -800,25 +857,47 @@ def render_anytime_profile(
     grid, curves, n_inst = computed
     style = _anytime_style(curves)
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.6), squeeze=False)
-    ax_q, ax_c = axes[0]
-    for algo, (qs, covs) in curves.items():
+    fig, axes = plt.subplots(1, 4, figsize=(22, 4.6), squeeze=False)
+    ax_q, ax_c, ax_cc, ax_cr = axes[0]
+    for algo, (qs, covs, cis, cov_lo, cov_hi) in curves.items():
         color, ls = style[algo]
-        ax_q.plot(grid, qs, label=algo, color=color, linestyle=ls)
-        ax_c.plot(grid, covs, label=algo, color=color, linestyle=ls)
-    for ax in (ax_q, ax_c):
+        label = _anytime_label(algo, display_names)
+        rate = [c / n_inst for c in covs]
+        rate_lo = [v / n_inst for v in cov_lo]
+        rate_hi = [v / n_inst for v in cov_hi]
+        ax_q.plot(grid, qs, label=label, color=color, linestyle=ls)
+        ax_q.fill_between(
+            grid,
+            [q - c for q, c in zip(qs, cis)],
+            [q + c for q, c in zip(qs, cis)],
+            color=color, alpha=0.15, linewidth=0,
+        )
+        ax_c.plot(grid, covs, label=label, color=color, linestyle=ls)
+        ax_cc.plot(grid, covs, label=label, color=color, linestyle=ls)
+        ax_cc.fill_between(grid, cov_lo, cov_hi, color=color, alpha=0.15, linewidth=0)
+        ax_cr.plot(grid, rate, label=label, color=color, linestyle=ls)
+        ax_cr.fill_between(grid, rate_lo, rate_hi, color=color, alpha=0.15, linewidth=0)
+    for ax in (ax_q, ax_c, ax_cc, ax_cr):
         ax.set_xscale("log")
         ax.set_xlabel("elapsed search time (s)")
         ax.grid(True, alpha=0.3)
-        ax.set_ylim(0, 1.02)
+    ax_q.set_ylim(0, 1.02)
+    ax_c.set_ylim(0, n_inst * 1.02)
+    ax_cc.set_ylim(0, n_inst * 1.02)
+    ax_cr.set_ylim(0, 1.02)
     ax_q.set_ylabel(_ANYTIME_PANELS["quality"][0])
     ax_q.set_title("anytime quality vs time")
     ax_c.set_ylabel(_ANYTIME_PANELS["coverage"][0])
     ax_c.set_title("coverage vs time")
+    ax_cc.set_ylabel(_ANYTIME_PANELS["coverage"][0])
+    ax_cc.set_title("coverage vs time, 95% CI (Wilson)")
+    ax_cr.set_ylabel(_ANYTIME_PANELS["coverage-rate"][0])
+    ax_cr.set_title("coverage rate vs time, 95% CI (Wilson)")
     ax_q.legend(fontsize=7, loc="best")
     fig.suptitle(
         f"anytime profiles over {n_inst} instances "
-        f"(quality ref = best cost found by any config)"
+        f"(quality ref = best cost found by any config; "
+        f"shading = 95% CI of the mean / Wilson CI for coverage)"
     )
     fig.tight_layout()
     fig.savefig(outfile, dpi=110)
@@ -833,16 +912,24 @@ def render_anytime_profile_pdfs(
     *,
     max_time=None,
     num_points=200,
-    panels=("quality", "coverage"),
+    panels=("quality", "coverage", "coverage-ci", "coverage-rate"),
     figsize=(3.5, 2.7),
+    display_names=None,
 ):
     """Render each anytime panel to its own paper-ready vector PDF.
 
-    Writes ``<stem>-<panel>.pdf`` for each requested panel (default: both
-    ``quality`` and ``coverage``). Each figure is self-contained and sized for
-    a two-column layout (~half text width): no suptitle or axes title (the
-    LaTeX caption carries that), print-legible fonts, an embedded legend, and
-    TrueType-embedded fonts so venues that reject Type-3 fonts accept it.
+    Writes ``<stem>-<panel>.pdf`` for each requested panel (default:
+    ``quality``, ``coverage``, ``coverage-ci``, and ``coverage-rate`` -- the
+    last two both a Wilson-interval band around coverage, in instance-count
+    and proportion units respectively). Each figure is self-contained and
+    sized for a two-column layout (~half text width): no suptitle or axes
+    title (the LaTeX caption carries that), print-legible fonts, an embedded
+    legend, and TrueType-embedded fonts so venues that reject Type-3 fonts
+    accept it.
+
+    *display_names* optionally maps a raw algorithm/run-id name to the legend
+    label it should show instead (algorithms not in the map show their raw
+    name).
 
     Returns the list of paths written (empty if matplotlib is missing or there
     is no trajectory data)."""
@@ -860,7 +947,7 @@ def render_anytime_profile_pdfs(
     )
     if computed is None:
         return []
-    grid, curves, _ = computed
+    grid, curves, n_inst = computed
     style = _anytime_style(curves)
     stem = Path(stem)
 
@@ -887,13 +974,36 @@ def render_anytime_profile_pdfs(
             fig, ax = plt.subplots(figsize=figsize)
             for algo, series in curves.items():
                 color, ls = style[algo]
+                ys = series[idx]
+                if panel == "coverage-rate":
+                    ys = [y / n_inst for y in ys]
                 ax.plot(
-                    grid, series[idx], label=algo, color=color, linestyle=ls
+                    grid, ys, label=_anytime_label(algo, display_names),
+                    color=color, linestyle=ls,
                 )
+                if panel == "quality":
+                    cis = series[2]
+                    ax.fill_between(
+                        grid,
+                        [y - c for y, c in zip(ys, cis)],
+                        [y + c for y, c in zip(ys, cis)],
+                        color=color, alpha=0.15, linewidth=0,
+                    )
+                elif panel == "coverage-ci":
+                    cov_lo, cov_hi = series[3], series[4]
+                    ax.fill_between(
+                        grid, cov_lo, cov_hi, color=color, alpha=0.15, linewidth=0,
+                    )
+                elif panel == "coverage-rate":
+                    cov_lo = [v / n_inst for v in series[3]]
+                    cov_hi = [v / n_inst for v in series[4]]
+                    ax.fill_between(
+                        grid, cov_lo, cov_hi, color=color, alpha=0.15, linewidth=0,
+                    )
             ax.set_xscale("log")
             ax.set_xlabel("elapsed search time (s)")
             ax.set_ylabel(ylabel)
-            ax.set_ylim(0, 1.02)
+            ax.set_ylim(0, 1.02 if panel in ("quality", "coverage-rate") else n_inst * 1.02)
             ax.grid(True, alpha=0.3)
             ax.legend(loc="best", framealpha=0.9)
             out = stem.with_name(f"{stem.name}-{panel}.pdf")
@@ -905,7 +1015,8 @@ def render_anytime_profile_pdfs(
 
 
 def add_anytime_profile_plot_step(
-    exp, name="anytime-plot", outfile=None, max_time=None, *, pdf=False
+    exp, name="anytime-plot", outfile=None, max_time=None, *, pdf=False,
+    display_names=None,
 ):
     """Add a step drawing anytime profile curves from the fetched properties.
 
@@ -917,7 +1028,10 @@ def add_anytime_profile_plot_step(
     vector PDF per panel via :func:`render_anytime_profile_pdfs`; here
     *outfile* is used as the filename stem (default
     ``<eval_dir>/<exp.name>-anytime-profile``), each panel appending
-    ``-<panel>.pdf``."""
+    ``-<panel>.pdf``.
+
+    *display_names* optionally maps a raw algorithm/run-id name to the legend
+    label it should show instead; passed straight through to the renderer."""
 
     def make_plot():
         import json
@@ -932,12 +1046,16 @@ def add_anytime_profile_plot_step(
             stem = outfile or (
                 Path(exp.eval_dir) / f"{exp.name}-anytime-profile"
             )
-            render_anytime_profile_pdfs(props, stem, max_time=max_time)
+            render_anytime_profile_pdfs(
+                props, stem, max_time=max_time, display_names=display_names
+            )
         else:
             out = outfile or (
                 Path(exp.eval_dir) / f"{exp.name}-anytime-profile.png"
             )
-            render_anytime_profile(props, out, max_time=max_time)
+            render_anytime_profile(
+                props, out, max_time=max_time, display_names=display_names
+            )
 
     exp.add_step(name, make_plot)
 

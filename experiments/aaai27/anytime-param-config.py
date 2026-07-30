@@ -337,6 +337,23 @@ SEARCH_TEMPLATES["adaptive-rectangle"] = (
     f"adaptive_rectangle(eval={LMCOUNT}, anytime=true)"
 )
 
+# Legend display names for the anytime-profile plots: adaptive-triangle's
+# per-step budget mechanism is "Triangle-Step"; the ratchet mechanism (fires at
+# completed sweeps) is "Triangle-Sweep" on the triangle base and
+# "Rectangle-Sweep" on the rectangle base. Static triangle-s*/rectangle-a*
+# configs get a spelled-out slope/aspect label; lama and ana get their usual
+# capitalization.
+ANYTIME_DISPLAY_NAMES = {
+    "adaptive-triangle": "Triangle-Step",
+    "ratchet-triangle": "Triangle-Sweep",
+    "adaptive-rectangle": "Rectangle-Sweep",
+    "ana": "ANA*",
+    "lama": "LAMA",
+    "triangle-s48": "Triangle, slope 48",
+    "rectangle-a1": "Rectangle, aspect 1",
+    "rectangle-a500": "Rectangle, aspect 500",
+}
+
 ALIAS_CONFIGS = {
     "lama": ["--alias", "seq-sat-lama-2011"],
 }
@@ -577,10 +594,14 @@ project.add_absolute_report(
         project.add_evaluations_per_time,
     ],
 )
-project.add_anytime_profile_plot_step(exp, max_time=_duration_to_seconds(BUDGET))
+project.add_anytime_profile_plot_step(
+    exp, max_time=_duration_to_seconds(BUDGET),
+    display_names=ANYTIME_DISPLAY_NAMES,
+)
 # Paper-ready per-panel vector PDFs (quality + coverage) for LaTeX inclusion.
 project.add_anytime_profile_plot_step(
-    exp, name="anytime-pdf", max_time=_duration_to_seconds(BUDGET), pdf=True
+    exp, name="anytime-pdf", max_time=_duration_to_seconds(BUDGET), pdf=True,
+    display_names=ANYTIME_DISPLAY_NAMES,
 )
 if not IS_COMBINED:
     project.add_compress_exp_dir_step(exp)
