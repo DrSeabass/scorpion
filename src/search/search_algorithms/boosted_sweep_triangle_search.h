@@ -1,5 +1,5 @@
-#ifndef SEARCH_ALGORITHMS_BOOSTED_TRIANGLE_SEARCH_H
-#define SEARCH_ALGORITHMS_BOOSTED_TRIANGLE_SEARCH_H
+#ifndef SEARCH_ALGORITHMS_BOOSTED_SWEEP_TRIANGLE_SEARCH_H
+#define SEARCH_ALGORITHMS_BOOSTED_SWEEP_TRIANGLE_SEARCH_H
 
 #include "../search_algorithm.h"
 
@@ -12,9 +12,11 @@
 class Evaluator;
 class PruningMethod;
 
-namespace boosted_triangle_search {
+namespace boosted_sweep_triangle_search {
 
-// How the per-step cascade picks which of the N guidance lists to pop.
+// How the per-step cascade picks which of the N guidance lists to pop when
+// credit_boost == 0 (the token budget below is inert and this is the whole
+// story). Also the round-robin tie-break/fallback once credit is engaged.
 enum class Schedule {
     // Per-sweep round-robin: one guidance list owns the entire cascade dive
     // this step; the served index rotates between steps (served =
@@ -26,15 +28,25 @@ enum class Schedule {
     POP
 };
 
+// ICAPS-27 axis 1 (see icaps-27-plan.md): progress-credit granularity.
+enum class CreditScope {
+    // Budgets tracked per depth layer, summed across every layer currently
+    // active for the once-per-dive decision (combo 1a,2d).
+    PER_LAYER,
+    // One token budget shared across the whole search (combo 1b,2d).
+    GLOBAL
+};
+
 /*
-  ICAPS-27 boosted triangle search (see icaps-27-plan.md): the combo 1a,2c
-  sibling of multi_triangle_search -- progress credit and reselection are
-  both scoped per depth layer. At credit_boost=0 (default) this is
-  bit-identical to multi_triangle_search: a nonzero credit_boost engages a
-  LAMA-style per-list token budget (one independent budget per layer) that
-  reselects the served list at each layer boundary. See
-  boosted_sweep_triangle_search for the once-per-dive sibling (combos
-  1a,2d / 1b,2d).
+  ICAPS-27 boosted-sweep triangle search (see icaps-27-plan.md): the
+  once-per-dive sibling of boosted_triangle_search -- the served list is
+  decided once per step(), before the cascade loop, and locked for the
+  whole dive (combos 1a,2d / 1b,2d; credit_scope picks between them). At
+  credit_boost=0 (default) this is bit-identical to multi_triangle_search
+  regardless of credit_scope; a nonzero credit_boost engages a LAMA-style
+  token budget -- summed across active layers (credit_scope=per_layer) or
+  read directly from a single shared budget (credit_scope=global) -- that
+  picks the dive's served list.
 
   Each depth layer carries N parallel ranked open lists, one per
   inadmissible guidance heuristic in `evals`. A successor is evaluated by
@@ -45,13 +57,8 @@ enum class Schedule {
   discards stale copies per list. The optional admissible
   `pruning_heuristic` remains the single bound-pruner across all lists,
   unchanged from vanilla triangle.
-
-  Scheduling: per-sweep round-robin. One heuristic list owns the entire
-  cascade dive in a step; the served index rotates between steps (served =
-  sweep_count % N), preserving the coherence of a single dive. With N == 1
-  the algorithm reduces to vanilla triangle.
 */
-class BoostedTriangleSearch : public SearchAlgorithm {
+class BoostedSweepTriangleSearch : public SearchAlgorithm {
     struct OpenEntry {
         StateID id;
         int h;
@@ -74,19 +81,22 @@ class BoostedTriangleSearch : public SearchAlgorithm {
     const bool reopen_closed_nodes;
     const bool anytime_search;
     const Schedule schedule;
-    // ICAPS-27 progress credit (axis 1a, see icaps-27-plan.md), LAMA-style
-    // token budget: an informed transition (a list's expansion h improves
-    // on that same list's own previous expansion h at that layer) grants
-    // it `credit_boost` tokens; every expansion it serves spends one token
-    // (unclamped, can go negative). Selection serves the highest-budget
-    // list (guidance heuristic, or the pruner if present) at each layer
-    // boundary, ties broken by the schedule round-robin index.
+    // ICAPS-27 axis 1: whether progress credit (below) is tracked per layer
+    // (combo 1a,2d) or as a single budget shared across the whole search
+    // (combo 1b,2d).
+    const CreditScope credit_scope;
+    // ICAPS-27 progress credit, LAMA-style token budget: an informed
+    // transition (a list's expansion h improves on that same list's own
+    // previous expansion h) grants it `credit_boost` tokens; every
+    // expansion it serves spends one token (unclamped, can go negative).
+    // The served list for the whole dive is the highest-budget one, ties
+    // broken by the schedule round-robin index.
     //
     // credit_boost == 0 (default) makes the whole mechanism inert: no
     // tokens are earned or spent, and selection short-circuits straight to
-    // the schedule round-robin (see step()) -- an exact reduction, which is
-    // what keeps the default configuration bit-identical to
-    // multi_triangle_search.
+    // the schedule round-robin (see step()) -- an exact reduction,
+    // regardless of credit_scope. This is what keeps the default
+    // configuration bit-identical to multi_triangle_search.
     const int credit_boost;
     // When true (and a pruning_heuristic is set), the admissible heuristic
     // also gets its own ranked list at index num_lists, joining the
@@ -116,13 +126,18 @@ class BoostedTriangleSearch : public SearchAlgorithm {
     // One depth layer: its total_lists ranked open lists, plus one budget
     // per list (the pruner list, if any, competes on equal footing). Both
     // halves are always the same size and live or die together, so there is
-    // no separate container to keep in sync.
+    // no separate container to keep in sync. The budgets here are read (and
+    // updated) only when credit_scope == PER_LAYER.
     struct Layer {
         LayerLists lists;
         std::vector<HeuristicProgress> progress;
         explicit Layer(int total_lists) : lists(total_lists), progress(total_lists) {}
     };
     std::deque<Layer> layers;
+    // ICAPS-27 axis 1b (global): one shared budget per list, used instead
+    // of layers[i].progress when credit_scope == GLOBAL. Sized to
+    // total_lists in initialize().
+    std::vector<HeuristicProgress> global_progress;
     int max_active_layer = -1;
     // Per-sweep round-robin counter: the served list index is sweep_count % N.
     int sweep_count = 0;
@@ -146,10 +161,15 @@ class BoostedTriangleSearch : public SearchAlgorithm {
     // Picks the served list index among all total_lists lists (guidance
     // heuristics plus the optional pruner list, which competes on equal
     // footing) given their current budgets, ties broken by
-    // round_robin_served. Never called at credit_boost == 0.
+    // round_robin_served. Used directly on global_progress for
+    // credit_scope == GLOBAL. Never called at credit_boost == 0.
     int select_credit_served(
         const std::vector<HeuristicProgress> &budgets,
         int round_robin_served) const;
+    // Same idea, but for credit_scope == PER_LAYER: sums budgets across
+    // every currently active layer first, for the single once-per-dive
+    // decision.
+    int select_sweep_served(int round_robin_served) const;
     // Applies one expansion's earn (if informed) and spend to hp.
     void record_expansion_credit(HeuristicProgress &hp, int h) const;
 
@@ -158,19 +178,20 @@ protected:
     virtual SearchStatus step() override;
 
 public:
-    BoostedTriangleSearch(
+    BoostedSweepTriangleSearch(
         const std::vector<std::shared_ptr<Evaluator>> &evals,
         int slope,
         bool reopen_closed,
         bool anytime,
         Schedule schedule,
+        CreditScope credit_scope,
         int credit_boost,
         bool guide_by_pruning,
         const std::shared_ptr<Evaluator> &pruning_heuristic,
         const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,
         const std::string &description, utils::Verbosity verbosity);
-    virtual ~BoostedTriangleSearch() = default;
+    virtual ~BoostedSweepTriangleSearch() = default;
 
     virtual void print_statistics() const override;
 };

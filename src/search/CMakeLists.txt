@@ -767,6 +767,27 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME boosted_sweep_triangle_search
+    HELP "Boosted-sweep triangle search (ICAPS-27)"
+    SOURCES
+        search_algorithms/boosted_sweep_triangle_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_boosted_sweep_triangle
+    HELP "Boosted-sweep triangle search (ICAPS-27) (plugin)"
+    SOURCES
+        search_algorithms/plugin_boosted_sweep_triangle
+    DEPENDS
+        boosted_sweep_triangle_search
+)
+
+create_fast_downward_library(
     NAME lazy_triangle_search
     HELP "Lazy triangle search"
     SOURCES
