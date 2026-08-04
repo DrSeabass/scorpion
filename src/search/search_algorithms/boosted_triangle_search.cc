@@ -26,6 +26,8 @@ BoostedTriangleSearch::BoostedTriangleSearch(
     bool reopen_closed,
     bool anytime,
     Schedule schedule,
+    SelectionGranularity selection_granularity,
+    int credit_boost,
     bool guide_by_pruning,
     const shared_ptr<Evaluator> &pruning_heuristic,
     const shared_ptr<PruningMethod> &pruning,
@@ -36,6 +38,8 @@ BoostedTriangleSearch::BoostedTriangleSearch(
       reopen_closed_nodes(reopen_closed),
       anytime_search(anytime),
       schedule(schedule),
+      selection_granularity(selection_granularity),
+      credit_boost(credit_boost),
       guide_by_pruning(guide_by_pruning),
       evals(evals),
       num_lists(static_cast<int>(evals.size())),
@@ -57,6 +61,9 @@ void BoostedTriangleSearch::initialize() {
     log << "Conducting multi-heuristic triangle search with slope " << slope
         << ", " << num_lists << " guidance heuristic(s)"
         << ", schedule = " << (schedule == Schedule::SWEEP ? "sweep" : "pop")
+        << ", selection_granularity = "
+        << (selection_granularity == SelectionGranularity::PER_LAYER ? "per_layer" : "per_sweep")
+        << ", credit_boost = " << credit_boost
         << ", guide_by_pruning = " << use_pruner_queue
         << " (" << total_lists << " list(s)/layer)"
         << ", (real) bound = " << bound << endl;
@@ -100,7 +107,7 @@ void BoostedTriangleSearch::initialize() {
         initial_h.push_back(prune_h);
     }
 
-    extend_open_lists(1);
+    extend_layers(1);
 
     if (is_dead_end) {
         log << "Initial state is a dead end." << endl;
@@ -127,6 +134,18 @@ void BoostedTriangleSearch::print_statistics() const {
     statistics.print_detailed_statistics();
     search_space.print_statistics();
     pruning_method->print_statistics();
+
+    // ICAPS-27 progress credit (axis 1a, see icaps-27-plan.md): final
+    // per-heuristic budgets for any layers still live when the search ended.
+    if (log.is_at_least_debug()) {
+        for (size_t i = 0; i < layers.size(); ++i) {
+            log << "Boosted triangle layer " << (depth_offset + static_cast<int>(i))
+                << " final budgets:";
+            for (int k = 0; k < total_lists; ++k)
+                log << " " << layers[i].progress[k].budget;
+            log << endl;
+        }
+    }
 }
 
 void BoostedTriangleSearch::start_evaluator_statistics(EvaluationContext &eval_context) {
@@ -137,14 +156,14 @@ void BoostedTriangleSearch::start_evaluator_statistics(EvaluationContext &eval_c
     }
 }
 
-void BoostedTriangleSearch::extend_open_lists(int num_layers) {
+void BoostedTriangleSearch::extend_layers(int num_layers) {
     for (int i = 0; i < num_layers; ++i) {
-        open_lists.emplace_back(total_lists);
+        layers.emplace_back(total_lists);
     }
 }
 
 bool BoostedTriangleSearch::layer_empty(int layer) const {
-    for (const OpenList &list : open_lists[layer]) {
+    for (const OpenList &list : layers[layer].lists) {
         if (!list.empty())
             return false;
     }
@@ -200,28 +219,64 @@ bool BoostedTriangleSearch::evaluate_and_prepare_node(
     return true;
 }
 
+int BoostedTriangleSearch::select_credit_served(
+    const vector<HeuristicProgress> &budgets, int round_robin_served) const {
+    // The optional pruner list (index num_lists, when guide_by_pruning is
+    // set) competes on equal footing with the num_lists guidance
+    // heuristics -- it earns/spends tokens the same way (see
+    // record_expansion_credit), so it is not special-cased here.
+    int best = 0;
+    for (int k = 1; k < total_lists; ++k) {
+        if (budgets[k].budget > budgets[best].budget)
+            best = k;
+    }
+    // Prefer the round-robin's own candidate among ties, so credit_boost ==
+    // 0 (no tokens ever earned) still respects the underlying schedule
+    // whenever all budgets happen to agree.
+    if (budgets[round_robin_served].budget == budgets[best].budget)
+        return round_robin_served;
+    return best;
+}
+
+void BoostedTriangleSearch::record_expansion_credit(
+    HeuristicProgress &hp, int h) const {
+    if (hp.have_last_h && h < hp.last_h)
+        hp.budget += credit_boost;
+    hp.have_last_h = true;
+    hp.last_h = h;
+    --hp.budget;
+}
+
 void BoostedTriangleSearch::insert_successor(
     int layer, StateID id, int g, const vector<int> &hs) {
     assert(layer >= 0);
     assert(static_cast<int>(hs.size()) == total_lists);
-    if (layer >= static_cast<int>(open_lists.size())) {
-        extend_open_lists(layer + 1 - static_cast<int>(open_lists.size()));
+    if (layer >= static_cast<int>(layers.size())) {
+        extend_layers(layer + 1 - static_cast<int>(layers.size()));
     }
     for (int k = 0; k < total_lists; ++k) {
-        open_lists[layer][k].push({id, hs[k], g});
+        layers[layer].lists[k].push({id, hs[k], g});
     }
     if (layer > max_active_layer)
         max_active_layer = layer;
 }
 
 SearchStatus BoostedTriangleSearch::step() {
-    while (!open_lists.empty() && layer_empty(0)) {
-        open_lists.pop_front();
+    while (!layers.empty() && layer_empty(0)) {
+        if (log.is_at_least_debug()) {
+            log << "BoostedTriangleSearch: layer " << depth_offset
+                << " drained, final budgets:";
+            for (int k = 0; k < total_lists; ++k)
+                log << " " << layers.front().progress[k].budget;
+            log << endl;
+        }
+        layers.pop_front();
+        ++depth_offset;
         --max_active_layer;
     }
     max_active_layer = max(max_active_layer, 0);
 
-    if (open_lists.empty()) {
+    if (layers.empty()) {
         if (found_solution()) {
             log << "All open lists are empty -- best solution found." << endl;
             return SOLVED;
@@ -241,15 +296,22 @@ SearchStatus BoostedTriangleSearch::step() {
     // heuristics. Because every live state is inserted into all N lists, the
     // served list being (live-)empty at a layer means the layer is live-empty
     // -- skipping it forfeits nothing.
-    const int sweep_served = step_count % total_lists;
+    const int sweep_served = sweep_count % total_lists;
 
     for (int i = 0; i < cascade_cap; ++i) {
         // End the cascade as soon as we run off the end of the deque.
-        if (i >= static_cast<int>(open_lists.size()))
+        if (i >= static_cast<int>(layers.size()))
             break;
-        const int served =
+        const int round_robin_served =
             (schedule == Schedule::SWEEP) ? sweep_served : pop_count % total_lists;
-        OpenList &list = open_lists[i][served];
+        // ICAPS-27 axis 2 (see icaps-27-plan.md): PER_LAYER reselects the
+        // served list every layer boundary from that layer's own budgets;
+        // PER_SWEEP still falls through to the raw schedule round-robin.
+        const int served =
+            (selection_granularity == SelectionGranularity::PER_LAYER)
+                ? select_credit_served(layers[i].progress, round_robin_served)
+                : round_robin_served;
+        OpenList &list = layers[i].lists[served];
         if (list.empty())
             continue;
 
@@ -284,6 +346,12 @@ SearchStatus BoostedTriangleSearch::step() {
 
         node.close();
         statistics.inc_expanded();
+
+        // ICAPS-27 progress credit (axis 1a, see icaps-27-plan.md). The
+        // pruner list (when present) earns/spends tokens the same as any
+        // guidance heuristic.
+        record_expansion_credit(layers[i].progress[served], current.h);
+
         // POP schedule: advance the round-robin per expansion so the next
         // expansion (the next layer of this dive, or the next step) is guided
         // by the next heuristic. No-op for SWEEP.
@@ -374,7 +442,7 @@ SearchStatus BoostedTriangleSearch::step() {
         }
     }
 
-    ++step_count;
+    ++sweep_count;
     return IN_PROGRESS;
 }
 
