@@ -27,6 +27,7 @@ BoostedTriangleSearch::BoostedTriangleSearch(
     bool anytime,
     Schedule schedule,
     SelectionGranularity selection_granularity,
+    CreditScope credit_scope,
     int credit_boost,
     bool guide_by_pruning,
     const shared_ptr<Evaluator> &pruning_heuristic,
@@ -39,6 +40,7 @@ BoostedTriangleSearch::BoostedTriangleSearch(
       anytime_search(anytime),
       schedule(schedule),
       selection_granularity(selection_granularity),
+      credit_scope(credit_scope),
       credit_boost(credit_boost),
       guide_by_pruning(guide_by_pruning),
       evals(evals),
@@ -55,6 +57,13 @@ BoostedTriangleSearch::BoostedTriangleSearch(
         cerr << "BoostedTriangleSearch: at least one guidance evaluator is required." << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
     }
+    if (credit_scope == CreditScope::GLOBAL &&
+        selection_granularity == SelectionGranularity::PER_LAYER) {
+        cerr << "BoostedTriangleSearch: credit_scope=global with "
+                "selection_granularity=per_layer (combo 1b,2c) is excluded "
+                "-- see icaps-27-plan.md." << endl;
+        utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
+    }
 }
 
 void BoostedTriangleSearch::initialize() {
@@ -63,10 +72,14 @@ void BoostedTriangleSearch::initialize() {
         << ", schedule = " << (schedule == Schedule::SWEEP ? "sweep" : "pop")
         << ", selection_granularity = "
         << (selection_granularity == SelectionGranularity::PER_LAYER ? "per_layer" : "per_sweep")
+        << ", credit_scope = "
+        << (credit_scope == CreditScope::GLOBAL ? "global" : "per_layer")
         << ", credit_boost = " << credit_boost
         << ", guide_by_pruning = " << use_pruner_queue
         << " (" << total_lists << " list(s)/layer)"
         << ", (real) bound = " << bound << endl;
+
+    global_progress.assign(total_lists, HeuristicProgress());
 
     assert(!evals.empty());
 
@@ -135,9 +148,14 @@ void BoostedTriangleSearch::print_statistics() const {
     search_space.print_statistics();
     pruning_method->print_statistics();
 
-    // ICAPS-27 progress credit (axis 1a, see icaps-27-plan.md): final
-    // per-heuristic budgets for any layers still live when the search ended.
+    // ICAPS-27 progress credit (axis 1, see icaps-27-plan.md): final budgets.
     if (log.is_at_least_debug()) {
+        if (credit_scope == CreditScope::GLOBAL) {
+            log << "Boosted triangle global final budgets:";
+            for (int k = 0; k < total_lists; ++k)
+                log << " " << global_progress[k].budget;
+            log << endl;
+        }
         for (size_t i = 0; i < layers.size(); ++i) {
             log << "Boosted triangle layer " << (depth_offset + static_cast<int>(i))
                 << " final budgets:";
@@ -225,15 +243,35 @@ int BoostedTriangleSearch::select_credit_served(
     // set) competes on equal footing with the num_lists guidance
     // heuristics -- it earns/spends tokens the same way (see
     // record_expansion_credit), so it is not special-cased here.
+    // (Never called at credit_boost == 0; step() short-circuits to
+    // round_robin_served before reaching here.)
     int best = 0;
     for (int k = 1; k < total_lists; ++k) {
         if (budgets[k].budget > budgets[best].budget)
             best = k;
     }
-    // Prefer the round-robin's own candidate among ties, so credit_boost ==
-    // 0 (no tokens ever earned) still respects the underlying schedule
-    // whenever all budgets happen to agree.
+    // Prefer the round-robin's own candidate among ties.
     if (budgets[round_robin_served].budget == budgets[best].budget)
+        return round_robin_served;
+    return best;
+}
+
+int BoostedTriangleSearch::select_sweep_served(int round_robin_served) const {
+    // ICAPS-27 axis 1a x 2d: sum each list's budget across every layer
+    // currently active, so a list that has been paying off anywhere in the
+    // cascade wins the whole dive, not just its shallowest or deepest
+    // layer. (Never called at credit_boost == 0; see select_credit_served.)
+    vector<int> total_budget(total_lists, 0);
+    for (const Layer &layer : layers) {
+        for (int k = 0; k < total_lists; ++k)
+            total_budget[k] += layer.progress[k].budget;
+    }
+    int best = 0;
+    for (int k = 1; k < total_lists; ++k) {
+        if (total_budget[k] > total_budget[best])
+            best = k;
+    }
+    if (total_budget[round_robin_served] == total_budget[best])
         return round_robin_served;
     return best;
 }
@@ -298,6 +336,20 @@ SearchStatus BoostedTriangleSearch::step() {
     // -- skipping it forfeits nothing.
     const int sweep_served = sweep_count % total_lists;
 
+    // ICAPS-27 axis 2d (see icaps-27-plan.md): when engaged, the served list
+    // for the whole dive is decided once here, before the cascade loop.
+    // credit_scope == GLOBAL (combo 1b,2d) reads the single shared budget
+    // directly; PER_LAYER (combo 1a,2d) sums budgets across every layer
+    // currently active first. credit_boost == 0 skips this entirely.
+    int locked_sweep_served = -1;
+    if (selection_granularity == SelectionGranularity::PER_SWEEP && credit_boost != 0) {
+        const int rr = (schedule == Schedule::SWEEP) ? sweep_served : pop_count % total_lists;
+        locked_sweep_served =
+            (credit_scope == CreditScope::GLOBAL)
+                ? select_credit_served(global_progress, rr)
+                : select_sweep_served(rr);
+    }
+
     for (int i = 0; i < cascade_cap; ++i) {
         // End the cascade as soon as we run off the end of the deque.
         if (i >= static_cast<int>(layers.size()))
@@ -306,11 +358,17 @@ SearchStatus BoostedTriangleSearch::step() {
             (schedule == Schedule::SWEEP) ? sweep_served : pop_count % total_lists;
         // ICAPS-27 axis 2 (see icaps-27-plan.md): PER_LAYER reselects the
         // served list every layer boundary from that layer's own budgets;
-        // PER_SWEEP still falls through to the raw schedule round-robin.
-        const int served =
-            (selection_granularity == SelectionGranularity::PER_LAYER)
-                ? select_credit_served(layers[i].progress, round_robin_served)
-                : round_robin_served;
+        // PER_SWEEP uses the single decision locked in above. Either way,
+        // credit_boost == 0 falls straight through to the raw schedule
+        // round-robin -- no credit consulted, no budgets touched below.
+        int served;
+        if (credit_boost == 0) {
+            served = round_robin_served;
+        } else if (selection_granularity == SelectionGranularity::PER_LAYER) {
+            served = select_credit_served(layers[i].progress, round_robin_served);
+        } else {
+            served = locked_sweep_served;
+        }
         OpenList &list = layers[i].lists[served];
         if (list.empty())
             continue;
@@ -347,10 +405,19 @@ SearchStatus BoostedTriangleSearch::step() {
         node.close();
         statistics.inc_expanded();
 
-        // ICAPS-27 progress credit (axis 1a, see icaps-27-plan.md). The
+        // ICAPS-27 progress credit (axis 1, see icaps-27-plan.md). The
         // pruner list (when present) earns/spends tokens the same as any
-        // guidance heuristic.
-        record_expansion_credit(layers[i].progress[served], current.h);
+        // guidance heuristic. Skipped at credit_boost == 0, matching the
+        // selection short-circuit above -- there is nothing to earn, and
+        // leaving budgets at 0 keeps debug logging honest about the
+        // mechanism being fully inert.
+        if (credit_boost != 0) {
+            HeuristicProgress &hp =
+                (credit_scope == CreditScope::GLOBAL)
+                    ? global_progress[served]
+                    : layers[i].progress[served];
+            record_expansion_credit(hp, current.h);
+        }
 
         // POP schedule: advance the round-robin per expansion so the next
         // expansion (the next layer of this dive, or the next step) is guided

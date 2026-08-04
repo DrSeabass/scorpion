@@ -41,14 +41,28 @@ enum class SelectionGranularity {
     PER_SWEEP
 };
 
+// ICAPS-27 axis 1 (see icaps-27-plan.md): progress-credit granularity.
+// Orthogonal to SelectionGranularity, except that GLOBAL + PER_LAYER
+// (combo 1b,2c) is excluded by the plan as not meaningful and rejected at
+// construction.
+enum class CreditScope {
+    // One independent token budget per depth layer (combos 1a,2c / 1a,2d).
+    PER_LAYER,
+    // One token budget shared across the whole search (combo 1b,2d only).
+    GLOBAL
+};
+
 /*
   ICAPS-27 boosted triangle search: sibling of multi_triangle_search
   growing progress-credit boosting, heuristic-selection granularity, slope
   adjustment, and helpful-action filtering (see icaps-27-plan.md). At
-  selection_granularity=per_sweep (default) this is bit-identical to
-  multi_triangle_search; per_layer additionally reselects the served
-  guidance list at each layer boundary via a LAMA-style per-heuristic
-  token budget (see credit_boost).
+  credit_boost=0 (default) this is bit-identical to multi_triangle_search
+  regardless of selection_granularity or credit_scope; a nonzero
+  credit_boost engages a LAMA-style per-list token budget -- tracked per
+  layer or globally (credit_scope) -- that reselects the served list per
+  layer boundary or once per dive (selection_granularity). Combo 1b,2c
+  (credit_scope=global, selection_granularity=per_layer) is rejected at
+  construction.
 
   Each depth layer carries N parallel ranked open lists, one per
   inadmissible guidance heuristic in `evals`. A successor is evaluated by
@@ -89,22 +103,30 @@ class BoostedTriangleSearch : public SearchAlgorithm {
     const bool anytime_search;
     const Schedule schedule;
     // ICAPS-27 axis 2: how often the credit-driven selector below reselects
-    // the served guidance list. PER_SWEEP is still a no-op (wired in a later
-    // commit); PER_LAYER is live.
+    // the served list -- PER_LAYER at each layer boundary (combo 1a,2c),
+    // PER_SWEEP once per dive from credit summed across active layers
+    // (combo 1a,2d). Both reduce to the plain schedule round-robin whenever
+    // credit_boost == 0 (see below), which is the only way the default
+    // PER_SWEEP stays bit-identical to multi_triangle_search.
     const SelectionGranularity selection_granularity;
-    // ICAPS-27 progress credit (axis 1a, per layer), LAMA-style token
-    // budget: an informed transition (a heuristic's expansion h improves on
-    // that same heuristic's own previous expansion h) grants it
-    // `credit_boost` tokens; every expansion it serves spends one token
-    // (unclamped, can go negative). Selection (when selection_granularity
-    // == PER_LAYER) serves the highest-budget list (guidance heuristic or
-    // pruner, if present) at each layer boundary, ties broken by the
-    // schedule round-robin index. With
-    // credit_boost == 0 tokens are only ever spent, never earned, so this
-    // degrades to a fair-share (least-served-first) policy rather than an
-    // exact reduction to schedule's round-robin -- that reduction only holds
-    // at the default selection_granularity (PER_SWEEP), which bypasses this
-    // mechanism entirely.
+    // ICAPS-27 axis 1: whether progress credit (below) is tracked per layer
+    // (default, combos 1a,2c / 1a,2d) or as a single budget shared across
+    // the whole search (combo 1b,2d).
+    const CreditScope credit_scope;
+    // ICAPS-27 progress credit (axis 1a), LAMA-style token budget: an
+    // informed transition (a list's expansion h improves on that same
+    // list's own previous expansion h) grants it `credit_boost` tokens;
+    // every expansion it serves spends one token (unclamped, can go
+    // negative). Selection serves the highest-budget list (guidance
+    // heuristic, or the pruner if present), ties broken by the schedule
+    // round-robin index.
+    //
+    // credit_boost == 0 (default) makes the whole mechanism inert: no
+    // tokens are earned or spent, and selection short-circuits straight to
+    // the schedule round-robin (see step()) -- an exact reduction,
+    // regardless of selection_granularity. This is what keeps the default
+    // configuration (selection_granularity=per_sweep, credit_boost=0)
+    // bit-identical to multi_triangle_search.
     const int credit_boost;
     // When true (and a pruning_heuristic is set), the admissible heuristic
     // also gets its own ranked list at index num_lists, joining the
@@ -141,6 +163,10 @@ class BoostedTriangleSearch : public SearchAlgorithm {
         explicit Layer(int total_lists) : lists(total_lists), progress(total_lists) {}
     };
     std::deque<Layer> layers;
+    // ICAPS-27 axis 1b (global): one shared budget per list, used instead
+    // of layers[i].progress when credit_scope == GLOBAL. Sized to
+    // total_lists in initialize().
+    std::vector<HeuristicProgress> global_progress;
     int max_active_layer = -1;
     // Per-sweep round-robin counter: the served list index is sweep_count % N.
     int sweep_count = 0;
@@ -168,6 +194,10 @@ class BoostedTriangleSearch : public SearchAlgorithm {
     int select_credit_served(
         const std::vector<HeuristicProgress> &budgets,
         int round_robin_served) const;
+    // ICAPS-27 axis 1a x 2d: same idea as select_credit_served, but the
+    // budgets are summed across every currently active layer first, for a
+    // single once-per-dive decision.
+    int select_sweep_served(int round_robin_served) const;
     // Applies one expansion's earn (if informed) and spend to hp.
     void record_expansion_credit(HeuristicProgress &hp, int h) const;
 
@@ -183,6 +213,7 @@ public:
         bool anytime,
         Schedule schedule,
         SelectionGranularity selection_granularity,
+        CreditScope credit_scope,
         int credit_boost,
         bool guide_by_pruning,
         const std::shared_ptr<Evaluator> &pruning_heuristic,

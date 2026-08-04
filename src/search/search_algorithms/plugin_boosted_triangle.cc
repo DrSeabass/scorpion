@@ -14,10 +14,15 @@ public:
             "Sibling of multi_triangle_search growing progress-credit "
             "boosting, heuristic-selection granularity, slope adjustment, and "
             "helpful-action filtering (see icaps-27-plan.md). At "
-            "selection_granularity=per_sweep (default) this is bit-identical "
-            "to multi_triangle_search; per_layer additionally reselects the "
-            "served guidance list at each layer boundary via a LAMA-style "
-            "per-heuristic token budget (see credit_boost). "
+            "credit_boost=0 (default) this is bit-identical to "
+            "multi_triangle_search regardless of selection_granularity or "
+            "credit_scope; a nonzero credit_boost engages a LAMA-style "
+            "per-list token budget, tracked either per depth layer or as a "
+            "single budget shared across the search (credit_scope), that "
+            "reselects the served list either at each layer boundary or "
+            "once per dive (selection_granularity). combo 1b,2c "
+            "(credit_scope=global with selection_granularity=per_layer) is "
+            "rejected at construction as not meaningful. "
             "Triangle search with N parallel ranked open lists per depth "
             "layer, one per inadmissible guidance heuristic in 'evals'. A "
             "successor is evaluated by all N heuristics and inserted into all "
@@ -55,27 +60,40 @@ public:
         add_option<boosted_triangle_search::SelectionGranularity>(
             "selection_granularity",
             "ICAPS-27 axis 2 (see icaps-27-plan.md): how often the "
-            "credit-driven heuristic selector reselects the active guidance "
-            "list (per_layer: at each layer boundary, via credit_boost; "
-            "per_sweep: locked for the whole dive -- still a plain schedule "
-            "round-robin, credit_boost has no effect). Orthogonal to "
-            "'schedule' and to slope adjustment.",
+            "credit-driven selector reselects the served list, when "
+            "credit_boost != 0 (per_layer: at each layer boundary, from "
+            "that layer's own budgets -- requires credit_scope=per_layer; "
+            "per_sweep: once per dive, from credit_scope's budget, summed "
+            "across active layers if credit_scope=per_layer or read "
+            "directly if credit_scope=global). Orthogonal to 'schedule' "
+            "and to slope adjustment. At credit_boost == 0 (default) this "
+            "option has no effect -- both values reduce to the plain "
+            "schedule round-robin.",
             "per_sweep");
+        add_option<boosted_triangle_search::CreditScope>(
+            "credit_scope",
+            "ICAPS-27 axis 1 (see icaps-27-plan.md): whether progress "
+            "credit (credit_boost) is tracked per depth layer (default, "
+            "combos 1a,2c / 1a,2d) or as a single budget shared across the "
+            "whole search (combo 1b,2d only -- credit_scope=global with "
+            "selection_granularity=per_layer is combo 1b,2c, which is "
+            "rejected at construction as not meaningful).",
+            "per_layer");
         add_option<int>(
             "credit_boost",
-            "ICAPS-27 axis 1a (see icaps-27-plan.md): tokens granted to a "
+            "ICAPS-27 axis 1 (see icaps-27-plan.md): tokens granted to a "
             "list's (guidance heuristic, or the pruner list if "
             "guide_by_pruning is set -- both compete on equal footing) "
-            "per-layer budget when one of its expansions improves on that "
-            "same list's own previous expansion h at that layer ('an "
-            "informed transition'). Every expansion a list serves spends "
-            "one token from its budget (unclamped). Only consulted when "
-            "selection_granularity == per_layer, where the highest-budget "
-            "list is served at each layer boundary (ties broken by the "
-            "schedule round-robin). credit_boost == 0 (default) means "
-            "tokens are only ever spent, never earned -- a fair-share "
-            "(least-served-first) policy, not an exact reduction to the "
-            "round-robin.",
+            "budget when one of its expansions improves on that same "
+            "list's own previous expansion h ('an informed transition'; "
+            "scoped per layer or globally, see credit_scope). Every "
+            "expansion a list serves spends one token from its budget "
+            "(unclamped). The highest-budget list is served, at the "
+            "granularity set by selection_granularity, ties broken by the "
+            "schedule round-robin. credit_boost == 0 (default) makes the "
+            "whole mechanism inert -- no tokens earned or spent, selection "
+            "reduces exactly to the schedule round-robin regardless of "
+            "selection_granularity or credit_scope.",
             "0");
         add_option<bool>(
             "guide_by_pruning",
@@ -104,6 +122,7 @@ public:
             opts.get<bool>("anytime"),
             opts.get<boosted_triangle_search::Schedule>("schedule"),
             opts.get<boosted_triangle_search::SelectionGranularity>("selection_granularity"),
+            opts.get<boosted_triangle_search::CreditScope>("credit_scope"),
             opts.get<int>("credit_boost"),
             opts.get<bool>("guide_by_pruning"),
             opts.get<shared_ptr<Evaluator>>("pruning_heuristic", nullptr),
@@ -124,9 +143,16 @@ static plugins::TypedEnumPlugin<boosted_triangle_search::Schedule> _enum_plugin(
 
 static plugins::TypedEnumPlugin<boosted_triangle_search::SelectionGranularity> _selection_granularity_enum_plugin(
     {{"per_layer",
-      "reselect the active guidance list at each layer boundary, via the "
-      "credit_boost token budget"},
+      "reselect the served list at each layer boundary, from that layer's "
+      "own credit_boost token budget (no effect at credit_boost == 0; "
+      "requires credit_scope=per_layer)"},
      {"per_sweep",
-      "lock the active guidance list for the whole dive, reselect only "
-      "between sweeps (still a plain schedule round-robin)"}});
+      "lock the served list for the whole dive, chosen once from "
+      "credit_scope's budget (no effect at credit_boost == 0)"}});
+
+static plugins::TypedEnumPlugin<boosted_triangle_search::CreditScope> _credit_scope_enum_plugin(
+    {{"per_layer",
+      "one independent token budget per depth layer"},
+     {"global",
+      "one token budget shared across the whole search"}});
 }
