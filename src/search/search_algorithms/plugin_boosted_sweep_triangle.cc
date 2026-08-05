@@ -34,7 +34,21 @@ public:
             "so successive expansions down a dive alternate heuristics) -- "
             "used as the round-robin fallback/tie-break once credit engages. "
             "With a single evaluator the search reduces to vanilla triangle. "
-            "Stops after the first plan is found unless anytime=true.");
+            "Stops after the first plan is found unless anytime=true. "
+            "ICAPS-27 step 6 (helpful actions): each evaluator named in "
+            "'preferred_evals' (a subset of 'evals', matched by identity) "
+            "gets one extra 'helpful' list per layer, ranked by that same "
+            "evaluator's h but populated only with successors reached via "
+            "one of that evaluator's own preferred operators on the parent "
+            "-- unlike the guidance/pruner lists, a helpful list holds a "
+            "sparse subset of the layer's live content. Helpful lists "
+            "compete on equal footing with the guidance and pruner lists. "
+            "Preferred-operator sets are computed once per state (when it "
+            "is first evaluated as a successor) and reused at expansion "
+            "time, so no evaluator is ever run twice just to learn its "
+            "preferred operators. preferred_evals=[] (default) adds no "
+            "helpful lists and is an exact no-op reduction to the "
+            "pre-step-6 behavior described above.");
 
         add_list_option<shared_ptr<Evaluator>>(
             "evals", "inadmissible guidance evaluators, one ranked list per layer");
@@ -79,6 +93,15 @@ public:
             "earned or spent, selection reduces exactly to the schedule "
             "round-robin regardless of credit_scope.",
             "0");
+        add_list_option<shared_ptr<Evaluator>>(
+            "preferred_evals",
+            "ICAPS-27 step 6 (see icaps-27-plan.md): subset of 'evals' "
+            "(matched by identity) whose preferred operators each get a "
+            "paired helpful list per layer, populated only with successors "
+            "reached via that evaluator's own preferred operator on the "
+            "parent. Empty (default) adds no helpful lists and is an exact "
+            "no-op reduction to the pre-step-6 behavior.",
+            "[]");
         add_option<bool>(
             "guide_by_pruning",
             "also rank by the admissible pruning_heuristic in an extra open "
@@ -107,6 +130,7 @@ public:
             opts.get<boosted_sweep_triangle_search::Schedule>("schedule"),
             opts.get<boosted_sweep_triangle_search::CreditScope>("credit_scope"),
             opts.get<int>("credit_boost"),
+            opts.get_list<shared_ptr<Evaluator>>("preferred_evals"),
             opts.get<bool>("guide_by_pruning"),
             opts.get<shared_ptr<Evaluator>>("pruning_heuristic", nullptr),
             get_search_pruning_arguments_from_options(opts),
