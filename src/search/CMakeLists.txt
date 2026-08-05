@@ -767,6 +767,27 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME ratchet_boosted_triangle_search
+    HELP "Ratchet-boosted triangle search (ICAPS-27)"
+    SOURCES
+        search_algorithms/ratchet_boosted_triangle_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_ratchet_boosted_triangle
+    HELP "Ratchet-boosted triangle search (ICAPS-27) (plugin)"
+    SOURCES
+        search_algorithms/plugin_ratchet_boosted_triangle
+    DEPENDS
+        ratchet_boosted_triangle_search
+)
+
+create_fast_downward_library(
     NAME boosted_sweep_triangle_search
     HELP "Boosted-sweep triangle search (ICAPS-27)"
     SOURCES
@@ -785,6 +806,69 @@ create_fast_downward_library(
         search_algorithms/plugin_boosted_sweep_triangle
     DEPENDS
         boosted_sweep_triangle_search
+)
+
+create_fast_downward_library(
+    NAME adaptive_boosted_triangle_search
+    HELP "Adaptive-boosted triangle search (ICAPS-27)"
+    SOURCES
+        search_algorithms/adaptive_boosted_triangle_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_adaptive_boosted_triangle
+    HELP "Adaptive-boosted triangle search (ICAPS-27) (plugin)"
+    SOURCES
+        search_algorithms/plugin_adaptive_boosted_triangle
+    DEPENDS
+        adaptive_boosted_triangle_search
+)
+
+create_fast_downward_library(
+    NAME ratchet_boosted_sweep_triangle_search
+    HELP "Ratchet-boosted-sweep triangle search (ICAPS-27)"
+    SOURCES
+        search_algorithms/ratchet_boosted_sweep_triangle_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_ratchet_boosted_sweep_triangle
+    HELP "Ratchet-boosted-sweep triangle search (ICAPS-27) (plugin)"
+    SOURCES
+        search_algorithms/plugin_ratchet_boosted_sweep_triangle
+    DEPENDS
+        ratchet_boosted_sweep_triangle_search
+)
+
+create_fast_downward_library(
+    NAME adaptive_boosted_sweep_triangle_search
+    HELP "Adaptive-boosted-sweep triangle search (ICAPS-27)"
+    SOURCES
+        search_algorithms/adaptive_boosted_sweep_triangle_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_adaptive_boosted_sweep_triangle
+    HELP "Adaptive-boosted-sweep triangle search (ICAPS-27) (plugin)"
+    SOURCES
+        search_algorithms/plugin_adaptive_boosted_sweep_triangle
+    DEPENDS
+        adaptive_boosted_sweep_triangle_search
 )
 
 create_fast_downward_library(
