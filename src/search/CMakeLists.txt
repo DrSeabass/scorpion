@@ -872,6 +872,138 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME lazy_boosted_triangle_search
+    HELP "Lazy boosted triangle search (ICAPS-27 lazy evaluation)"
+    SOURCES
+        search_algorithms/lazy_boosted_triangle_search
+    DEPENDS
+        best_first_open_list
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_lazy_boosted_triangle
+    HELP "Lazy boosted triangle search (ICAPS-27 lazy evaluation) (plugin)"
+    SOURCES
+        search_algorithms/plugin_lazy_boosted_triangle
+    DEPENDS
+        lazy_boosted_triangle_search
+)
+
+create_fast_downward_library(
+    NAME lazy_boosted_sweep_triangle_search
+    HELP "Lazy boosted-sweep triangle search (ICAPS-27 lazy evaluation)"
+    SOURCES
+        search_algorithms/lazy_boosted_sweep_triangle_search
+    DEPENDS
+        best_first_open_list
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_lazy_boosted_sweep_triangle
+    HELP "Lazy boosted-sweep triangle search (ICAPS-27 lazy evaluation) (plugin)"
+    SOURCES
+        search_algorithms/plugin_lazy_boosted_sweep_triangle
+    DEPENDS
+        lazy_boosted_sweep_triangle_search
+)
+
+create_fast_downward_library(
+    NAME lazy_ratchet_boosted_triangle_search
+    HELP "Lazy ratchet-boosted triangle search (ICAPS-27 lazy evaluation)"
+    SOURCES
+        search_algorithms/lazy_ratchet_boosted_triangle_search
+    DEPENDS
+        best_first_open_list
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_lazy_ratchet_boosted_triangle
+    HELP "Lazy ratchet-boosted triangle search (ICAPS-27 lazy evaluation) (plugin)"
+    SOURCES
+        search_algorithms/plugin_lazy_ratchet_boosted_triangle
+    DEPENDS
+        lazy_ratchet_boosted_triangle_search
+)
+
+create_fast_downward_library(
+    NAME lazy_ratchet_boosted_sweep_triangle_search
+    HELP "Lazy ratchet-boosted-sweep triangle search (ICAPS-27 lazy evaluation)"
+    SOURCES
+        search_algorithms/lazy_ratchet_boosted_sweep_triangle_search
+    DEPENDS
+        best_first_open_list
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_lazy_ratchet_boosted_sweep_triangle
+    HELP "Lazy ratchet-boosted-sweep triangle search (ICAPS-27 lazy evaluation) (plugin)"
+    SOURCES
+        search_algorithms/plugin_lazy_ratchet_boosted_sweep_triangle
+    DEPENDS
+        lazy_ratchet_boosted_sweep_triangle_search
+)
+
+create_fast_downward_library(
+    NAME lazy_adaptive_boosted_triangle_search
+    HELP "Lazy adaptive-boosted triangle search (ICAPS-27 lazy evaluation)"
+    SOURCES
+        search_algorithms/lazy_adaptive_boosted_triangle_search
+    DEPENDS
+        best_first_open_list
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_lazy_adaptive_boosted_triangle
+    HELP "Lazy adaptive-boosted triangle search (ICAPS-27 lazy evaluation) (plugin)"
+    SOURCES
+        search_algorithms/plugin_lazy_adaptive_boosted_triangle
+    DEPENDS
+        lazy_adaptive_boosted_triangle_search
+)
+
+create_fast_downward_library(
+    NAME lazy_adaptive_boosted_sweep_triangle_search
+    HELP "Lazy adaptive-boosted-sweep triangle search (ICAPS-27 lazy evaluation)"
+    SOURCES
+        search_algorithms/lazy_adaptive_boosted_sweep_triangle_search
+    DEPENDS
+        best_first_open_list
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_lazy_adaptive_boosted_sweep_triangle
+    HELP "Lazy adaptive-boosted-sweep triangle search (ICAPS-27 lazy evaluation) (plugin)"
+    SOURCES
+        search_algorithms/plugin_lazy_adaptive_boosted_sweep_triangle
+    DEPENDS
+        lazy_adaptive_boosted_sweep_triangle_search
+)
+
+create_fast_downward_library(
     NAME lazy_triangle_search
     HELP "Lazy triangle search"
     SOURCES
