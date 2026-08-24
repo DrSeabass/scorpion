@@ -37,7 +37,17 @@ public:
             "reduction. "
             "At num_lists == 1 and preferred_evals == [] (any credit_boost, "
             "schedule, or credit_scope) this reduces exactly to "
-            "lazy_triangle(eval=evals[0], slope=slope). No pruner queue.");
+            "lazy_triangle(eval=evals[0], slope=slope). "
+            "Optional pruner queue: the admissible pruning_heuristic, if "
+            "set, stays fully lazy exactly like the guidance heuristics -- "
+            "evaluated only once a state is popped for expansion, never "
+            "per generated successor -- and skips (without expanding) any "
+            "state exceeding the current bound. When guide_by_pruning is "
+            "also set, that evaluator also seeds one extra ranked list at "
+            "generation time, ranked by the parent's h like the guidance "
+            "lists, joining the once-per-dive round-robin. "
+            "pruning_heuristic unset (default) is an exact no-op reduction "
+            "to the behavior above.");
 
         add_list_option<shared_ptr<Evaluator>>(
             "evals", "guidance evaluator(s), one ranked list per layer");
@@ -88,6 +98,20 @@ public:
             "parent. Empty (default) adds no helpful lists and is an exact "
             "no-op reduction to the pre-step-6 behavior.",
             "[]");
+        add_option<bool>(
+            "guide_by_pruning",
+            "also rank by the admissible pruning_heuristic in an extra open "
+            "list (ranked by parent-h at insertion, like the guidance "
+            "lists), joining the once-per-dive round-robin. No effect "
+            "unless pruning_heuristic is set.",
+            "false");
+        add_option<shared_ptr<Evaluator>>(
+            "pruning_heuristic",
+            "admissible evaluator used for f-pruning states popped for "
+            "expansion (g + h(pruning_heuristic) >= bound), evaluated "
+            "lazily at pop time exactly like the guidance heuristics (see "
+            "the class comment). If unset, only g-based pruning applies.",
+            plugins::ArgumentInfo::NO_DEFAULT);
         add_search_pruning_options_to_feature(*this);
         add_search_algorithm_options_to_feature(*this, "lazy_boosted_sweep_triangle");
     }
@@ -103,6 +127,8 @@ public:
             opts.get<lazy_boosted_sweep_triangle_search::CreditScope>("credit_scope"),
             opts.get<int>("credit_boost"),
             opts.get_list<shared_ptr<Evaluator>>("preferred_evals"),
+            opts.get<bool>("guide_by_pruning"),
+            opts.get<shared_ptr<Evaluator>>("pruning_heuristic", nullptr),
             get_search_pruning_arguments_from_options(opts),
             get_search_algorithm_arguments_from_options(opts));
     }

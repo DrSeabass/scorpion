@@ -12,6 +12,9 @@
 #include "../utils/rng.h"
 
 #include <memory>
+#include <fstream>
+#include <limits>
+#include <set>
 #include <vector>
 
 class OpenListFactory;
@@ -37,6 +40,21 @@ protected:
     int current_g;
     int current_real_g;
     EvaluationContext current_eval_context;
+
+    static int next_diagnostic_id;
+    int diagnostic_id;
+    std::ofstream diagnostic_file;
+    long long diagnostic_removals = 0;
+    long long diagnostic_expansions = 0;
+    long long diagnostic_goals = 0;
+    long long diagnostic_duplicates = 0;
+    long long diagnostic_dead_ends = 0;
+    long long diagnostic_selected_g_sum = 0;
+    int diagnostic_selected_g_min = std::numeric_limits<int>::max();
+    int diagnostic_selected_g_max = std::numeric_limits<int>::min();
+    std::set<int> diagnostic_selected_g_values;
+
+    void write_diagnostic_snapshot();
 
     virtual void initialize() override;
     virtual SearchStatus step() override;

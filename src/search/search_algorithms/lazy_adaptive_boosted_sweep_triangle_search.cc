@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <limits>
 #include <set>
 
 using namespace std;
@@ -28,6 +29,8 @@ LazyAdaptiveBoostedSweepTriangleSearch::LazyAdaptiveBoostedSweepTriangleSearch(
     CreditScope credit_scope,
     int credit_boost,
     const vector<shared_ptr<Evaluator>> &preferred_evals,
+    bool guide_by_pruning,
+    const shared_ptr<Evaluator> &pruning_heuristic,
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
     const string &description, utils::Verbosity verbosity)
@@ -41,8 +44,13 @@ LazyAdaptiveBoostedSweepTriangleSearch::LazyAdaptiveBoostedSweepTriangleSearch(
       num_lists(static_cast<int>(evals.size())),
       preferred_evals(preferred_evals),
       num_preferred(static_cast<int>(preferred_evals.size())),
-      total_lists(static_cast<int>(evals.size()) + static_cast<int>(preferred_evals.size())),
+      total_lists(
+          static_cast<int>(evals.size()) + static_cast<int>(preferred_evals.size()) +
+          (guide_by_pruning && pruning_heuristic != nullptr ? 1 : 0)),
       pruning_method(pruning),
+      guide_by_pruning(guide_by_pruning),
+      use_pruner_queue(guide_by_pruning && pruning_heuristic != nullptr),
+      pruning_heuristic(pruning_heuristic),
       root_pending(true) {
     if (evals.empty()) {
         cerr << "LazyAdaptiveBoostedSweepTriangleSearch: at least one guidance evaluator is required." << endl;
@@ -73,6 +81,10 @@ LazyAdaptiveBoostedSweepTriangleSearch::LazyAdaptiveBoostedSweepTriangleSearch(
         open_list_factories.push_back(
             make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(evals[source], false));
     }
+    if (use_pruner_queue) {
+        open_list_factories.push_back(
+            make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(pruning_heuristic, false));
+    }
 }
 
 void LazyAdaptiveBoostedSweepTriangleSearch::initialize() {
@@ -83,6 +95,7 @@ void LazyAdaptiveBoostedSweepTriangleSearch::initialize() {
         << (credit_scope == CreditScope::GLOBAL ? "global" : "per_layer")
         << ", credit_boost = " << credit_boost
         << ", " << num_preferred << " preferred-operator (helpful) list(s)"
+        << ", guide_by_pruning = " << use_pruner_queue
         << " (" << total_lists << " list(s)/layer)"
         << ", (real) bound = " << bound << endl;
 
@@ -93,6 +106,9 @@ void LazyAdaptiveBoostedSweepTriangleSearch::initialize() {
     set<Evaluator *> path_dependent;
     for (const shared_ptr<Evaluator> &e : evals)
         e->get_path_dependent_evaluators(path_dependent);
+    if (pruning_heuristic) {
+        pruning_heuristic->get_path_dependent_evaluators(path_dependent);
+    }
     path_dependent_evaluators.assign(path_dependent.begin(), path_dependent.end());
 
     State initial_state = state_registry.get_initial_state();
@@ -300,6 +316,31 @@ LazyAdaptiveBoostedSweepTriangleSearch::ExpansionOutcome LazyAdaptiveBoostedSwee
         return ExpansionOutcome::SKIPPED;
     }
 
+    // The admissible pruning_heuristic stays lazy exactly like the guidance
+    // heuristics: evaluated here, once, only for a state that is actually
+    // being popped for expansion -- never per generated successor. A state
+    // exceeding the current bound is skipped without being marked a dead
+    // end (it may still be reachable more cheaply via a different
+    // predecessor later); one the heuristic reliably proves unsolvable is
+    // marked dead end, exactly like the guidance heuristics above.
+    if (pruning_heuristic) {
+        int prune_h = eval_context.get_evaluator_value_or_infinity(pruning_heuristic.get());
+        if (prune_h == EvaluationResult::INFTY) {
+            if (pruning_heuristic->dead_ends_are_reliable()) {
+                node.mark_as_dead_end();
+                statistics.inc_dead_ends();
+            }
+            return ExpansionOutcome::SKIPPED;
+        }
+        if (bound != numeric_limits<int>::max() && g + prune_h >= bound)
+            return ExpansionOutcome::SKIPPED;
+        // The pruner list's own real h, for the credit signal if it is
+        // ever served -- no second evaluation, this is the same value just
+        // computed above for the f-prune check.
+        if (use_pruner_queue)
+            h_out[total_lists - 1] = prune_h;
+    }
+
     vector<vector<OperatorID>> preferred_ops(num_preferred);
     for (int j = 0; j < num_preferred; ++j)
         preferred_ops[j] = eval_context.get_preferred_operators(preferred_evals[j].get());
@@ -350,8 +391,16 @@ LazyAdaptiveBoostedSweepTriangleSearch::ExpansionOutcome LazyAdaptiveBoostedSwee
 
         int succ_g = g + get_adjusted_cost(op);
         EvaluationContext succ_eval_context(eval_context, succ_g, false, nullptr);
+        // Guidance lists (and the optional pruner list, ranked by the same
+        // parent-h proxy -- pruning_heuristic stays lazy just like the
+        // guidance heuristics, see the class comment) always receive every
+        // successor.
         for (int k = 0; k < num_lists; ++k) {
             layers[source_layer_index + 1].lists[k]->insert(
+                succ_eval_context, make_pair(state.get_id(), op_id));
+        }
+        if (use_pruner_queue) {
+            layers[source_layer_index + 1].lists[total_lists - 1]->insert(
                 succ_eval_context, make_pair(state.get_id(), op_id));
         }
         for (int j = 0; j < num_preferred; ++j) {

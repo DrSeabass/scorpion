@@ -41,7 +41,7 @@ TriangleLamaMimickSearch::TriangleLamaMimickSearch(
       evals(evals),
       num_lists(static_cast<int>(evals.size())),
       preferred_evals(preferred_evals),
-      num_preferred(static_cast<int>(preferred_evals.size())),
+      num_preferred(preferred_evals.empty() ? 0 : static_cast<int>(evals.size())),
       use_pruner_queue(guide_by_pruning && pruning_heuristic != nullptr),
       total_lists(
           static_cast<int>(evals.size()) + static_cast<int>(preferred_evals.size()) +
@@ -56,25 +56,15 @@ TriangleLamaMimickSearch::TriangleLamaMimickSearch(
         cerr << "TriangleLamaMimickSearch: at least one guidance evaluator is required." << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
     }
-    // Every preferred_evals entry must also be one of the guidance evals
-    // (matched by identity), so its helpful list can share its
-    // h-value/ranking without a second evaluation.
-    preferred_source_index.reserve(preferred_evals.size());
-    for (const shared_ptr<Evaluator> &pref_eval : preferred_evals) {
-        int source = -1;
-        for (int k = 0; k < num_lists; ++k) {
-            if (evals[k].get() == pref_eval.get()) {
-                source = k;
-                break;
-            }
-        }
-        if (source == -1) {
-            cerr << "TriangleLamaMimickSearch: every preferred_evals entry "
-                    "must also appear in evals." << endl;
-            utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
-        }
-        preferred_source_index.push_back(source);
-    }
+}
+
+int TriangleLamaMimickSearch::guidance_index(int evaluator_index) const {
+    return num_preferred ? 2 * evaluator_index : evaluator_index;
+}
+
+int TriangleLamaMimickSearch::preferred_index(int evaluator_index) const {
+    assert(num_preferred);
+    return 2 * evaluator_index + 1;
 }
 
 void TriangleLamaMimickSearch::initialize() {
@@ -110,17 +100,15 @@ void TriangleLamaMimickSearch::initialize() {
     // end iff any reliable heuristic proves it so (multi-source dead-end).
     bool is_dead_end = false;
     vector<int> initial_h;
-    initial_h.reserve(total_lists);
+    initial_h.resize(total_lists);
     for (int k = 0; k < num_lists; ++k) {
         int h = eval_context.get_evaluator_value_or_infinity(evals[k].get());
         if (h == EvaluationResult::INFTY && evals[k]->dead_ends_are_reliable())
             is_dead_end = true;
-        initial_h.push_back(h);
+        initial_h[guidance_index(k)] = h;
+        if (num_preferred)
+            initial_h[preferred_index(k)] = h;
     }
-    // Helpful lists share their h-value with their source guidance list --
-    // no extra evaluation, just a copy at the right index.
-    for (int j = 0; j < num_preferred; ++j)
-        initial_h.push_back(initial_h[preferred_source_index[j]]);
     if (use_pruner_queue) {
         // Seed the pruner queue from the admissible h of the initial state.
         int prune_h =
@@ -128,7 +116,7 @@ void TriangleLamaMimickSearch::initialize() {
         if (prune_h == EvaluationResult::INFTY &&
             pruning_heuristic->dead_ends_are_reliable())
             is_dead_end = true;
-        initial_h.push_back(prune_h);
+        initial_h[total_lists - 1] = prune_h;
     }
 
     extend_layers(1);
@@ -153,6 +141,7 @@ void TriangleLamaMimickSearch::initialize() {
 
         SearchNode node = search_space.get_node(initial_state);
         node.open_initial();
+        real_g_values[initial_state] = 0;
         if (task_properties::is_goal_state(task_proxy, initial_state)) {
             update_incumbent(initial_state);
         } else {
@@ -268,15 +257,19 @@ bool TriangleLamaMimickSearch::evaluate_and_prepare_node(
 
 void TriangleLamaMimickSearch::cache_preferred_operators(
     const State &state, EvaluationContext &eval_context) {
-    vector<vector<OperatorID>> prefs(num_preferred);
-    for (int j = 0; j < num_preferred; ++j)
-        prefs[j] = eval_context.get_preferred_operators(preferred_evals[j].get());
+    vector<OperatorID> prefs;
+    for (const shared_ptr<Evaluator> &evaluator : preferred_evals) {
+        for (OperatorID op_id : eval_context.get_preferred_operators(evaluator.get())) {
+            if (find(prefs.begin(), prefs.end(), op_id) == prefs.end())
+                prefs.push_back(op_id);
+        }
+    }
     preferred_op_cache[state] = std::move(prefs);
 }
 
 void TriangleLamaMimickSearch::boost_preferred_lists() {
-    for (int j = 0; j < num_preferred; ++j)
-        priorities[num_lists + j] -= boost_amount;
+    for (int k = 0; k < num_preferred; ++k)
+        priorities[preferred_index(k)] -= boost_amount;
 }
 
 int TriangleLamaMimickSearch::select_served() const {
@@ -319,13 +312,16 @@ void TriangleLamaMimickSearch::insert_successor(
     }
     // Guidance lists always receive every successor.
     for (int k = 0; k < num_lists; ++k) {
-        layers[layer][k].push({id, hs[k], g});
+        int index = guidance_index(k);
+        layers[layer][index].push({id, hs[index], g});
     }
     // Helpful lists only receive successors reached via that heuristic's
     // own preferred operator on the parent.
-    for (int j = 0; j < num_preferred; ++j) {
-        if (helpful_membership[j])
-            layers[layer][num_lists + j].push({id, hs[num_lists + j], g});
+    for (int k = 0; k < num_preferred; ++k) {
+        if (helpful_membership[k]) {
+            int index = preferred_index(k);
+            layers[layer][index].push({id, hs[index], g});
+        }
     }
     // The optional pruner list, like the guidance lists, receives every
     // successor.
@@ -389,6 +385,9 @@ SearchStatus TriangleLamaMimickSearch::step() {
         bool found_expandable = false;
         while (!list.empty()) {
             const OpenEntry &candidate = list.top();
+            // LAMA charges the selected sublist in remove_min(), before the
+            // lazy-search layer discovers whether the entry is stale.
+            ++priorities[served];
             SearchNode candidate_node =
                 search_space.get_node(state_registry.lookup_state(candidate.id));
             if (candidate.g > candidate_node.get_g() ||
@@ -414,16 +413,11 @@ SearchStatus TriangleLamaMimickSearch::step() {
         node.close();
         statistics.inc_expanded();
 
-        // AlternationOpenList::remove_min's per-pop cost, applied at the
-        // granularity of this one expansion -- charged to whichever list
-        // actually served it, honoring the layer-level fallback above.
-        ++priorities[served];
-
         // Consume this state's cached preferred-operator sets (computed
         // once, back when it was generated -- see evaluate_and_prepare_node)
         // so no evaluator is run a second time just to learn which of its
         // operators are preferred.
-        vector<vector<OperatorID>> parent_preferred;
+        vector<OperatorID> parent_preferred;
         if (num_preferred > 0)
             parent_preferred = std::move(preferred_op_cache[state]);
 
@@ -433,8 +427,8 @@ SearchStatus TriangleLamaMimickSearch::step() {
 
         for (OperatorID op_id : applicable_ops) {
             OperatorProxy op = task_proxy.get_operators()[op_id];
-            // Scorpion SearchNode lacks get_real_g(); get_g() equals real_g for NORMAL cost type.
-            if (node.get_g() + op.get_cost() >= bound)
+            int succ_real_g = real_g_values[state] + op.get_cost();
+            if (succ_real_g >= bound)
                 continue;
 
             State succ_state = state_registry.get_successor_state(state, op);
@@ -472,12 +466,13 @@ SearchStatus TriangleLamaMimickSearch::step() {
                     }
                     continue;
                 }
-                if (bound != numeric_limits<int>::max() && succ_g + prune_h >= bound)
+                if (bound != numeric_limits<int>::max() && succ_real_g + prune_h >= bound)
                     continue;
             }
 
             if (succ_node.is_new()) {
                 succ_node.open_new_node(node, op, get_adjusted_cost(op));
+                real_g_values[succ_state] = succ_real_g;
                 if (!evaluate_and_prepare_node(
                         succ_state, succ_node, succ_g, succ_h, true))
                     continue;
@@ -486,12 +481,15 @@ SearchStatus TriangleLamaMimickSearch::step() {
                     continue;
                 statistics.inc_reopened();
                 succ_node.reopen_closed_node(node, op, get_adjusted_cost(op));
+                real_g_values[succ_state] = succ_real_g;
                 if (!evaluate_and_prepare_node(
                         succ_state, succ_node, succ_g, succ_h, false))
                     continue;
             } else {
-                if (succ_g < succ_node.get_g())
+                if (succ_g < succ_node.get_g()) {
                     succ_node.update_open_node_parent(node, op, get_adjusted_cost(op));
+                    real_g_values[succ_state] = succ_real_g;
+                }
                 if (!evaluate_and_prepare_node(
                         succ_state, succ_node, succ_node.get_g(), succ_h, false))
                     continue;
@@ -510,19 +508,19 @@ SearchStatus TriangleLamaMimickSearch::step() {
             // append the helpful copies, then the admissible value (if the
             // pruner queue is in use) so every list in total_lists order is
             // ranked.
-            for (int j = 0; j < num_preferred; ++j)
-                succ_h.push_back(succ_h[preferred_source_index[j]]);
-            if (use_pruner_queue)
-                succ_h.push_back(prune_h);
-
-            vector<bool> helpful_membership(num_preferred);
-            for (int j = 0; j < num_preferred; ++j) {
-                const vector<OperatorID> &preferred = parent_preferred[j];
-                helpful_membership[j] =
-                    find(preferred.begin(), preferred.end(), op_id) != preferred.end();
+            vector<int> list_h(total_lists);
+            for (int k = 0; k < num_lists; ++k) {
+                list_h[guidance_index(k)] = succ_h[k];
+                if (num_preferred)
+                    list_h[preferred_index(k)] = succ_h[k];
             }
+            if (use_pruner_queue)
+                list_h[total_lists - 1] = prune_h;
+
+            bool preferred = find(parent_preferred.begin(), parent_preferred.end(), op_id) != parent_preferred.end();
+            vector<bool> helpful_membership(num_preferred, preferred);
             insert_successor(
-                i + 1, succ_state.get_id(), succ_node.get_g(), succ_h, helpful_membership);
+                i + 1, succ_state.get_id(), succ_node.get_g(), list_h, helpful_membership);
         }
     }
 

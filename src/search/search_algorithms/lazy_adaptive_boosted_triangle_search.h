@@ -7,6 +7,8 @@
 #include "../search_algorithm.h"
 
 #include <deque>
+#include <fstream>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -52,6 +54,12 @@ enum class Schedule {
   has_non_empty_lists()/trim_empty_layers() must not mistake its now-empty
   list for a truly exhausted layer -- see layer_empty()'s absolute-depth
   parameter.
+
+  Optional pruner queue: see lazy_boosted_triangle_search.h for the full
+  description (mirrored here as-is) of pruning_heuristic/guide_by_pruning,
+  kept fully lazy -- evaluated only at pop time, alongside the guidance
+  heuristics, never per generated successor. pruning_heuristic unset
+  (default) is an exact no-op reduction to the pre-existing behavior.
 */
 class LazyAdaptiveBoostedTriangleSearch : public SearchAlgorithm {
     enum class ExpansionOutcome {
@@ -83,9 +91,14 @@ class LazyAdaptiveBoostedTriangleSearch : public SearchAlgorithm {
     std::vector<std::shared_ptr<Evaluator>> preferred_evals;
     const int num_preferred;
     std::vector<int> preferred_source_index;
+    // Lists per layer: num_lists guidance lists, then num_preferred
+    // helpful lists, then the optional pruner list.
     const int total_lists;
     std::vector<std::shared_ptr<OpenListFactory>> open_list_factories;
     std::shared_ptr<PruningMethod> pruning_method;
+    const bool guide_by_pruning;
+    const bool use_pruner_queue;
+    std::shared_ptr<Evaluator> pruning_heuristic;
 
     std::vector<Evaluator *> path_dependent_evaluators;
 
@@ -98,6 +111,22 @@ class LazyAdaptiveBoostedTriangleSearch : public SearchAlgorithm {
     // adaptive_triangle_search. Persistent across steps; reset to
     // max(1, remaining) at the top of every step.
     int depth_budget = 1;
+
+    struct LayerDiagnostics {
+        long long removals = 0;
+        long long precheck_stale = 0;
+        long long evaluated_skips = 0;
+        long long goals = 0;
+        long long expansions = 0;
+    };
+    std::map<int, LayerDiagnostics> layer_diagnostics;
+    std::ofstream diagnostic_file;
+    long long diagnostic_steps = 0;
+    long long diagnostic_layers_considered = 0;
+    long long diagnostic_nonempty_layers_considered = 0;
+    int diagnostic_max_step_width = 0;
+
+    void write_diagnostic_snapshot();
 
     // Single-slot pending-edge buffer -- see class comment above. "No
     // pending edge" <=> pending_operator_id == OperatorID::no_operator.
@@ -143,6 +172,8 @@ public:
         Schedule schedule,
         int credit_boost,
         const std::vector<std::shared_ptr<Evaluator>> &preferred_evals,
+        bool guide_by_pruning,
+        const std::shared_ptr<Evaluator> &pruning_heuristic,
         const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,
         const std::string &description, utils::Verbosity verbosity);

@@ -35,9 +35,19 @@ public:
             "preferred_evals=[] (default) leaves no helpful lists to ever "
             "boost, reducing to round-robin-by-priority over the guidance "
             "lists; at a single evaluator this reduces exactly to "
-            "lazy_triangle(eval=evals[0], slope=slope). No pruner queue "
-            "(see lazy_boosted_triangle_search's own docs for why this lazy "
-            "family never grows a guide_by_pruning option).");
+            "lazy_triangle(eval=evals[0], slope=slope). "
+            "Optional pruner queue: the admissible pruning_heuristic, if "
+            "set, stays fully lazy exactly like the guidance heuristics -- "
+            "evaluated only once a state is popped for expansion, never "
+            "per generated successor -- and skips (without expanding) any "
+            "state exceeding the current bound. When guide_by_pruning is "
+            "also set, that evaluator also seeds one extra ranked list at "
+            "generation time (ranked by the parent's h like the guidance "
+            "lists) that participates in the priority-counter round-robin "
+            "like any guidance list (never boosted by boost_amount, which "
+            "stays scoped to the helpful/preferred-only lists). "
+            "pruning_heuristic unset (default) is an exact no-op reduction "
+            "to the behavior above.");
 
         add_list_option<shared_ptr<Evaluator>>(
             "evals", "guidance evaluator(s), one ranked list per layer");
@@ -66,12 +76,26 @@ public:
             "1000");
         add_list_option<shared_ptr<Evaluator>>(
             "preferred_evals",
-            "subset of 'evals' (matched by identity) whose preferred "
-            "operators each get a paired helpful list per layer -- "
-            "exactly LAMA's preferred-only queues, and the only lists "
+            "evaluators whose preferred operators are unioned. When nonempty, "
+            "every guidance queue gets an interleaved preferred-only copy; "
+            "these are the only lists "
             "boost_amount ever touches. Empty (default) adds no helpful "
             "lists, making boosting inert.",
             "[]");
+        add_option<bool>(
+            "guide_by_pruning",
+            "also rank by the admissible pruning_heuristic in an extra open "
+            "list (ranked by parent-h at insertion, like the guidance "
+            "lists), joining the priority-counter round-robin. No effect "
+            "unless pruning_heuristic is set.",
+            "false");
+        add_option<shared_ptr<Evaluator>>(
+            "pruning_heuristic",
+            "admissible evaluator used for f-pruning states popped for "
+            "expansion (g + h(pruning_heuristic) >= bound), evaluated "
+            "lazily at pop time exactly like the guidance heuristics (see "
+            "the class comment). If unset, only g-based pruning applies.",
+            plugins::ArgumentInfo::NO_DEFAULT);
         add_search_pruning_options_to_feature(*this);
         add_search_algorithm_options_to_feature(*this, "lazy_triangle_lama_mimick");
     }
@@ -85,6 +109,8 @@ public:
             opts.get<bool>("anytime"),
             opts.get<int>("boost_amount"),
             opts.get_list<shared_ptr<Evaluator>>("preferred_evals"),
+            opts.get<bool>("guide_by_pruning"),
+            opts.get<shared_ptr<Evaluator>>("pruning_heuristic", nullptr),
             get_search_pruning_arguments_from_options(opts),
             get_search_algorithm_arguments_from_options(opts));
     }

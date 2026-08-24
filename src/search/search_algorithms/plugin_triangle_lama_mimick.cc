@@ -46,12 +46,11 @@ public:
             "inadmissible guidance heuristic in 'evals'; a successor is "
             "evaluated by all N heuristics and inserted into all N lists "
             "at its layer, so the N lists are N orderings of one shared "
-            "live frontier -- duplicate detection stays global. Each "
-            "evaluator named in 'preferred_evals' (a subset of 'evals', "
-            "matched by identity) gets one additional 'helpful' list per "
-            "layer, ranked by that same evaluator's h but populated only "
-            "with successors reached via one of that evaluator's own "
-            "preferred operators on the parent. Preferred-operator sets "
+            "live frontier -- duplicate detection stays global. When "
+            "'preferred_evals' is non-empty, every guidance queue gets an "
+            "interleaved preferred-only copy. All preferred evaluators "
+            "contribute to one union, and every preferred queue receives "
+            "the same union-selected successors. Preferred-operator sets "
             "are computed once per state, when it is first evaluated as a "
             "successor, and reused at expansion time, so no evaluator is "
             "ever run a second time just to learn which of its operators "
@@ -88,9 +87,9 @@ public:
             "1000");
         add_list_option<shared_ptr<Evaluator>>(
             "preferred_evals",
-            "subset of 'evals' (matched by identity) whose preferred "
-            "operators each get a paired helpful list per layer -- "
-            "exactly LAMA's preferred-only queues, and the only lists "
+            "evaluators whose preferred operators are unioned. When nonempty, "
+            "every guidance queue gets an interleaved preferred-only copy; "
+            "these are the only lists "
             "boost_amount ever touches. Empty (default) adds no helpful "
             "lists, making boosting inert.",
             "[]");

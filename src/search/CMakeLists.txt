@@ -809,6 +809,27 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME triangle_lama_mimick_search
+    HELP "Triangle-LAMA-mimick search (ICAPS-27)"
+    SOURCES
+        search_algorithms/triangle_lama_mimick_search
+    DEPENDS
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_triangle_lama_mimick
+    HELP "Triangle-LAMA-mimick search (ICAPS-27) (plugin)"
+    SOURCES
+        search_algorithms/plugin_triangle_lama_mimick
+    DEPENDS
+        triangle_lama_mimick_search
+)
+
+create_fast_downward_library(
     NAME adaptive_boosted_triangle_search
     HELP "Adaptive-boosted triangle search (ICAPS-27)"
     SOURCES
@@ -1001,6 +1022,28 @@ create_fast_downward_library(
         search_algorithms/plugin_lazy_adaptive_boosted_sweep_triangle
     DEPENDS
         lazy_adaptive_boosted_sweep_triangle_search
+)
+
+create_fast_downward_library(
+    NAME lazy_triangle_lama_mimick_search
+    HELP "Lazy triangle-LAMA-mimick search"
+    SOURCES
+        search_algorithms/lazy_triangle_lama_mimick_search
+    DEPENDS
+        best_first_open_list
+        null_pruning_method
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_lazy_triangle_lama_mimick
+    HELP "Lazy triangle-LAMA-mimick search (plugin)"
+    SOURCES
+        search_algorithms/plugin_lazy_triangle_lama_mimick
+    DEPENDS
+        lazy_triangle_lama_mimick_search
 )
 
 create_fast_downward_library(

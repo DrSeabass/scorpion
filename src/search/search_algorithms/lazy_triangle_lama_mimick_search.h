@@ -4,9 +4,12 @@
 #include "../evaluator.h"
 #include "../open_list.h"
 #include "../open_list_factory.h"
+#include "../per_state_information.h"
 #include "../search_algorithm.h"
 
 #include <deque>
+#include <fstream>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -30,10 +33,9 @@ namespace lazy_triangle_lama_mimick_search {
 
   Selection mechanism (unchanged from the eager sibling, see its header for
   the full rationale): every list -- each guidance heuristic's list, each
-  helpful/preferred-only list, and (unlike the eager sibling) no pruner
-  list, since this lazy family never grows a guide_by_pruning option (see
-  lazy_boosted_triangle_search.h) -- carries one persistent, global (not
-  per-layer) priority counter, all starting at 0
+  helpful/preferred-only list, and (like the eager sibling, when
+  guide_by_pruning is set) the optional pruner list -- carries one
+  persistent, global (not per-layer) priority counter, all starting at 0
   (alternation_open_list::AlternationOpenList's `priorities`). The served
   list for a whole cascade dive is decided once per step(), before the
   cascade loop: the lowest-counter list wins, ties keep the lowest index
@@ -68,6 +70,17 @@ namespace lazy_triangle_lama_mimick_search {
   -- and at num_lists == 1, to lazy_triangle(eval=evals[0], slope=slope)
   (identical expansion counts and plan), matching every other file in this
   lazy family's own reduction target.
+
+  Optional pruner queue: see lazy_boosted_triangle_search.h for the full
+  description (mirrored here as-is) of pruning_heuristic/guide_by_pruning,
+  kept fully lazy -- evaluated only at pop time, alongside the guidance
+  heuristics, never per generated successor. When guide_by_pruning is also
+  set, the extra list it seeds (ranked by the parent-h proxy at insertion,
+  like the guidance lists) participates in select_served()'s priority
+  counter exactly like any guidance or helpful list (never boosted by
+  boost_preferred_lists(), which stays scoped to the num_preferred helpful
+  lists). pruning_heuristic unset (default) is an exact no-op reduction to
+  the pre-existing behavior.
 */
 class LazyTriangleLamaMimickSearch : public SearchAlgorithm {
     enum class ExpansionOutcome {
@@ -93,12 +106,14 @@ class LazyTriangleLamaMimickSearch : public SearchAlgorithm {
     const int num_lists;
     std::vector<std::shared_ptr<Evaluator>> preferred_evals;
     const int num_preferred;
-    std::vector<int> preferred_source_index;
-    // Lists per layer: num_lists guidance lists, then num_preferred helpful
-    // lists. No pruner list -- see lazy_boosted_triangle_search.h.
+    // Lists per layer interleave guidance and preferred-only copies exactly
+    // like LAMA, followed by the optional pruner list.
     const int total_lists;
     std::vector<std::shared_ptr<OpenListFactory>> open_list_factories;
     std::shared_ptr<PruningMethod> pruning_method;
+    const bool guide_by_pruning;
+    const bool use_pruner_queue;
+    std::shared_ptr<Evaluator> pruning_heuristic;
 
     std::vector<Evaluator *> path_dependent_evaluators;
 
@@ -106,8 +121,23 @@ class LazyTriangleLamaMimickSearch : public SearchAlgorithm {
     // AlternationOpenList-style priority counters, one per list, global
     // (not per depth layer) and persistent across the whole search.
     std::vector<int> priorities;
+    PerStateInformation<int> real_g_values;
     bool root_pending;
     int depth_offset = 0;
+
+    struct LayerDiagnostics {
+        long long removals = 0;
+        long long stale_removals = 0;
+        long long expansions = 0;
+    };
+    std::map<int, LayerDiagnostics> layer_diagnostics;
+    long long diagnostic_sweeps = 0;
+    long long diagnostic_layers_considered = 0;
+    long long diagnostic_nonempty_layers_considered = 0;
+    int diagnostic_max_sweep_width = 0;
+    std::ofstream diagnostic_file;
+
+    void write_diagnostic_snapshot();
 
     void start_evaluator_statistics(EvaluationContext &eval_context);
     bool has_non_empty_lists() const;
@@ -126,6 +156,8 @@ class LazyTriangleLamaMimickSearch : public SearchAlgorithm {
     // until a non-empty list at this layer is found, without re-litigating
     // the once-per-dive choice itself.
     int select_available_served(const Layer &layer, int intended) const;
+    int guidance_index(int evaluator_index) const;
+    int preferred_index(int evaluator_index) const;
     // AlternationOpenList::boost_preferred(): drop every helpful list's
     // priority by boost_amount. No-op when num_preferred == 0.
     void boost_preferred_lists();
@@ -151,6 +183,8 @@ public:
         bool anytime,
         int boost_amount,
         const std::vector<std::shared_ptr<Evaluator>> &preferred_evals,
+        bool guide_by_pruning,
+        const std::shared_ptr<Evaluator> &pruning_heuristic,
         const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,
         const std::string &description, utils::Verbosity verbosity);

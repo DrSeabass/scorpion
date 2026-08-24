@@ -62,11 +62,11 @@ namespace triangle_lama_mimick_search {
   declaring helpful lists.
 
   Otherwise structurally identical to boosted_sweep_triangle: a deque of
-  depth layers, each holding one ranked open list per guidance heuristic in
-  `evals` (a successor is evaluated by all of them and inserted into all
-  their lists at its layer -- duplicate detection stays global), plus one
-  helpful list per `preferred_evals` entry (sparse, populated only via that
-  evaluator's own preferred operator on the parent), plus an optional
+  depth layers. As in LAMA, each guidance queue is immediately followed by
+  its preferred-only copy whenever `preferred_evals` is non-empty. All
+  preferred evaluators contribute to one union of preferred operators, and
+  every preferred-only queue receives the same union-selected successors,
+  plus an optional
   pruner list when guide_by_pruning is set. A locked-in list that is
   momentarily empty at a specific layer falls back to the nearest
   non-empty list (select_available_served) without re-litigating the
@@ -88,8 +88,8 @@ class TriangleLamaMimickSearch : public SearchAlgorithm {
     };
 
     using OpenList = std::priority_queue<OpenEntry, std::vector<OpenEntry>, OpenEntryCompare>;
-    // One layer holds total_lists ranked lists: num_lists guidance lists,
-    // then num_preferred helpful lists, then the optional pruner list.
+    // One layer interleaves guidance and preferred-only copies, followed by
+    // the optional pruner list.
     using Layer = std::vector<OpenList>;
 
     const int slope;
@@ -106,17 +106,11 @@ class TriangleLamaMimickSearch : public SearchAlgorithm {
     std::vector<std::shared_ptr<Evaluator>> evals;
     // Number of inadmissible guidance heuristics.
     const int num_lists;
-    // Subset of `evals` (matched by pointer identity, validated in the
-    // constructor) whose preferred operators each get a paired helpful
-    // list -- LAMA's preferred-only queues, and the only lists
-    // boost_amount ever touches.
+    // Evaluators whose preferred operators are unioned, as in LazySearch.
     std::vector<std::shared_ptr<Evaluator>> preferred_evals;
-    // Number of helpful lists (== preferred_evals.size()).
+    // LAMA creates one preferred-only copy of every guidance queue whenever
+    // preferred evaluators are configured.
     const int num_preferred;
-    // For helpful list j (0 <= j < num_preferred), the index in [0,
-    // num_lists) of the guidance evaluator it shares its h-value/ranking
-    // with.
-    std::vector<int> preferred_source_index;
     // Whether the admissible pruner contributes an extra ranked list.
     const bool use_pruner_queue;
     const int total_lists;
@@ -135,7 +129,11 @@ class TriangleLamaMimickSearch : public SearchAlgorithm {
     // preferred_evals entry), cached once when the state is first
     // evaluated as a successor and consumed when it is later popped for
     // expansion. Empty for any state when num_preferred == 0.
-    PerStateInformation<std::vector<std::vector<OperatorID>>> preferred_op_cache;
+    PerStateInformation<std::vector<OperatorID>> preferred_op_cache;
+    PerStateInformation<int> real_g_values;
+
+    int guidance_index(int evaluator_index) const;
+    int preferred_index(int evaluator_index) const;
 
     void start_evaluator_statistics(EvaluationContext &eval_context);
     void extend_layers(int num_layers);

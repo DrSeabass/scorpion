@@ -14,11 +14,15 @@
 
 #include <algorithm>
 #include <cassert>
+#include <limits>
 #include <set>
 
 using namespace std;
 
 namespace lazy_adaptive_boosted_triangle_search {
+// Enable only for targeted diagnostic runs. Keeping this constexpr false
+// removes both CSV I/O and per-depth map maintenance from benchmark builds.
+static constexpr bool ENABLE_ADAPTIVE_TRIANGLE_DIAGNOSTICS = false;
 
 LazyAdaptiveBoostedTriangleSearch::LazyAdaptiveBoostedTriangleSearch(
     const vector<shared_ptr<Evaluator>> &evals,
@@ -27,6 +31,8 @@ LazyAdaptiveBoostedTriangleSearch::LazyAdaptiveBoostedTriangleSearch(
     Schedule schedule,
     int credit_boost,
     const vector<shared_ptr<Evaluator>> &preferred_evals,
+    bool guide_by_pruning,
+    const shared_ptr<Evaluator> &pruning_heuristic,
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
     const string &description, utils::Verbosity verbosity)
@@ -39,8 +45,13 @@ LazyAdaptiveBoostedTriangleSearch::LazyAdaptiveBoostedTriangleSearch(
       num_lists(static_cast<int>(evals.size())),
       preferred_evals(preferred_evals),
       num_preferred(static_cast<int>(preferred_evals.size())),
-      total_lists(static_cast<int>(evals.size()) + static_cast<int>(preferred_evals.size())),
+      total_lists(
+          static_cast<int>(evals.size()) + static_cast<int>(preferred_evals.size()) +
+          (guide_by_pruning && pruning_heuristic != nullptr ? 1 : 0)),
       pruning_method(pruning),
+      guide_by_pruning(guide_by_pruning),
+      use_pruner_queue(guide_by_pruning && pruning_heuristic != nullptr),
+      pruning_heuristic(pruning_heuristic),
       root_pending(true) {
     if (evals.empty()) {
         cerr << "LazyAdaptiveBoostedTriangleSearch: at least one guidance evaluator is required." << endl;
@@ -71,6 +82,10 @@ LazyAdaptiveBoostedTriangleSearch::LazyAdaptiveBoostedTriangleSearch(
         open_list_factories.push_back(
             make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(evals[source], false));
     }
+    if (use_pruner_queue) {
+        open_list_factories.push_back(
+            make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(pruning_heuristic, false));
+    }
 }
 
 void LazyAdaptiveBoostedTriangleSearch::initialize() {
@@ -79,6 +94,7 @@ void LazyAdaptiveBoostedTriangleSearch::initialize() {
         << ", schedule = " << (schedule == Schedule::SWEEP ? "sweep" : "pop")
         << ", credit_boost = " << credit_boost
         << ", " << num_preferred << " preferred-operator (helpful) list(s)"
+        << ", guide_by_pruning = " << use_pruner_queue
         << " (" << total_lists << " list(s)/layer)"
         << ", (real) bound = " << bound << endl;
 
@@ -87,6 +103,9 @@ void LazyAdaptiveBoostedTriangleSearch::initialize() {
     set<Evaluator *> path_dependent;
     for (const shared_ptr<Evaluator> &e : evals)
         e->get_path_dependent_evaluators(path_dependent);
+    if (pruning_heuristic) {
+        pruning_heuristic->get_path_dependent_evaluators(path_dependent);
+    }
     path_dependent_evaluators.assign(path_dependent.begin(), path_dependent.end());
 
     State initial_state = state_registry.get_initial_state();
@@ -98,7 +117,32 @@ void LazyAdaptiveBoostedTriangleSearch::initialize() {
     layers.push_back(create_layer());
     root_pending = true;
 
+    if constexpr (ENABLE_ADAPTIVE_TRIANGLE_DIAGNOSTICS) {
+        diagnostic_file.open("adaptive_triangle_layer_diagnostics.csv");
+        diagnostic_file
+            << "snapshot_steps,depth,removals,precheck_stale,evaluated_skips,"
+               "goals,expansions,layers_considered,nonempty_layers_considered,"
+               "max_step_width\n";
+        diagnostic_file.flush();
+    }
+
     pruning_method->initialize(task);
+}
+
+void LazyAdaptiveBoostedTriangleSearch::write_diagnostic_snapshot() {
+    if constexpr (!ENABLE_ADAPTIVE_TRIANGLE_DIAGNOSTICS)
+        return;
+    if (!diagnostic_file)
+        return;
+    for (const auto &[depth, values] : layer_diagnostics) {
+        diagnostic_file << diagnostic_steps << ',' << depth << ','
+            << values.removals << ',' << values.precheck_stale << ','
+            << values.evaluated_skips << ',' << values.goals << ','
+            << values.expansions << ',' << diagnostic_layers_considered << ','
+            << diagnostic_nonempty_layers_considered << ','
+            << diagnostic_max_step_width << '\n';
+    }
+    diagnostic_file.flush();
 }
 
 void LazyAdaptiveBoostedTriangleSearch::print_statistics() const {
@@ -275,6 +319,31 @@ LazyAdaptiveBoostedTriangleSearch::ExpansionOutcome LazyAdaptiveBoostedTriangleS
         return ExpansionOutcome::SKIPPED;
     }
 
+    // The admissible pruning_heuristic stays lazy exactly like the guidance
+    // heuristics: evaluated here, once, only for a state that is actually
+    // being popped for expansion -- never per generated successor. A state
+    // exceeding the current bound is skipped without being marked a dead
+    // end (it may still be reachable more cheaply via a different
+    // predecessor later); one the heuristic reliably proves unsolvable is
+    // marked dead end, exactly like the guidance heuristics above.
+    if (pruning_heuristic) {
+        int prune_h = eval_context.get_evaluator_value_or_infinity(pruning_heuristic.get());
+        if (prune_h == EvaluationResult::INFTY) {
+            if (pruning_heuristic->dead_ends_are_reliable()) {
+                node.mark_as_dead_end();
+                statistics.inc_dead_ends();
+            }
+            return ExpansionOutcome::SKIPPED;
+        }
+        if (bound != numeric_limits<int>::max() && g + prune_h >= bound)
+            return ExpansionOutcome::SKIPPED;
+        // The pruner list's own real h, for the credit signal if it is
+        // ever served -- no second evaluation, this is the same value just
+        // computed above for the f-prune check.
+        if (use_pruner_queue)
+            h_out[total_lists - 1] = prune_h;
+    }
+
     vector<vector<OperatorID>> preferred_ops(num_preferred);
     for (int j = 0; j < num_preferred; ++j)
         preferred_ops[j] = eval_context.get_preferred_operators(preferred_evals[j].get());
@@ -325,8 +394,16 @@ LazyAdaptiveBoostedTriangleSearch::ExpansionOutcome LazyAdaptiveBoostedTriangleS
 
         int succ_g = g + get_adjusted_cost(op);
         EvaluationContext succ_eval_context(eval_context, succ_g, false, nullptr);
+        // Guidance lists (and the optional pruner list, ranked by the same
+        // parent-h proxy -- pruning_heuristic stays lazy just like the
+        // guidance heuristics, see the class comment) always receive every
+        // successor.
         for (int k = 0; k < num_lists; ++k) {
             layers[source_layer_index + 1].lists[k]->insert(
+                succ_eval_context, make_pair(state.get_id(), op_id));
+        }
+        if (use_pruner_queue) {
+            layers[source_layer_index + 1].lists[total_lists - 1]->insert(
                 succ_eval_context, make_pair(state.get_id(), op_id));
         }
         for (int j = 0; j < num_preferred; ++j) {
@@ -387,9 +464,16 @@ SearchStatus LazyAdaptiveBoostedTriangleSearch::step() {
         // freshly-inserted successors at layer 1 within this same step.
     }
 
+    int step_width = 0;
     for (int i = 0; ; ++i) {
         if (i >= static_cast<int>(layers.size()))
             break;
+        ++step_width;
+        if constexpr (ENABLE_ADAPTIVE_TRIANGLE_DIAGNOSTICS) {
+            ++diagnostic_layers_considered;
+            if (!layer_empty(layers[i], depth_offset + i))
+                ++diagnostic_nonempty_layers_considered;
+        }
 
         const int round_robin_served =
             (schedule == Schedule::SWEEP) ? sweep_served : pop_count % total_lists;
@@ -416,14 +500,22 @@ SearchStatus LazyAdaptiveBoostedTriangleSearch::step() {
             EdgeOpenList &list = *layers[i].lists[served];
             while (!list.empty()) {
                 EdgeOpenListEntry next = list.remove_min();
+                if constexpr (ENABLE_ADAPTIVE_TRIANGLE_DIAGNOSTICS)
+                    ++layer_diagnostics[depth_offset + i].removals;
                 StateID p_id = next.first;
                 OperatorID op_id = next.second;
-                if (p_id == StateID::no_state || op_id == OperatorID::no_operator)
+                if (p_id == StateID::no_state || op_id == OperatorID::no_operator) {
+                    if constexpr (ENABLE_ADAPTIVE_TRIANGLE_DIAGNOSTICS)
+                        ++layer_diagnostics[depth_offset + i].precheck_stale;
                     continue;
+                }
                 State predecessor_state = state_registry.lookup_state(p_id);
                 OperatorProxy op = task_proxy.get_operators()[op_id];
-                if (!task_properties::is_applicable(op, predecessor_state))
+                if (!task_properties::is_applicable(op, predecessor_state)) {
+                    if constexpr (ENABLE_ADAPTIVE_TRIANGLE_DIAGNOSTICS)
+                        ++layer_diagnostics[depth_offset + i].precheck_stale;
                     continue;
+                }
                 // Full staleness gate mirroring process_candidate's own,
                 // checked here (not just is_applicable) so depth_budget is
                 // only ever spent on a genuinely expandable candidate.
@@ -433,10 +525,16 @@ SearchStatus LazyAdaptiveBoostedTriangleSearch::step() {
                 int cand_g = predecessor_node.get_g() + get_adjusted_cost(op);
                 bool cand_reopen = reopen_closed_nodes && succ_node.is_closed() &&
                     !succ_node.is_dead_end() && (cand_g < succ_node.get_g());
-                if (!reopen_closed_nodes && !succ_node.is_new())
+                if (!reopen_closed_nodes && !succ_node.is_new()) {
+                    if constexpr (ENABLE_ADAPTIVE_TRIANGLE_DIAGNOSTICS)
+                        ++layer_diagnostics[depth_offset + i].precheck_stale;
                     continue;
-                if (!(succ_node.is_new() || cand_reopen))
+                }
+                if (!(succ_node.is_new() || cand_reopen)) {
+                    if constexpr (ENABLE_ADAPTIVE_TRIANGLE_DIAGNOSTICS)
+                        ++layer_diagnostics[depth_offset + i].precheck_stale;
                     continue;
+                }
                 predecessor_id = p_id;
                 operator_id = op_id;
                 have_candidate = true;
@@ -483,6 +581,8 @@ SearchStatus LazyAdaptiveBoostedTriangleSearch::step() {
             return SOLVED;
 
         if (outcome == ExpansionOutcome::EXPANDED) {
+            if constexpr (ENABLE_ADAPTIVE_TRIANGLE_DIAGNOSTICS)
+                ++layer_diagnostics[depth_offset + i].expansions;
             if (credit_boost != 0)
                 record_expansion_credit(layers[i].progress[served], h_out[served]);
 
@@ -501,9 +601,20 @@ SearchStatus LazyAdaptiveBoostedTriangleSearch::step() {
             // POP schedule: advance the round-robin per expansion. No-op
             // for SWEEP.
             ++pop_count;
+        } else if (task_properties::is_goal_state(task_proxy, state)) {
+            if constexpr (ENABLE_ADAPTIVE_TRIANGLE_DIAGNOSTICS)
+                ++layer_diagnostics[depth_offset + i].goals;
+        } else {
+            if constexpr (ENABLE_ADAPTIVE_TRIANGLE_DIAGNOSTICS)
+                ++layer_diagnostics[depth_offset + i].evaluated_skips;
         }
     }
 
+    if constexpr (ENABLE_ADAPTIVE_TRIANGLE_DIAGNOSTICS) {
+        ++diagnostic_steps;
+        diagnostic_max_step_width = max(diagnostic_max_step_width, step_width);
+        write_diagnostic_snapshot();
+    }
     trim_empty_layers();
     ++sweep_count;
     return IN_PROGRESS;

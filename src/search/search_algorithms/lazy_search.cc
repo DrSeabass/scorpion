@@ -18,6 +18,11 @@
 using namespace std;
 
 namespace lazy_search {
+// Enable only for targeted diagnostic runs; collection is deliberately
+// compile-time disabled for performance experiments.
+static constexpr bool ENABLE_LAZY_DIAGNOSTICS = false;
+int LazySearch::next_diagnostic_id = 0;
+
 LazySearch::LazySearch(
     const shared_ptr<OpenListFactory> &open, bool reopen_closed,
     const vector<shared_ptr<Evaluator>> &preferred, bool randomize_successors,
@@ -36,7 +41,8 @@ LazySearch::LazySearch(
       current_operator_id(OperatorID::no_operator),
       current_g(0),
       current_real_g(0),
-      current_eval_context(current_state, 0, true, &statistics) {
+      current_eval_context(current_state, 0, true, &statistics),
+      diagnostic_id(next_diagnostic_id++) {
     /*
       We initialize current_eval_context in such a way that the initial node
       counts as "preferred".
@@ -48,6 +54,14 @@ void LazySearch::initialize() {
         << endl;
 
     assert(open_list);
+    if constexpr (ENABLE_LAZY_DIAGNOSTICS) {
+        diagnostic_file.open(
+            "lama_lazy_diagnostics_" + to_string(diagnostic_id) + ".csv");
+        diagnostic_file
+            << "removals,expansions,goals,duplicates,dead_ends,stale_total,"
+               "selected_g_sum,selected_g_min,selected_g_max,selected_g_distinct\n";
+        diagnostic_file.flush();
+    }
     set<Evaluator *> evals;
     open_list->get_path_dependent_evaluators(evals);
 
@@ -70,6 +84,23 @@ void LazySearch::initialize() {
     for (Evaluator *evaluator : path_dependent_evaluators) {
         evaluator->notify_initial_state(initial_state);
     }
+}
+
+void LazySearch::write_diagnostic_snapshot() {
+    if constexpr (!ENABLE_LAZY_DIAGNOSTICS)
+        return;
+    if (!diagnostic_file)
+        return;
+    long long stale = diagnostic_duplicates + diagnostic_dead_ends;
+    diagnostic_file << diagnostic_removals << ',' << diagnostic_expansions
+        << ',' << diagnostic_goals << ',' << diagnostic_duplicates << ','
+        << diagnostic_dead_ends << ',' << stale << ','
+        << diagnostic_selected_g_sum << ','
+        << (diagnostic_selected_g_values.empty() ? -1 : diagnostic_selected_g_min)
+        << ','
+        << (diagnostic_selected_g_values.empty() ? -1 : diagnostic_selected_g_max)
+        << ',' << diagnostic_selected_g_values.size() << '\n';
+    diagnostic_file.flush();
 }
 
 vector<OperatorID> LazySearch::get_successor_operators(
@@ -134,6 +165,8 @@ SearchStatus LazySearch::fetch_next_state() {
     }
 
     EdgeOpenListEntry next = open_list->remove_min();
+    if constexpr (ENABLE_LAZY_DIAGNOSTICS)
+        ++diagnostic_removals;
 
     current_predecessor_id = next.first;
     current_operator_id = next.second;
@@ -148,6 +181,12 @@ SearchStatus LazySearch::fetch_next_state() {
 
     SearchNode pred_node = search_space.get_node(current_predecessor);
     current_g = pred_node.get_g() + get_adjusted_cost(current_operator);
+    if constexpr (ENABLE_LAZY_DIAGNOSTICS) {
+        diagnostic_selected_g_sum += current_g;
+        diagnostic_selected_g_min = min(diagnostic_selected_g_min, current_g);
+        diagnostic_selected_g_max = max(diagnostic_selected_g_max, current_g);
+        diagnostic_selected_g_values.insert(current_g);
+    }
     current_real_g = real_g_values ? (*real_g_values)[current_predecessor] +
                                          current_operator.get_cost()
                                    : -1;
@@ -219,22 +258,40 @@ SearchStatus LazySearch::step() {
                 set_real_g(parent_state, current_operator, current_state);
             }
             node.close();
-            if (check_goal_and_set_plan(current_state))
+            if (check_goal_and_set_plan(current_state)) {
+                if (current_operator_id != OperatorID::no_operator)
+                    if constexpr (ENABLE_LAZY_DIAGNOSTICS)
+                        ++diagnostic_goals;
+                if constexpr (ENABLE_LAZY_DIAGNOSTICS)
+                    write_diagnostic_snapshot();
                 return SOLVED;
+            }
             if (search_progress.check_progress(current_eval_context)) {
                 statistics.print_checkpoint_line(current_g);
                 reward_progress();
             }
             generate_successors();
             statistics.inc_expanded();
+            if (current_operator_id != OperatorID::no_operator)
+                if constexpr (ENABLE_LAZY_DIAGNOSTICS)
+                    ++diagnostic_expansions;
         } else {
             node.mark_as_dead_end();
             statistics.inc_dead_ends();
+            if (current_operator_id != OperatorID::no_operator)
+                if constexpr (ENABLE_LAZY_DIAGNOSTICS)
+                    ++diagnostic_dead_ends;
         }
         if (current_predecessor_id == StateID::no_state) {
             print_initial_evaluator_values(current_eval_context);
         }
+    } else if (current_operator_id != OperatorID::no_operator) {
+        if constexpr (ENABLE_LAZY_DIAGNOSTICS)
+            ++diagnostic_duplicates;
     }
+    if constexpr (ENABLE_LAZY_DIAGNOSTICS)
+      if (diagnostic_removals % 100 == 0)
+        write_diagnostic_snapshot();
     return fetch_next_state();
 }
 

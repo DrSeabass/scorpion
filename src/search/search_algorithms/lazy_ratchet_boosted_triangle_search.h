@@ -48,6 +48,12 @@ enum class Schedule {
   reduce to bit-for-bit -- see the implementation prompt's step 6 notes for
   how this file's correctness is instead verified (mechanism-level checks,
   not a bit-identical target).
+
+  Optional pruner queue: see lazy_boosted_triangle_search.h for the full
+  description (mirrored here as-is) of pruning_heuristic/guide_by_pruning,
+  kept fully lazy -- evaluated only at pop time, alongside the guidance
+  heuristics, never per generated successor. pruning_heuristic unset
+  (default) is an exact no-op reduction to the pre-existing behavior.
 */
 class LazyRatchetBoostedTriangleSearch : public SearchAlgorithm {
     enum class ExpansionOutcome {
@@ -83,9 +89,14 @@ class LazyRatchetBoostedTriangleSearch : public SearchAlgorithm {
     std::vector<std::shared_ptr<Evaluator>> preferred_evals;
     const int num_preferred;
     std::vector<int> preferred_source_index;
+    // Lists per layer: num_lists guidance lists, then num_preferred
+    // helpful lists, then the optional pruner list.
     const int total_lists;
     std::vector<std::shared_ptr<OpenListFactory>> open_list_factories;
     std::shared_ptr<PruningMethod> pruning_method;
+    const bool guide_by_pruning;
+    const bool use_pruner_queue;
+    std::shared_ptr<Evaluator> pruning_heuristic;
 
     std::vector<Evaluator *> path_dependent_evaluators;
 
@@ -129,6 +140,8 @@ public:
         Schedule schedule,
         int credit_boost,
         const std::vector<std::shared_ptr<Evaluator>> &preferred_evals,
+        bool guide_by_pruning,
+        const std::shared_ptr<Evaluator> &pruning_heuristic,
         const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,
         const std::string &description, utils::Verbosity verbosity);

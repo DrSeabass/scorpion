@@ -14,11 +14,15 @@
 
 #include <algorithm>
 #include <cassert>
+#include <limits>
 #include <set>
 
 using namespace std;
 
 namespace lazy_triangle_lama_mimick_search {
+// Enable only for targeted diagnostic runs. This removes CSV I/O and the
+// per-depth accounting from performance experiments when false.
+static constexpr bool ENABLE_TRIANGLE_LAMA_DIAGNOSTICS = false;
 
 LazyTriangleLamaMimickSearch::LazyTriangleLamaMimickSearch(
     const vector<shared_ptr<Evaluator>> &evals,
@@ -27,6 +31,8 @@ LazyTriangleLamaMimickSearch::LazyTriangleLamaMimickSearch(
     bool anytime,
     int boost_amount,
     const vector<shared_ptr<Evaluator>> &preferred_evals,
+    bool guide_by_pruning,
+    const shared_ptr<Evaluator> &pruning_heuristic,
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
     const string &description, utils::Verbosity verbosity)
@@ -38,9 +44,14 @@ LazyTriangleLamaMimickSearch::LazyTriangleLamaMimickSearch(
       evals(evals),
       num_lists(static_cast<int>(evals.size())),
       preferred_evals(preferred_evals),
-      num_preferred(static_cast<int>(preferred_evals.size())),
-      total_lists(static_cast<int>(evals.size()) + static_cast<int>(preferred_evals.size())),
+      num_preferred(preferred_evals.empty() ? 0 : static_cast<int>(evals.size())),
+      total_lists(
+          static_cast<int>(evals.size()) + static_cast<int>(preferred_evals.size()) +
+          (guide_by_pruning && pruning_heuristic != nullptr ? 1 : 0)),
       pruning_method(pruning),
+      guide_by_pruning(guide_by_pruning),
+      use_pruner_queue(guide_by_pruning && pruning_heuristic != nullptr),
+      pruning_heuristic(pruning_heuristic),
       root_pending(true) {
     if (slope <= 0) {
         cerr << "LazyTriangleLamaMimickSearch: slope must be positive." << endl;
@@ -50,31 +61,28 @@ LazyTriangleLamaMimickSearch::LazyTriangleLamaMimickSearch(
         cerr << "LazyTriangleLamaMimickSearch: at least one guidance evaluator is required." << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
     }
-    preferred_source_index.reserve(preferred_evals.size());
-    for (const shared_ptr<Evaluator> &pref_eval : preferred_evals) {
-        int source = -1;
-        for (int k = 0; k < num_lists; ++k) {
-            if (evals[k].get() == pref_eval.get()) {
-                source = k;
-                break;
-            }
-        }
-        if (source == -1) {
-            cerr << "LazyTriangleLamaMimickSearch: every preferred_evals entry must "
-                    "also appear in evals." << endl;
-            utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
-        }
-        preferred_source_index.push_back(source);
-    }
     open_list_factories.reserve(total_lists);
     for (const shared_ptr<Evaluator> &e : evals) {
         open_list_factories.push_back(
             make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(e, false));
+        if (num_preferred) {
+            open_list_factories.push_back(
+                make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(e, true));
+        }
     }
-    for (int source : preferred_source_index) {
+    if (use_pruner_queue) {
         open_list_factories.push_back(
-            make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(evals[source], false));
+            make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(pruning_heuristic, false));
     }
+}
+
+int LazyTriangleLamaMimickSearch::guidance_index(int evaluator_index) const {
+    return num_preferred ? 2 * evaluator_index : evaluator_index;
+}
+
+int LazyTriangleLamaMimickSearch::preferred_index(int evaluator_index) const {
+    assert(num_preferred);
+    return 2 * evaluator_index + 1;
 }
 
 void LazyTriangleLamaMimickSearch::initialize() {
@@ -82,16 +90,27 @@ void LazyTriangleLamaMimickSearch::initialize() {
         << ", " << num_lists << " guidance heuristic(s)"
         << ", boost_amount = " << boost_amount
         << ", " << num_preferred << " preferred-operator (helpful) list(s)"
+        << ", guide_by_pruning = " << use_pruner_queue
         << " (" << total_lists << " list(s)/layer)"
         << ", (real) bound = " << bound << endl;
 
     priorities.assign(total_lists, 0);
+    if constexpr (ENABLE_TRIANGLE_LAMA_DIAGNOSTICS) {
+        diagnostic_file.open("triangle_lama_layer_diagnostics.csv");
+        diagnostic_file
+            << "snapshot_sweeps,depth,removals,stale_removals,expansions,"
+               "layers_considered,nonempty_layers_considered,max_sweep_width\n";
+        diagnostic_file.flush();
+    }
 
     assert(!evals.empty());
 
     set<Evaluator *> path_dependent;
     for (const shared_ptr<Evaluator> &e : evals)
         e->get_path_dependent_evaluators(path_dependent);
+    if (pruning_heuristic) {
+        pruning_heuristic->get_path_dependent_evaluators(path_dependent);
+    }
     path_dependent_evaluators.assign(path_dependent.begin(), path_dependent.end());
 
     State initial_state = state_registry.get_initial_state();
@@ -106,10 +125,41 @@ void LazyTriangleLamaMimickSearch::initialize() {
     pruning_method->initialize(task);
 }
 
+void LazyTriangleLamaMimickSearch::write_diagnostic_snapshot() {
+    if constexpr (!ENABLE_TRIANGLE_LAMA_DIAGNOSTICS)
+        return;
+    if (!diagnostic_file)
+        return;
+    for (const auto &[depth, values] : layer_diagnostics) {
+        diagnostic_file << diagnostic_sweeps << ',' << depth << ','
+            << values.removals << ',' << values.stale_removals << ','
+            << values.expansions << ',' << diagnostic_layers_considered << ','
+            << diagnostic_nonempty_layers_considered << ','
+            << diagnostic_max_sweep_width << '\n';
+    }
+    diagnostic_file.flush();
+}
+
 void LazyTriangleLamaMimickSearch::print_statistics() const {
     statistics.print_detailed_statistics();
     search_space.print_statistics();
     pruning_method->print_statistics();
+
+    if constexpr (ENABLE_TRIANGLE_LAMA_DIAGNOSTICS) {
+        log << "Triangle diagnostic sweeps: " << diagnostic_sweeps << endl;
+        log << "Triangle diagnostic layers considered: "
+            << diagnostic_layers_considered << endl;
+        log << "Triangle diagnostic nonempty layers considered: "
+            << diagnostic_nonempty_layers_considered << endl;
+        log << "Triangle diagnostic maximum sweep width: "
+            << diagnostic_max_sweep_width << endl;
+        for (const auto &[depth, values] : layer_diagnostics) {
+            log << "Triangle diagnostic layer " << depth
+                << ": removals=" << values.removals
+                << ", stale=" << values.stale_removals
+                << ", expansions=" << values.expansions << endl;
+        }
+    }
 
     if (log.is_at_least_debug()) {
         log << "Lazy triangle-LAMA-mimick final priorities:";
@@ -189,8 +239,8 @@ int LazyTriangleLamaMimickSearch::select_available_served(
 }
 
 void LazyTriangleLamaMimickSearch::boost_preferred_lists() {
-    for (int j = 0; j < num_preferred; ++j)
-        priorities[num_lists + j] -= boost_amount;
+    for (int k = 0; k < num_preferred; ++k)
+        priorities[preferred_index(k)] -= boost_amount;
 }
 
 void LazyTriangleLamaMimickSearch::update_incumbent(const State &goal_state) {
@@ -255,27 +305,45 @@ LazyTriangleLamaMimickSearch::ExpansionOutcome LazyTriangleLamaMimickSearch::pro
         return ExpansionOutcome::SKIPPED;
     }
 
-    vector<vector<OperatorID>> preferred_ops(num_preferred);
-    for (int j = 0; j < num_preferred; ++j)
-        preferred_ops[j] = eval_context.get_preferred_operators(preferred_evals[j].get());
+    // The admissible pruning_heuristic stays lazy exactly like the guidance
+    // heuristics: evaluated here, once, only for a state that is actually
+    // being popped for expansion -- never per generated successor. A state
+    // exceeding the current bound is skipped without being marked a dead
+    // end (it may still be reachable more cheaply via a different
+    // predecessor later); one the heuristic reliably proves unsolvable is
+    // marked dead end, exactly like the guidance heuristics above.
+    if (pruning_heuristic) {
+        int prune_h = eval_context.get_evaluator_value_or_infinity(pruning_heuristic.get());
+        if (prune_h == EvaluationResult::INFTY) {
+            if (pruning_heuristic->dead_ends_are_reliable()) {
+                node.mark_as_dead_end();
+                statistics.inc_dead_ends();
+            }
+            return ExpansionOutcome::SKIPPED;
+        }
+        if (bound != numeric_limits<int>::max() && real_g + prune_h >= bound)
+            return ExpansionOutcome::SKIPPED;
+    }
+
+    vector<OperatorID> preferred_ops;
+    for (const shared_ptr<Evaluator> &evaluator : preferred_evals) {
+        for (OperatorID op_id : eval_context.get_preferred_operators(evaluator.get())) {
+            if (find(preferred_ops.begin(), preferred_ops.end(), op_id) == preferred_ops.end())
+                preferred_ops.push_back(op_id);
+        }
+    }
 
     // LAMA's real progress check/reward (see class comment): fires here, at
     // pop/expansion time -- the same moment real LazySearch::step() checks
     // it -- for every state actually evaluated, except the initial state's
     // own evaluation (matching real LAMA's own no-reward-from-root rule).
-    // Placed before the open/reopen bookkeeping and goal check below,
-    // mirroring the eager sibling's own evaluate_and_prepare_node, which
-    // runs this same check before its caller does either of those things.
-    if (search_progress.check_progress(eval_context)) {
-        statistics.print_checkpoint_line(g);
-        if (!is_root)
-            boost_preferred_lists();
-    }
-
     if (is_root) {
         node.open_initial();
+        real_g_values[state] = 0;
         start_evaluator_statistics(eval_context);
         print_initial_evaluator_values(eval_context);
+        if (search_progress.check_progress(eval_context))
+            statistics.print_checkpoint_line(g);
     } else {
         State parent_state = state_registry.lookup_state(predecessor_id);
         SearchNode parent_node = search_space.get_node(parent_state);
@@ -286,11 +354,19 @@ LazyTriangleLamaMimickSearch::ExpansionOutcome LazyTriangleLamaMimickSearch::pro
         } else {
             node.open_new_node(parent_node, op, get_adjusted_cost(op));
         }
+        real_g_values[state] = real_g;
     }
 
     if (task_properties::is_goal_state(task_proxy, state)) {
         update_incumbent(state);
         return anytime_search ? ExpansionOutcome::SKIPPED : ExpansionOutcome::SOLVED;
+    }
+
+    // Match LazySearch::step(): the root reports progress but is not
+    // rewarded, and non-root progress is rewarded only after the goal test.
+    if (!is_root && search_progress.check_progress(eval_context)) {
+        statistics.print_checkpoint_line(g);
+        boost_preferred_lists();
     }
 
     node.close();
@@ -317,15 +393,24 @@ LazyTriangleLamaMimickSearch::ExpansionOutcome LazyTriangleLamaMimickSearch::pro
         // FD's LazySearch's own idiom.
         int succ_g = g + get_adjusted_cost(op);
         EvaluationContext succ_eval_context(eval_context, succ_g, false, nullptr);
+        // Guidance lists (and the optional pruner list, ranked by the same
+        // parent-h proxy -- pruning_heuristic stays lazy just like the
+        // guidance heuristics, see the class comment) always receive every
+        // successor.
         for (int k = 0; k < num_lists; ++k) {
-            layers[source_layer_index + 1].lists[k]->insert(
+            layers[source_layer_index + 1].lists[guidance_index(k)]->insert(
                 succ_eval_context, make_pair(state.get_id(), op_id));
         }
-        for (int j = 0; j < num_preferred; ++j) {
-            const vector<OperatorID> &preferred = preferred_ops[j];
-            if (find(preferred.begin(), preferred.end(), op_id) != preferred.end()) {
-                layers[source_layer_index + 1].lists[num_lists + j]->insert(
-                    succ_eval_context, make_pair(state.get_id(), op_id));
+        if (use_pruner_queue) {
+            layers[source_layer_index + 1].lists[total_lists - 1]->insert(
+                succ_eval_context, make_pair(state.get_id(), op_id));
+        }
+        if (find(preferred_ops.begin(), preferred_ops.end(), op_id) != preferred_ops.end()) {
+            EvaluationContext preferred_succ_eval_context(
+                eval_context, succ_g, true, nullptr);
+            for (int k = 0; k < num_preferred; ++k) {
+                layers[source_layer_index + 1].lists[preferred_index(k)]->insert(
+                    preferred_succ_eval_context, make_pair(state.get_id(), op_id));
             }
         }
     }
@@ -354,6 +439,12 @@ SearchStatus LazyTriangleLamaMimickSearch::step() {
     const int locked_served = select_served();
 
     const int num_layers = static_cast<int>(layers.size());
+    const int sweep_width = num_layers - 1;
+    if constexpr (ENABLE_TRIANGLE_LAMA_DIAGNOSTICS) {
+        ++diagnostic_sweeps;
+        diagnostic_layers_considered += sweep_width;
+        diagnostic_max_sweep_width = max(diagnostic_max_sweep_width, sweep_width);
+    }
     for (int i = 0; i < num_layers - 1; ++i) {
         if (i == 0 && root_pending) {
             root_pending = false;
@@ -373,24 +464,37 @@ SearchStatus LazyTriangleLamaMimickSearch::step() {
         // non-empty list.
         const int served = select_available_served(layers[i], locked_served);
         EdgeOpenList &list = *layers[i].lists[served];
+        if constexpr (ENABLE_TRIANGLE_LAMA_DIAGNOSTICS)
+            if (!list.empty())
+                ++diagnostic_nonempty_layers_considered;
         bool expanded = false;
         while (!list.empty() && !expanded) {
             EdgeOpenListEntry next = list.remove_min();
+            // AlternationOpenList charges every remove_min(), including an
+            // edge that LazySearch subsequently discards as a duplicate.
+            ++priorities[served];
+            if constexpr (ENABLE_TRIANGLE_LAMA_DIAGNOSTICS)
+                ++layer_diagnostics[depth_offset + i].removals;
 
             StateID predecessor_id = next.first;
             OperatorID operator_id = next.second;
-            if (predecessor_id == StateID::no_state || operator_id == OperatorID::no_operator)
+            if (predecessor_id == StateID::no_state || operator_id == OperatorID::no_operator) {
+                if constexpr (ENABLE_TRIANGLE_LAMA_DIAGNOSTICS)
+                    ++layer_diagnostics[depth_offset + i].stale_removals;
                 continue;
+            }
 
             State predecessor = state_registry.lookup_state(predecessor_id);
             OperatorProxy op = task_proxy.get_operators()[operator_id];
-            if (!task_properties::is_applicable(op, predecessor))
+            if (!task_properties::is_applicable(op, predecessor)) {
+                if constexpr (ENABLE_TRIANGLE_LAMA_DIAGNOSTICS)
+                    ++layer_diagnostics[depth_offset + i].stale_removals;
                 continue;
+            }
 
             SearchNode predecessor_node = search_space.get_node(predecessor);
             int g = predecessor_node.get_g() + get_adjusted_cost(op);
-            // Scorpion SearchNode lacks get_real_g(); get_g() equals real_g for NORMAL cost type.
-            int real_g = predecessor_node.get_g() + op.get_cost();
+            int real_g = real_g_values[predecessor] + op.get_cost();
             State state = state_registry.get_successor_state(predecessor, op);
 
             ExpansionOutcome outcome = process_candidate(
@@ -398,12 +502,17 @@ SearchStatus LazyTriangleLamaMimickSearch::step() {
             if (outcome == ExpansionOutcome::SOLVED)
                 return SOLVED;
             expanded = (outcome == ExpansionOutcome::EXPANDED);
-            // AlternationOpenList::remove_min's per-pop cost, applied at
-            // the granularity of this one expansion.
-            if (expanded)
-                ++priorities[served];
+            if constexpr (ENABLE_TRIANGLE_LAMA_DIAGNOSTICS) {
+                if (expanded)
+                    ++layer_diagnostics[depth_offset + i].expansions;
+                else
+                    ++layer_diagnostics[depth_offset + i].stale_removals;
+            }
         }
     }
+
+    if constexpr (ENABLE_TRIANGLE_LAMA_DIAGNOSTICS)
+        write_diagnostic_snapshot();
 
     trim_empty_layers();
     return IN_PROGRESS;

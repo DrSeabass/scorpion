@@ -63,9 +63,23 @@ enum class Schedule {
   in that same call. preferred_evals=[] (default) adds no helpful lists
   and is an exact no-op reduction to the pre-step-4 behavior above.
 
-  No pruner queue -- pruning_heuristic is never in use in the configs
-  motivating this work (see icaps-27-lazy-eval-design.md Q2), so unlike
-  the eager family this lazy family never grows a guide_by_pruning option.
+  Optional pruner queue (mirroring boosted_triangle_search's own
+  guide_by_pruning/pruning_heuristic), kept fully lazy: the admissible
+  pruning_heuristic, if set, is evaluated only once a state is actually
+  popped for expansion -- in process_candidate, alongside the guidance
+  heuristics, never per generated successor -- so a state exceeding the
+  current bound is skipped there rather than f-pruned before insertion.
+  When guide_by_pruning is also set, that same evaluator seeds one extra
+  ranked list (index total_lists-1) at generation time, ranked by the
+  *parent's* h exactly like the guidance lists (not the successor's own
+  value, which isn't known yet); it joins the schedule/credit round-robin
+  on equal footing and, like the guidance lists (not the sparser helpful
+  lists), receives every successor unconditionally. Because
+  pruning_heuristic is evaluated at the same time and place as the
+  guidance heuristics, its path-dependent sub-evaluators (if any) are
+  notified of state transitions correctly, with no special-casing needed.
+  pruning_heuristic unset (default) is an exact no-op reduction to the
+  pre-existing behavior.
 
   At num_lists == 1 and preferred_evals == [] (any credit_boost, any
   schedule), this must reduce exactly (identical expansion counts and
@@ -115,10 +129,17 @@ class LazyBoostedTriangleSearch : public SearchAlgorithm {
     // h-value/ranking with.
     std::vector<int> preferred_source_index;
     // Lists per layer: num_lists guidance lists, then num_preferred
-    // helpful lists.
+    // helpful lists, then the optional pruner list.
     const int total_lists;
     std::vector<std::shared_ptr<OpenListFactory>> open_list_factories;
     std::shared_ptr<PruningMethod> pruning_method;
+    // When true (and a pruning_heuristic is set), the admissible heuristic
+    // also gets its own ranked list at index total_lists-1. See the class
+    // comment for the early-state-generation cost this implies.
+    const bool guide_by_pruning;
+    // Whether the admissible pruner contributes an extra ranked list.
+    const bool use_pruner_queue;
+    std::shared_ptr<Evaluator> pruning_heuristic;
 
     std::vector<Evaluator *> path_dependent_evaluators;
 
@@ -173,6 +194,8 @@ public:
         Schedule schedule,
         int credit_boost,
         const std::vector<std::shared_ptr<Evaluator>> &preferred_evals,
+        bool guide_by_pruning,
+        const std::shared_ptr<Evaluator> &pruning_heuristic,
         const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,
         const std::string &description, utils::Verbosity verbosity);
