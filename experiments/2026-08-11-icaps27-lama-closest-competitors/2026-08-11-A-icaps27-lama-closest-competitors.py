@@ -73,6 +73,8 @@ Environment variables:
   LCC_DOMAINS               comma-separated; power-user override of the full
                             domain list (default: every domain discovered
                             under the benchmarks dir)
+  LCC_CONFIGS               comma-separated config names; default all five
+  LCC_EXPERIMENT_SUFFIX     optional suffix for preserving separate reruns
   LCC_CREDIT_BOOST          adaptive-boosted-triangle credit_boost; default 10
   LCC_BOOST_AMOUNT          triangle-lama-mimick boost_amount (LAMA's own
                             DEFAULT_LAZY_BOOST); default 1000
@@ -424,6 +426,18 @@ for name, search in SEARCH_TEMPLATES.items():
 for name, alias_opts in ALIAS_CONFIGS.items():
     CONFIGS.append((name, alias_opts))
 
+_configs_filter = os.environ.get("LCC_CONFIGS")
+if _configs_filter:
+    requested_configs = [name.strip() for name in _configs_filter.split(",") if name.strip()]
+    known_configs = {name for name, _ in CONFIGS}
+    unknown_configs = [name for name in requested_configs if name not in known_configs]
+    if unknown_configs:
+        raise ValueError(
+            f"LCC_CONFIGS includes unknown configs: {unknown_configs}; "
+            f"valid: {sorted(known_configs)}"
+        )
+    CONFIGS = [(name, config) for name, config in CONFIGS if name in requested_configs]
+
 print(f"[lama-closest-competitors] {len(CONFIGS)} configs: {[c[0] for c in CONFIGS]}")
 
 
@@ -540,7 +554,7 @@ ATTRIBUTES = [
 ]
 
 DATA_DIR = DIR / "data"
-STEM = Path(__file__).stem
+STEM = Path(__file__).stem + os.environ.get("LCC_EXPERIMENT_SUFFIX", "")
 exp = Experiment(path=str(DATA_DIR / STEM), environment=ENV)
 
 for config_name, config in CONFIGS:
