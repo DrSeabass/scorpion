@@ -746,6 +746,26 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME round_robin_triangle_search
+    HELP "Per-depth round-robin triangle search"
+    SOURCES
+        search_algorithms/round_robin_triangle_search
+    DEPENDS
+        ordered_set
+        successor_generator
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME plugin_round_robin_triangle
+    HELP "Per-depth round-robin triangle search (plugin)"
+    SOURCES
+        search_algorithms/plugin_round_robin_triangle
+    DEPENDS
+        round_robin_triangle_search
+)
+
+create_fast_downward_library(
     NAME boosted_triangle_search
     HELP "Boosted triangle search (ICAPS-27)"
     SOURCES
