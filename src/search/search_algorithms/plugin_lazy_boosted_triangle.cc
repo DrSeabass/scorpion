@@ -128,6 +128,8 @@ public:
             opts.get<bool>("anytime"),
             opts.get<lazy_boosted_triangle_search::Schedule>("schedule"),
             opts.get<int>("credit_boost"),
+            false,
+            false,
             opts.get_list<shared_ptr<Evaluator>>("preferred_evals"),
             opts.get<bool>("guide_by_pruning"),
             opts.get<shared_ptr<Evaluator>>("pruning_heuristic", nullptr),
@@ -144,5 +146,7 @@ static plugins::TypedEnumPlugin<lazy_boosted_triangle_search::Schedule> _enum_pl
       "index rotates between steps (dive-coherent)"},
      {"pop",
       "the served index advances per expansion, so successive expansions down "
-      "a dive alternate heuristics (alternation at expansion granularity)"}});
+      "a dive alternate heuristics (alternation at expansion granularity)"},
+     {"depth",
+      "each depth owns an independent persistent round-robin cursor"}});
 }

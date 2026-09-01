@@ -20,7 +20,8 @@ namespace lazy_boosted_triangle_search {
 // (not shared) matching this branch's own sibling-file precedent.
 enum class Schedule {
     SWEEP,
-    POP
+    POP,
+    DEPTH
 };
 
 /*
@@ -103,6 +104,7 @@ class LazyBoostedTriangleSearch : public SearchAlgorithm {
     struct Layer {
         std::vector<std::unique_ptr<EdgeOpenList>> lists;
         std::vector<HeuristicProgress> progress;
+        int next_served = 0;
         explicit Layer(std::vector<std::unique_ptr<EdgeOpenList>> &&lists_)
             : lists(std::move(lists_)), progress(lists.size()) {}
     };
@@ -116,6 +118,10 @@ class LazyBoostedTriangleSearch : public SearchAlgorithm {
     // credit_boost == 0 (default) is an exact no-op reduction to plain
     // round-robin selection.
     const int credit_boost;
+    // Experimental clean-interface controls used by lazy_multi_triangle.
+    // Existing lazy_boosted_triangle configurations leave both false.
+    const bool union_preferred;
+    const bool skip_empty_on_sweep;
 
     std::vector<std::shared_ptr<Evaluator>> evals;
     const int num_lists;
@@ -152,6 +158,9 @@ class LazyBoostedTriangleSearch : public SearchAlgorithm {
     // Absolute depth of layers[0], for debug logging of drained layers'
     // final budgets against a stable depth label.
     int depth_offset = 0;
+
+    int guidance_queue_index(int evaluator_index) const;
+    int preferred_queue_index(int preferred_index) const;
 
     void start_evaluator_statistics(EvaluationContext &eval_context);
     bool has_non_empty_lists() const;
@@ -193,6 +202,8 @@ public:
         bool anytime,
         Schedule schedule,
         int credit_boost,
+        bool union_preferred,
+        bool skip_empty_on_sweep,
         const std::vector<std::shared_ptr<Evaluator>> &preferred_evals,
         bool guide_by_pruning,
         const std::shared_ptr<Evaluator> &pruning_heuristic,

@@ -28,6 +28,8 @@ LazyBoostedTriangleSearch::LazyBoostedTriangleSearch(
     bool anytime,
     Schedule schedule,
     int credit_boost,
+    bool union_preferred,
+    bool skip_empty_on_sweep,
     const vector<shared_ptr<Evaluator>> &preferred_evals,
     bool guide_by_pruning,
     const shared_ptr<Evaluator> &pruning_heuristic,
@@ -40,6 +42,8 @@ LazyBoostedTriangleSearch::LazyBoostedTriangleSearch(
       anytime_search(anytime),
       schedule(schedule),
       credit_boost(credit_boost),
+      union_preferred(union_preferred),
+      skip_empty_on_sweep(skip_empty_on_sweep),
       evals(evals),
       num_lists(static_cast<int>(evals.size())),
       preferred_evals(preferred_evals),
@@ -79,25 +83,49 @@ LazyBoostedTriangleSearch::LazyBoostedTriangleSearch(
         }
         preferred_source_index.push_back(source);
     }
-    open_list_factories.reserve(total_lists);
-    for (const shared_ptr<Evaluator> &e : evals) {
-        open_list_factories.push_back(
-            make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(e, false));
+    if (union_preferred && num_preferred != 0 && num_preferred != num_lists) {
+        cerr << "LazyBoostedTriangleSearch: union-preferred mode requires "
+                "preferred_evals to contain every guidance evaluator."
+             << endl;
+        utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
     }
-    for (int source : preferred_source_index) {
-        open_list_factories.push_back(
-            make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(evals[source], false));
+    open_list_factories.resize(total_lists);
+    for (int k = 0; k < num_lists; ++k) {
+        open_list_factories[guidance_queue_index(k)] =
+            make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(
+                evals[k], false);
+    }
+    for (int j = 0; j < num_preferred; ++j) {
+        int source = preferred_source_index[j];
+        open_list_factories[preferred_queue_index(j)] =
+            make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(
+                evals[source], false);
     }
     if (use_pruner_queue) {
-        open_list_factories.push_back(
-            make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(pruning_heuristic, false));
+        open_list_factories[total_lists - 1] =
+            make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(
+                pruning_heuristic, false);
     }
+}
+
+int LazyBoostedTriangleSearch::guidance_queue_index(int evaluator_index) const {
+    if (!union_preferred || num_preferred == 0)
+        return evaluator_index;
+    return 2 * evaluator_index;
+}
+
+int LazyBoostedTriangleSearch::preferred_queue_index(int preferred_index) const {
+    if (!union_preferred || num_preferred == 0)
+        return num_lists + preferred_index;
+    return 2 * preferred_source_index[preferred_index] + 1;
 }
 
 void LazyBoostedTriangleSearch::initialize() {
     log << "Conducting lazy multi-heuristic triangle search with slope " << slope
         << ", " << num_lists << " guidance heuristic(s)"
-        << ", schedule = " << (schedule == Schedule::SWEEP ? "sweep" : "pop")
+        << ", schedule = "
+        << (schedule == Schedule::SWEEP ? "sweep" :
+            schedule == Schedule::POP ? "pop" : "depth")
         << ", credit_boost = " << credit_boost
         << ", " << num_preferred << " preferred-operator (helpful) list(s)"
         << ", guide_by_pruning = " << use_pruner_queue
@@ -301,12 +329,13 @@ LazyBoostedTriangleSearch::ExpansionOutcome LazyBoostedTriangleSearch::process_c
         int h = eval_context.get_evaluator_value_or_infinity(evals[k].get());
         if (h == EvaluationResult::INFTY && evals[k]->dead_ends_are_reliable())
             is_dead_end = true;
-        h_out[k] = h;
+        h_out[guidance_queue_index(k)] = h;
     }
     // ICAPS-27 step 6: helpful lists share their h-value with their source
     // guidance list -- no extra evaluation, just a copy at the right index.
     for (int j = 0; j < num_preferred; ++j)
-        h_out[num_lists + j] = h_out[preferred_source_index[j]];
+        h_out[preferred_queue_index(j)] =
+            h_out[guidance_queue_index(preferred_source_index[j])];
     if (is_dead_end) {
         node.mark_as_dead_end();
         statistics.inc_dead_ends();
@@ -405,20 +434,33 @@ LazyBoostedTriangleSearch::ExpansionOutcome LazyBoostedTriangleSearch::process_c
         // guidance heuristics, see the class comment) always receive every
         // successor.
         for (int k = 0; k < num_lists; ++k) {
-            layers[source_layer_index + 1].lists[k]->insert(
+            layers[source_layer_index + 1].lists[guidance_queue_index(k)]->insert(
                 succ_eval_context, make_pair(state.get_id(), op_id));
         }
         if (use_pruner_queue) {
             layers[source_layer_index + 1].lists[total_lists - 1]->insert(
                 succ_eval_context, make_pair(state.get_id(), op_id));
         }
-        // ICAPS-27 step 6: helpful lists only receive successors reached
-        // via that heuristic's own preferred operator on the parent, and
-        // rank by the same (shared) evaluator as their source guidance list.
+        // Helpful lists either use their evaluator's own preferred set (the
+        // historical boosted-triangle behavior) or LAMA's union of all
+        // preferred evaluators (the lazy_multi_triangle behavior).
         for (int j = 0; j < num_preferred; ++j) {
-            const vector<OperatorID> &preferred = preferred_ops[j];
-            if (find(preferred.begin(), preferred.end(), op_id) != preferred.end()) {
-                layers[source_layer_index + 1].lists[num_lists + j]->insert(
+            bool is_preferred = false;
+            if (union_preferred) {
+                for (const vector<OperatorID> &preferred : preferred_ops) {
+                    if (find(preferred.begin(), preferred.end(), op_id) !=
+                        preferred.end()) {
+                        is_preferred = true;
+                        break;
+                    }
+                }
+            } else {
+                const vector<OperatorID> &preferred = preferred_ops[j];
+                is_preferred =
+                    find(preferred.begin(), preferred.end(), op_id) != preferred.end();
+            }
+            if (is_preferred) {
+                layers[source_layer_index + 1].lists[preferred_queue_index(j)]->insert(
                     succ_eval_context, make_pair(state.get_id(), op_id));
             }
         }
@@ -465,54 +507,74 @@ SearchStatus LazyBoostedTriangleSearch::step() {
         }
 
         const int round_robin_served =
-            (schedule == Schedule::SWEEP) ? sweep_served : pop_count % total_lists;
+            schedule == Schedule::SWEEP
+                ? sweep_served
+                : schedule == Schedule::POP
+                    ? pop_count % total_lists
+                    : layers[i].next_served;
         // ICAPS-27 axis 1a x 2c (see icaps-27-plan.md): reselect the served
         // list at this layer boundary from its own budgets. credit_boost ==
         // 0 falls straight through to the round-robin selector -- no
         // credit consulted, no budgets touched below.
-        const int served =
+        int served =
             (credit_boost == 0)
-                ? select_round_robin_served(layers[i], round_robin_served)
+                ? ((schedule == Schedule::SWEEP && skip_empty_on_sweep)
+                       ? round_robin_served
+                       : select_round_robin_served(
+                             layers[i], round_robin_served))
                 : select_credit_served(layers[i], round_robin_served);
-        EdgeOpenList &list = *layers[i].lists[served];
         bool expanded = false;
-        while (!list.empty() && !expanded) {
-            EdgeOpenListEntry next = list.remove_min();
+        const int max_lists_to_try =
+            schedule == Schedule::DEPTH ? total_lists : 1;
+        for (int lists_tried = 0;
+             lists_tried < max_lists_to_try && !expanded;
+             ++lists_tried) {
+            EdgeOpenList &list = *layers[i].lists[served];
+            while (!list.empty() && !expanded) {
+                EdgeOpenListEntry next = list.remove_min();
 
-            StateID predecessor_id = next.first;
-            OperatorID operator_id = next.second;
-            if (predecessor_id == StateID::no_state || operator_id == OperatorID::no_operator)
-                continue;
+                StateID predecessor_id = next.first;
+                OperatorID operator_id = next.second;
+                if (predecessor_id == StateID::no_state ||
+                    operator_id == OperatorID::no_operator)
+                    continue;
 
-            State predecessor = state_registry.lookup_state(predecessor_id);
-            OperatorProxy op = task_proxy.get_operators()[operator_id];
-            if (!task_properties::is_applicable(op, predecessor))
-                continue;
+                State predecessor = state_registry.lookup_state(predecessor_id);
+                OperatorProxy op = task_proxy.get_operators()[operator_id];
+                if (!task_properties::is_applicable(op, predecessor))
+                    continue;
 
-            SearchNode predecessor_node = search_space.get_node(predecessor);
-            int g = predecessor_node.get_g() + get_adjusted_cost(op);
-            // Scorpion SearchNode lacks get_real_g(); get_g() equals real_g for NORMAL cost type.
-            int real_g = predecessor_node.get_g() + op.get_cost();
-            State state = state_registry.get_successor_state(predecessor, op);
+                SearchNode predecessor_node = search_space.get_node(predecessor);
+                int g = predecessor_node.get_g() + get_adjusted_cost(op);
+                // Scorpion SearchNode lacks get_real_g(); get_g() equals
+                // real_g for NORMAL cost type.
+                int real_g = predecessor_node.get_g() + op.get_cost();
+                State state = state_registry.get_successor_state(predecessor, op);
 
-            vector<int> h_out;
-            ExpansionOutcome outcome = process_candidate(
-                state, predecessor_id, operator_id, g, real_g, i, false, h_out);
-            if (outcome == ExpansionOutcome::SOLVED)
-                return SOLVED;
-            expanded = (outcome == ExpansionOutcome::EXPANDED);
-            if (expanded) {
-                // ICAPS-27 progress credit (axis 1a): h_out[served] is the
-                // just-computed real h of the state actually expanded --
-                // never a value read back off the edge entry, which never
-                // carried one to begin with (see icaps-27-lazy-eval-design.md
-                // Q3). Skipped at credit_boost == 0, matching the selection
-                // short-circuit above.
-                if (credit_boost != 0)
-                    record_expansion_credit(layers[i].progress[served], h_out[served]);
-                // POP schedule: advance the round-robin per expansion. No-op
-                // for SWEEP.
-                ++pop_count;
+                vector<int> h_out;
+                ExpansionOutcome outcome = process_candidate(
+                    state, predecessor_id, operator_id, g, real_g, i, false,
+                    h_out);
+                if (outcome == ExpansionOutcome::SOLVED)
+                    return SOLVED;
+                expanded = (outcome == ExpansionOutcome::EXPANDED);
+                if (expanded) {
+                    if (credit_boost != 0) {
+                        record_expansion_credit(
+                            layers[i].progress[served], h_out[served]);
+                    }
+                    if (schedule == Schedule::DEPTH)
+                        layers[i].next_served = (served + 1) % total_lists;
+                    ++pop_count;
+                }
+            }
+            // For per-depth scheduling, a raw-nonempty queue can prove to be
+            // entirely stale. Continue cyclically to another queue in the
+            // same visit. The persistent cursor changes only if a queue
+            // actually supplies a live expansion.
+            if (!expanded && schedule == Schedule::DEPTH) {
+                served = select_round_robin_served(
+                    layers[i], (served + 1) % total_lists);
             }
         }
     }

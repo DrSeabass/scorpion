@@ -935,6 +935,16 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME plugin_lazy_multi_triangle
+    HELP "Lazy multi-heuristic triangle search (plugin)"
+    SOURCES
+        search_algorithms/plugin_lazy_multi_triangle
+    DEPENDS
+        lazy_boosted_triangle_search
+        plugin_lazy_boosted_triangle
+)
+
+create_fast_downward_library(
     NAME lazy_boosted_sweep_triangle_search
     HELP "Lazy boosted-sweep triangle search (ICAPS-27 lazy evaluation)"
     SOURCES
