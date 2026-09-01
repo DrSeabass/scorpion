@@ -18,8 +18,11 @@ public:
             "round-robin cursor. Its cursor advances only when that depth "
             "supplies a live node for expansion; empty and stale-only queue "
             "visits do not rotate it. Intended as a narrow satisficing-search "
-            "experimental baseline; it has no preferred queues, boosting, "
-            "adaptive slope, anytime mode, or pruning heuristic.");
+            "experimental baseline. schedule=sweep locks one queue for a "
+            "complete dive; schedule=depth gives each depth an independent "
+            "cursor. Optional preferred queues use the union of all preferred "
+            "evaluators. There is no boosting, adaptive slope, anytime mode, "
+            "or pruning heuristic.");
 
         add_list_option<shared_ptr<Evaluator>>(
             "evals", "eager guidance evaluators, one queue per depth each");
@@ -32,6 +35,13 @@ public:
             "reopen_closed",
             "reopen closed nodes if a cheaper path is found",
             "true");
+        add_option<round_robin_triangle_search::Schedule>(
+            "schedule", "queue scheduling policy", "depth");
+        add_list_option<shared_ptr<Evaluator>>(
+            "preferred_evals",
+            "empty or all guidance evaluators; their preferred operators are "
+            "unioned into a preferred-only copy of each guidance queue",
+            "[]");
         add_search_algorithm_options_to_feature(*this, "round_robin_triangle");
     }
 
@@ -42,9 +52,14 @@ public:
             opts.get_list<shared_ptr<Evaluator>>("evals"),
             opts.get<int>("slope"),
             opts.get<bool>("reopen_closed"),
+            opts.get<round_robin_triangle_search::Schedule>("schedule"),
+            opts.get_list<shared_ptr<Evaluator>>("preferred_evals"),
             get_search_algorithm_arguments_from_options(opts));
     }
 };
 
 static plugins::FeaturePlugin<RoundRobinTriangleSearchFeature> _plugin;
+static plugins::TypedEnumPlugin<round_robin_triangle_search::Schedule> _enum_plugin(
+    {{"sweep", "one queue owns the complete cascade dive"},
+     {"depth", "each depth owns an independent round-robin cursor"}});
 }

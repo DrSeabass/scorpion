@@ -2,6 +2,7 @@
 #define SEARCH_ALGORITHMS_ROUND_ROBIN_TRIANGLE_SEARCH_H
 
 #include "../search_algorithm.h"
+#include "../per_state_information.h"
 
 #include <deque>
 #include <memory>
@@ -13,6 +14,8 @@ class Evaluator;
 class EvaluationContext;
 
 namespace round_robin_triangle_search {
+
+enum class Schedule { SWEEP, DEPTH };
 
 /*
   Eager, fixed-slope, multi-heuristic triangle search for first-solution
@@ -49,12 +52,21 @@ class RoundRobinTriangleSearch : public SearchAlgorithm {
 
     const int slope;
     const bool reopen_closed_nodes;
+    const Schedule schedule;
     std::vector<std::shared_ptr<Evaluator>> evals;
     const int num_lists;
+    std::vector<std::shared_ptr<Evaluator>> preferred_evals;
+    const int num_preferred;
+    const int total_lists;
     std::vector<Evaluator *> path_dependent_evaluators;
+    PerStateInformation<std::vector<OperatorID>> preferred_op_cache;
 
     std::deque<Layer> layers;
     int max_active_layer = -1;
+    int sweep_count = 0;
+
+    int guidance_index(int evaluator_index) const;
+    int preferred_index(int evaluator_index) const;
 
     void start_evaluator_statistics(EvaluationContext &eval_context);
     void extend_layers(int num_layers);
@@ -64,7 +76,8 @@ class RoundRobinTriangleSearch : public SearchAlgorithm {
         const State &state, SearchNode &node, int g,
         std::vector<int> &h_out, bool is_new_evaluation);
     void insert_successor(
-        int layer, StateID id, int g, const std::vector<int> &hs);
+        int layer, StateID id, int g, const std::vector<int> &hs,
+        bool preferred);
 
 protected:
     virtual void initialize() override;
@@ -75,6 +88,8 @@ public:
         const std::vector<std::shared_ptr<Evaluator>> &evals,
         int slope,
         bool reopen_closed,
+        Schedule schedule,
+        const std::vector<std::shared_ptr<Evaluator>> &preferred_evals,
         OperatorCost cost_type, int bound, double max_time,
         const std::string &description, utils::Verbosity verbosity);
 
