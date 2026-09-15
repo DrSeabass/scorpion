@@ -2,6 +2,7 @@
 #define SEARCH_ALGORITHMS_ROUND_ROBIN_TRIANGLE_SEARCH_H
 
 #include "../search_algorithm.h"
+#include "triangle_sweep_start.h"
 #include "../per_state_information.h"
 
 #include <deque>
@@ -58,6 +59,7 @@ class RoundRobinTriangleSearch : public SearchAlgorithm {
     const bool global_preferred;
     const int k;
     const bool expand_equal;
+    triangle_sweep_start::SweepStart sweep_start;
     std::vector<std::shared_ptr<Evaluator>> evals;
     const int num_lists;
     std::vector<std::shared_ptr<Evaluator>> preferred_evals;
@@ -104,7 +106,8 @@ public:
         OperatorCost cost_type, int bound, double max_time,
         const std::string &description, utils::Verbosity verbosity,
         bool global_preferred = false,
-        int k = 1, bool expand_equal = false);
+        int k = 1, bool expand_equal = false,
+        bool random_start = false, int random_seed = -1, int window = -1);
 
     virtual ~RoundRobinTriangleSearch() = default;
     virtual void print_statistics() const override;
