@@ -82,7 +82,7 @@ LazyBoostedTriangleSearch::LazyBoostedTriangleSearch(
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
     const string &description, utils::Verbosity verbosity, bool global_preferred,
-    int k, bool expand_equal)
+    int k, bool expand_equal, bool random_start, int random_seed, int window)
     : SearchAlgorithm(cost_type, bound, max_time, description, verbosity),
       slope(slope),
       reopen_closed_nodes(reopen_closed),
@@ -94,6 +94,7 @@ LazyBoostedTriangleSearch::LazyBoostedTriangleSearch(
       global_preferred(global_preferred),
       k(k),
       expand_equal(expand_equal),
+      sweep_start(random_start, random_seed, window),
       evals(evals),
       num_lists(static_cast<int>(evals.size())),
       preferred_evals(preferred_evals),
@@ -109,6 +110,10 @@ LazyBoostedTriangleSearch::LazyBoostedTriangleSearch(
       root_pending(true) {
     if (k < 1 || (expand_equal && k != 1)) {
         cerr << "k must be positive; expand_equal=true requires k=1." << endl;
+        utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
+    }
+    if (global_preferred && sweep_start.enabled()) {
+        cerr << "Custom sweep starts require depth-stratified queues." << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
     }
     if (global_preferred && (schedule != Schedule::SWEEP ||
@@ -576,6 +581,17 @@ SearchStatus LazyBoostedTriangleSearch::step() {
         return FAILED;
     }
 
+    // Find the deepest queued layer before adding the slope allowance.
+    // In lazy search the frontier consists of unevaluated successor edges.
+    int deepest_layer = static_cast<int>(layers.size()) - 1;
+    while (deepest_layer > 0 && layer_empty(layers[deepest_layer]))
+        --deepest_layer;
+    const int first_layer = root_pending ? 0 : sweep_start.choose(depth_offset, deepest_layer);
+    if (sweep_start.enabled() && log.is_at_least_debug()) {
+        log << "Triangle sweep start: depth=" << depth_offset + first_layer
+            << " front=" << depth_offset + deepest_layer
+            << " offset=" << depth_offset << endl;
+    }
     extend_layers(slope);
 
     // SWEEP: one guidance list owns the entire cascade dive this step; the
@@ -586,7 +602,7 @@ SearchStatus LazyBoostedTriangleSearch::step() {
 
     // Snapshot the budget: a FIFO expansion may append deeper layers.
     const int num_layers = static_cast<int>(layers.size());
-    for (int i = 0; i < num_layers - 1; ++i) {
+    for (int i = first_layer; i < num_layers - 1; ++i) {
         if (i == 0 && root_pending) {
             root_pending = false;
             State initial_state = state_registry.get_initial_state();

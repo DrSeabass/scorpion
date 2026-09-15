@@ -1,6 +1,7 @@
 #include "lazy_boosted_triangle_search.h"
 
 #include "../plugins/plugin.h"
+#include "../utils/rng_options.h"
 #include "../utils/system.h"
 
 using namespace std;
@@ -67,6 +68,15 @@ public:
             "requires k=1. Lazy search uses parent h and insertion-time successor g. "
             "Only depth-stratified queues are batched",
             "false");
+        add_option<bool>(
+            "random_start", "start each sweep at a uniformly random absolute depth "
+            "between the root and the deepest queued layer, inclusive", "false");
+        add_option<int>(
+            "window", "start each sweep this many depth layers behind the deepest "
+            "queued layer; 0 starts at the front, -1 disables the window. "
+            "Cannot be combined with random_start", "-1",
+            plugins::Bounds("-1", "infinity"));
+        utils::add_rng_options_to_feature(*this);
         add_search_algorithm_options_to_feature(*this, "lazy_multi_triangle");
     }
 
@@ -96,7 +106,10 @@ public:
             get_search_algorithm_arguments_from_options(opts),
             opts.get<bool>("global_preferred"),
             opts.get<int>("k"),
-            opts.get<bool>("expand_equal"));
+            opts.get<bool>("expand_equal"),
+            opts.get<bool>("random_start"),
+            utils::get_rng_arguments_from_options(opts),
+            opts.get<int>("window"));
     }
 };
 

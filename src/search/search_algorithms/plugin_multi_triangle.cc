@@ -1,6 +1,7 @@
 #include "multi_triangle_search.h"
 
 #include "../plugins/plugin.h"
+#include "../utils/rng_options.h"
 
 using namespace std;
 
@@ -70,6 +71,15 @@ public:
             "depth queue; requires k=1. With pop, rotate once after the group",
             "false");
         add_search_pruning_options_to_feature(*this);
+        add_option<bool>(
+            "random_start", "start each sweep at a uniformly random absolute depth "
+            "between the root and the deepest queued layer, inclusive", "false");
+        add_option<int>(
+            "window", "start each sweep this many depth layers behind the deepest "
+            "queued layer; 0 starts at the front, -1 disables the window. "
+            "Cannot be combined with random_start", "-1",
+            plugins::Bounds("-1", "infinity"));
+        utils::add_rng_options_to_feature(*this);
         add_search_algorithm_options_to_feature(*this, "multi_triangle");
     }
 
@@ -86,7 +96,10 @@ public:
             get_search_pruning_arguments_from_options(opts),
             get_search_algorithm_arguments_from_options(opts),
             opts.get<int>("k"),
-            opts.get<bool>("expand_equal"));
+            opts.get<bool>("expand_equal"),
+            opts.get<bool>("random_start"),
+            utils::get_rng_arguments_from_options(opts),
+            opts.get<int>("window"));
     }
 };
 

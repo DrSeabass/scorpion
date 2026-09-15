@@ -31,7 +31,7 @@ MultiTriangleSearch::MultiTriangleSearch(
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
     const string &description, utils::Verbosity verbosity,
-    int k, bool expand_equal)
+    int k, bool expand_equal, bool random_start, int random_seed, int window)
     : SearchAlgorithm(cost_type, bound, max_time, description, verbosity),
       slope(slope),
       reopen_closed_nodes(reopen_closed),
@@ -39,6 +39,7 @@ MultiTriangleSearch::MultiTriangleSearch(
       schedule(schedule),
       k(k),
       expand_equal(expand_equal),
+      sweep_start(random_start, random_seed, window),
       guide_by_pruning(guide_by_pruning),
       evals(evals),
       num_lists(static_cast<int>(evals.size())),
@@ -121,7 +122,9 @@ void MultiTriangleSearch::initialize() {
         SearchNode node = search_space.get_node(initial_state);
         node.open_initial();
         if (task_properties::is_goal_state(task_proxy, initial_state)) {
-            update_incumbent(initial_state);
+            // No frontier remains to search. Keep the input bound unchanged:
+            // search() treats a zero bound after initialize() as failure.
+            set_plan({});
         } else {
             insert_successor(0, initial_state.get_id(), 0, initial_h);
         }
@@ -252,7 +255,13 @@ SearchStatus MultiTriangleSearch::step() {
     // -- skipping it forfeits nothing.
     const int sweep_served = step_count % total_lists;
 
-    for (int i = 0; i < cascade_cap; ++i) {
+    const int first_layer = sweep_start.choose(depth_offset, max_active_layer);
+    if (sweep_start.enabled() && log.is_at_least_debug()) {
+        log << "Triangle sweep start: depth=" << depth_offset + first_layer
+            << " front=" << depth_offset + max_active_layer
+            << " offset=" << depth_offset << endl;
+    }
+    for (int i = first_layer; i < cascade_cap; ++i) {
         // End the cascade as soon as we run off the end of the deque.
         if (i >= static_cast<int>(open_lists.size()))
             break;

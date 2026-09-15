@@ -5,6 +5,7 @@
 #include "../open_list.h"
 #include "../open_list_factory.h"
 #include "../search_algorithm.h"
+#include "triangle_sweep_start.h"
 
 #include <deque>
 #include <memory>
@@ -127,6 +128,7 @@ class LazyBoostedTriangleSearch : public SearchAlgorithm {
     const bool global_preferred;
     const int k;
     const bool expand_equal;
+    triangle_sweep_start::SweepStart sweep_start;
     struct PreferredEntry {
         EdgeOpenListEntry edge;
         int depth;
@@ -221,7 +223,8 @@ public:
         OperatorCost cost_type, int bound, double max_time,
         const std::string &description, utils::Verbosity verbosity,
         bool global_preferred = false,
-        int k = 1, bool expand_equal = false);
+        int k = 1, bool expand_equal = false,
+        bool random_start = false, int random_seed = -1, int window = -1);
     virtual ~LazyBoostedTriangleSearch() = default;
 
     virtual void print_statistics() const override;

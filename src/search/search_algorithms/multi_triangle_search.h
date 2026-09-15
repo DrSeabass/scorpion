@@ -2,6 +2,7 @@
 #define SEARCH_ALGORITHMS_MULTI_TRIANGLE_SEARCH_H
 
 #include "../search_algorithm.h"
+#include "triangle_sweep_start.h"
 
 #include <deque>
 #include <memory>
@@ -69,6 +70,7 @@ class MultiTriangleSearch : public SearchAlgorithm {
     const Schedule schedule;
     const int k;
     const bool expand_equal;
+    triangle_sweep_start::SweepStart sweep_start;
     // When true (and a pruning_heuristic is set), the admissible heuristic
     // also gets its own ranked list at index num_lists, joining the
     // round-robin. The admissible h is already computed for the f-prune, so
@@ -125,7 +127,8 @@ public:
         const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,
         const std::string &description, utils::Verbosity verbosity,
-        int k = 1, bool expand_equal = false);
+        int k = 1, bool expand_equal = false,
+        bool random_start = false, int random_seed = -1, int window = -1);
     virtual ~MultiTriangleSearch() = default;
 
     virtual void print_statistics() const override;

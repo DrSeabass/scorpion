@@ -188,9 +188,92 @@ class TriangleBatchTest(unittest.TestCase):
         self.assertEqual(implicit[0], 12, implicit[1])
         self.assertEqual(self.batches(implicit[1]), self.batches(explicit[1]))
 
+    def test_window_start_and_exhaustion(self):
+        variants = [("multi_triangle", "sweep"), ("multi_triangle", "pop"),
+                    ("round_robin_triangle", "sweep"), ("round_robin_triangle", "depth"),
+                    ("lazy_multi_triangle", "sweep"), ("lazy_multi_triangle", "depth")]
+        for algorithm, schedule in variants:
+            for window in (0, 1, 100):
+                with self.subTest(algorithm=algorithm, schedule=schedule, window=window):
+                    code, output = self.run_search(algorithm, f"schedule={schedule},window={window}")
+                    self.assertEqual(code, 12, output)
+                    self.assertIn("Expanded 7 state(s)", output)
+                    starts = re.findall(r"Triangle sweep start: depth=(\d+) front=(\d+) offset=(\d+)", output)
+                    self.assertTrue(starts)
+                    for depth, front, offset in starts:
+                        self.assertEqual(int(depth), max(int(offset), int(front) - window))
+                    current_start = None
+                    for line in output.splitlines():
+                        start = re.search(r"Triangle sweep start: depth=(\d+)", line)
+                        expansion = re.search(r"Triangle expansion:.* depth=(\d+)", line)
+                        if start:
+                            current_start = int(start[1])
+                        if expansion:
+                            self.assertGreaterEqual(int(expansion[1]), current_start)
+
+    def test_random_start_is_seeded_and_within_frontier(self):
+        edges = [(i, i + 1, 1) for i in range(10)] + [(0, 11, 1), (0, 12, 1)]
+        for algorithm in (*ALGORITHMS, "multi_triangle"):
+            with self.subTest(algorithm=algorithm):
+                options = "schedule=sweep,random_start=true,random_seed=17"
+                first = self.run_search(algorithm, options, edges=edges, goal=13)
+                second = self.run_search(algorithm, options, edges=edges, goal=13)
+                self.assertEqual(first[0], 12, first[1])
+                self.assertIn("Expanded 13 state(s)", first[1])
+                pattern = r"Triangle sweep start: depth=(\d+) front=(\d+) offset=(\d+)"
+                starts = re.findall(pattern, first[1])
+                self.assertEqual(starts, re.findall(pattern, second[1]))
+                self.assertEqual(self.batches(first[1]), self.batches(second[1]))
+                self.assertTrue(any(int(d) > int(o) for d, f, o in starts))
+                for depth, front, offset in starts:
+                    self.assertLessEqual(int(offset), int(depth))
+                    self.assertLessEqual(int(depth), int(front))
+
+    def test_custom_starts_with_batches(self):
+        for algorithm in (*ALGORITHMS, "multi_triangle"):
+            for start in ("window=0", "random_start=true,random_seed=7"):
+                for batch in ("k=3", "expand_equal=true"):
+                    with self.subTest(algorithm=algorithm, start=start, batch=batch):
+                        code, output = self.run_search(algorithm, f"schedule=sweep,{start},{batch}")
+                        self.assertEqual(code, 12, output)
+                        self.assertIn("Expanded 7 state(s)", output)
+
+    def test_wide_window_and_disabled_start_preserve_expansions(self):
+        for algorithm in (*ALGORITHMS, "multi_triangle"):
+            with self.subTest(algorithm=algorithm):
+                baseline = self.run_search(algorithm, "schedule=sweep")
+                for options in ("window=-1,random_start=false", "window=100"):
+                    result = self.run_search(algorithm, "schedule=sweep," + options)
+                    self.assertEqual(result[0], baseline[0], result[1])
+                    self.assertEqual(self.batches(result[1]), self.batches(baseline[1]))
+
+    def test_custom_starts_find_valid_plans(self):
+        for algorithm in (*ALGORITHMS, "multi_triangle"):
+            for options in ("window=0", "window=1", "random_start=true,random_seed=42"):
+                with self.subTest(algorithm=algorithm, options=options):
+                    code, output = self.run_search(algorithm, "schedule=sweep," + options, goal=6)
+                    self.assertEqual(code, 0, output)
+                    state = 0
+                    actions = re.findall(r"^move-(\d+)-(\d+) \(\d+\)$", output, re.MULTILINE)
+                    self.assertTrue(actions)
+                    for source, target in actions:
+                        self.assertEqual(int(source), state)
+                        self.assertTrue(any(src == state and dst == int(target) for src, dst, _ in EDGES))
+                        state = int(target)
+                    self.assertEqual(state, 6)
+
+    def test_initial_goal_with_custom_start(self):
+        for algorithm in (*ALGORITHMS, "multi_triangle"):
+            for options in ("window=0", "random_start=true"):
+                with self.subTest(algorithm=algorithm, options=options):
+                    code, output = self.run_search(algorithm, options, edges=[], goal=0)
+                    self.assertEqual(code, 0, output)
+                    self.assertIn("Plan length: 0", output)
+
     def test_invalid_options(self):
         for algorithm in (*ALGORITHMS, "multi_triangle"):
-            for options in ("k=0", "k=-1", "k=2,expand_equal=true"):
+            for options in ("k=0", "k=-1", "k=2,expand_equal=true",
+                            "window=-2", "random_start=true,window=1"):
                 with self.subTest(algorithm=algorithm, options=options):
                     code, output = self.run_search(algorithm, options)
                     self.assertEqual(code, 33, output)

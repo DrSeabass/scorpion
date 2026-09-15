@@ -25,7 +25,7 @@ RoundRobinTriangleSearch::RoundRobinTriangleSearch(
     const vector<shared_ptr<Evaluator>> &preferred_evals,
     OperatorCost cost_type, int bound, double max_time,
     const string &description, utils::Verbosity verbosity, bool global_preferred,
-    int k, bool expand_equal)
+    int k, bool expand_equal, bool random_start, int random_seed, int window)
     : SearchAlgorithm(cost_type, bound, max_time, description, verbosity),
       slope(slope),
       reopen_closed_nodes(reopen_closed),
@@ -33,6 +33,7 @@ RoundRobinTriangleSearch::RoundRobinTriangleSearch(
       global_preferred(global_preferred),
       k(k),
       expand_equal(expand_equal),
+      sweep_start(random_start, random_seed, window),
       evals(evals),
       num_lists(static_cast<int>(evals.size())),
       preferred_evals(preferred_evals),
@@ -41,6 +42,10 @@ RoundRobinTriangleSearch::RoundRobinTriangleSearch(
                   (global_preferred ? 1 : static_cast<int>(preferred_evals.size()))) {
     if (k < 1 || (expand_equal && k != 1)) {
         cerr << "k must be positive; expand_equal=true requires k=1." << endl;
+        utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
+    }
+    if (global_preferred && sweep_start.enabled()) {
+        cerr << "Custom sweep starts require depth-stratified queues." << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
     }
     if (global_preferred && (schedule != Schedule::SWEEP || preferred_evals.empty())) {
@@ -247,7 +252,13 @@ SearchStatus RoundRobinTriangleSearch::step() {
     // Global FIFO sweeps use this same fixed number of expansion slots.
     const int cascade_cap = max_active_layer + slope;
     const int sweep_served = sweep_count % total_lists;
-    for (int i = 0; i < cascade_cap; ++i) {
+    const int first_layer = sweep_start.choose(depth_offset, max_active_layer);
+    if (sweep_start.enabled() && log.is_at_least_debug()) {
+        log << "Triangle sweep start: depth=" << depth_offset + first_layer
+            << " front=" << depth_offset + max_active_layer
+            << " offset=" << depth_offset << endl;
+    }
+    for (int i = first_layer; i < cascade_cap; ++i) {
         if (i >= static_cast<int>(layers.size()))
             break;
 
