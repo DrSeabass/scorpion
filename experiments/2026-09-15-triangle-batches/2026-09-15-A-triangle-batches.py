@@ -98,7 +98,8 @@ if IS_TETRALITH:
         cpus_per_task=1,
         extra_options=(
             "#SBATCH --account="
-            + os.environ.get("TETRALITH_ACCOUNT", "naiss2026-4-694")
+            #+ os.environ.get("TETRALITH_ACCOUNT", "naiss2026-4-694")
+            + os.environ.get("TETRALITH_ACCOUNT", "naiss2025-5-561")
         ),
     )
     if os.environ.get("TETRALITH_MAX_TASKS"):
