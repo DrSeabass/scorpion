@@ -46,6 +46,8 @@ class RoundRobinTriangleSearch : public SearchAlgorithm {
     struct Layer {
         std::vector<OpenList> lists;
         int next_served = 0;
+        // Keep the layer alive while the global FIFO still refers to it.
+        int global_entries = 0;
 
         explicit Layer(int num_lists) : lists(num_lists) {}
     };
@@ -53,6 +55,9 @@ class RoundRobinTriangleSearch : public SearchAlgorithm {
     const int slope;
     const bool reopen_closed_nodes;
     const Schedule schedule;
+    const bool global_preferred;
+    const int k;
+    const bool expand_equal;
     std::vector<std::shared_ptr<Evaluator>> evals;
     const int num_lists;
     std::vector<std::shared_ptr<Evaluator>> preferred_evals;
@@ -62,6 +67,12 @@ class RoundRobinTriangleSearch : public SearchAlgorithm {
     PerStateInformation<std::vector<OperatorID>> preferred_op_cache;
 
     std::deque<Layer> layers;
+    struct PreferredEntry {
+        OpenEntry entry;
+        int depth;
+    };
+    std::deque<PreferredEntry> preferred_queue;
+    int depth_offset = 0;
     int max_active_layer = -1;
     int sweep_count = 0;
 
@@ -91,7 +102,9 @@ public:
         Schedule schedule,
         const std::vector<std::shared_ptr<Evaluator>> &preferred_evals,
         OperatorCost cost_type, int bound, double max_time,
-        const std::string &description, utils::Verbosity verbosity);
+        const std::string &description, utils::Verbosity verbosity,
+        bool global_preferred = false,
+        int k = 1, bool expand_equal = false);
 
     virtual ~RoundRobinTriangleSearch() = default;
     virtual void print_statistics() const override;

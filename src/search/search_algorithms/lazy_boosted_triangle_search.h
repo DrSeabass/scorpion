@@ -105,6 +105,8 @@ class LazyBoostedTriangleSearch : public SearchAlgorithm {
         std::vector<std::unique_ptr<EdgeOpenList>> lists;
         std::vector<HeuristicProgress> progress;
         int next_served = 0;
+        // Keep the layer alive while the global FIFO still refers to it.
+        int global_entries = 0;
         explicit Layer(std::vector<std::unique_ptr<EdgeOpenList>> &&lists_)
             : lists(std::move(lists_)), progress(lists.size()) {}
     };
@@ -122,6 +124,14 @@ class LazyBoostedTriangleSearch : public SearchAlgorithm {
     // Existing lazy_boosted_triangle configurations leave both false.
     const bool union_preferred;
     const bool skip_empty_on_sweep;
+    const bool global_preferred;
+    const int k;
+    const bool expand_equal;
+    struct PreferredEntry {
+        EdgeOpenListEntry edge;
+        int depth;
+    };
+    std::deque<PreferredEntry> preferred_queue;
 
     std::vector<std::shared_ptr<Evaluator>> evals;
     const int num_lists;
@@ -209,7 +219,9 @@ public:
         const std::shared_ptr<Evaluator> &pruning_heuristic,
         const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,
-        const std::string &description, utils::Verbosity verbosity);
+        const std::string &description, utils::Verbosity verbosity,
+        bool global_preferred = false,
+        int k = 1, bool expand_equal = false);
     virtual ~LazyBoostedTriangleSearch() = default;
 
     virtual void print_statistics() const override;

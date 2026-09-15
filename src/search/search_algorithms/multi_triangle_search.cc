@@ -30,12 +30,15 @@ MultiTriangleSearch::MultiTriangleSearch(
     const shared_ptr<Evaluator> &pruning_heuristic,
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
-    const string &description, utils::Verbosity verbosity)
+    const string &description, utils::Verbosity verbosity,
+    int k, bool expand_equal)
     : SearchAlgorithm(cost_type, bound, max_time, description, verbosity),
       slope(slope),
       reopen_closed_nodes(reopen_closed),
       anytime_search(anytime),
       schedule(schedule),
+      k(k),
+      expand_equal(expand_equal),
       guide_by_pruning(guide_by_pruning),
       evals(evals),
       num_lists(static_cast<int>(evals.size())),
@@ -43,6 +46,10 @@ MultiTriangleSearch::MultiTriangleSearch(
       total_lists(static_cast<int>(evals.size()) + (guide_by_pruning && pruning_heuristic != nullptr ? 1 : 0)),
       pruning_heuristic(pruning_heuristic),
       pruning_method(pruning) {
+    if (k < 1 || (expand_equal && k != 1)) {
+        cerr << "k must be positive; expand_equal=true requires k=1." << endl;
+        utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
+    }
     if (slope <= 0) {
         cerr << "MultiTriangleSearch: slope must be positive." << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
@@ -57,6 +64,7 @@ void MultiTriangleSearch::initialize() {
     log << "Conducting multi-heuristic triangle search with slope " << slope
         << ", " << num_lists << " guidance heuristic(s)"
         << ", schedule = " << (schedule == Schedule::SWEEP ? "sweep" : "pop")
+        << ", k = " << k << ", expand_equal = " << expand_equal
         << ", guide_by_pruning = " << use_pruner_queue
         << " (" << total_lists << " list(s)/layer)"
         << ", (real) bound = " << bound << endl;
@@ -217,6 +225,7 @@ void MultiTriangleSearch::insert_successor(
 SearchStatus MultiTriangleSearch::step() {
     while (!open_lists.empty() && layer_empty(0)) {
         open_lists.pop_front();
+        ++depth_offset;
         --max_active_layer;
     }
     max_active_layer = max(max_active_layer, 0);
@@ -247,131 +256,159 @@ SearchStatus MultiTriangleSearch::step() {
         // End the cascade as soon as we run off the end of the deque.
         if (i >= static_cast<int>(open_lists.size()))
             break;
-        const int served =
-            (schedule == Schedule::SWEEP) ? sweep_served : pop_count % total_lists;
-        OpenList &list = open_lists[i][served];
-        if (list.empty())
-            continue;
-
-        // Drain ineligible entries (stale, dead-end, already closed) from the
-        // top of the served list at layer i until an expandable node surfaces
-        // or the list is exhausted.
-        OpenEntry current{StateID::no_state, 0, 0};
-        bool found_expandable = false;
-        while (!list.empty()) {
-            const OpenEntry &candidate = list.top();
-            SearchNode candidate_node =
-                search_space.get_node(state_registry.lookup_state(candidate.id));
-            if (candidate.g > candidate_node.get_g() ||
-                candidate_node.is_dead_end() || candidate_node.is_closed()) {
+        const int batch_served = pop_count % total_lists;
+        int expanded_count = 0;
+        int batch_h = 0;
+        int batch_g = 0;
+        while (expand_equal || expanded_count < k) {
+            const int served = schedule == Schedule::SWEEP ? sweep_served :
+                expand_equal ? batch_served : pop_count % total_lists;
+            OpenList &list = open_lists[i][served];
+            // Drain ineligible entries (stale, dead-end, already closed) from the
+            // top of the served list at layer i until an expandable node surfaces
+            // or the list is exhausted.
+            OpenEntry current{StateID::no_state, 0, 0};
+            bool found_expandable = false;
+            while (!list.empty()) {
+                const OpenEntry &candidate = list.top();
+                SearchNode candidate_node =
+                    search_space.get_node(state_registry.lookup_state(candidate.id));
+                if (candidate.g > candidate_node.get_g() ||
+                    candidate_node.is_dead_end() || candidate_node.is_closed()) {
+                    list.pop();
+                    if (layer_empty(i) && i == max_active_layer)
+                        recompute_max_active_layer();
+                    continue;
+                }
+                if (expand_equal && expanded_count > 0 &&
+                    (candidate.h != batch_h || candidate.g != batch_g))
+                    break;
+                current = candidate;
                 list.pop();
                 if (layer_empty(i) && i == max_active_layer)
                     recompute_max_active_layer();
-                continue;
+                found_expandable = true;
+                break;
             }
-            current = candidate;
-            list.pop();
-            if (layer_empty(i) && i == max_active_layer)
-                recompute_max_active_layer();
-            found_expandable = true;
-            break;
-        }
-        if (!found_expandable)
-            continue;
+            if (!found_expandable) {
+                if (list.empty()) {
+                    // All lists contain the same live frontier. If this one
+                    // is exhausted, the other copies are stale too. Drain
+                    // them so POP cannot stall on an empty selected queue.
+                    for (OpenList &other : open_lists[i])
+                        other = OpenList();
+                    if (i == max_active_layer)
+                        recompute_max_active_layer();
+                }
+                break;
+            }
+            if (expanded_count == 0) {
+                batch_h = current.h;
+                batch_g = current.g;
+            }
+            ++expanded_count;
 
-        State state = state_registry.lookup_state(current.id);
-        SearchNode node = search_space.get_node(state);
+            State state = state_registry.lookup_state(current.id);
+            SearchNode node = search_space.get_node(state);
 
-        node.close();
-        statistics.inc_expanded();
-        // POP schedule: advance the round-robin per expansion so the next
-        // expansion (the next layer of this dive, or the next step) is guided
-        // by the next heuristic. No-op for SWEEP.
-        ++pop_count;
-
-        vector<OperatorID> applicable_ops;
-        successor_generator.generate_applicable_ops(state, applicable_ops);
-        pruning_method->prune_operators(state, applicable_ops);
-
-        for (OperatorID op_id : applicable_ops) {
-            OperatorProxy op = task_proxy.get_operators()[op_id];
-            // Scorpion SearchNode lacks get_real_g(); get_g() equals real_g for NORMAL cost type.
-            if (node.get_g() + op.get_cost() >= bound)
-                continue;
-
-            State succ_state = state_registry.get_successor_state(state, op);
-            statistics.inc_generated();
-
-            for (Evaluator *evaluator : path_dependent_evaluators) {
-                evaluator->notify_state_transition(state, op_id, succ_state);
+            node.close();
+            statistics.inc_expanded();
+            if (!expand_equal)
+                ++pop_count;
+            if (log.is_at_least_debug()) {
+                log << "Triangle expansion: sweep=" << step_count
+                    << " queue=guidance depth=" << depth_offset + i
+                    << " list=" << served << " h=" << current.h << " g=" << current.g << endl;
             }
 
-            SearchNode succ_node = search_space.get_node(succ_state);
-            if (succ_node.is_dead_end())
-                continue;
+            vector<OperatorID> applicable_ops;
+            successor_generator.generate_applicable_ops(state, applicable_ops);
+            pruning_method->prune_operators(state, applicable_ops);
 
-            if (!reopen_closed_nodes && !succ_node.is_new())
-                continue;
+            for (OperatorID op_id : applicable_ops) {
+                OperatorProxy op = task_proxy.get_operators()[op_id];
+                // Scorpion SearchNode lacks get_real_g(); get_g() equals real_g for NORMAL cost type.
+                if (node.get_g() + op.get_cost() >= bound)
+                    continue;
 
-            int succ_g = node.get_g() + get_adjusted_cost(op);
-            vector<int> succ_h;
-            int prune_h = EvaluationResult::INFTY;
+                State succ_state = state_registry.get_successor_state(state, op);
+                statistics.inc_generated();
 
-            // Compute the admissible h when it is needed: for the f-prune once
-            // a bound exists, or unconditionally when it also feeds the pruner
-            // queue (so the queue is populated even before the first
-            // incumbent). The single computed value serves both.
-            if (pruning_heuristic &&
-                (use_pruner_queue || bound != numeric_limits<int>::max())) {
-                EvaluationContext prune_ctx(
-                    succ_state, succ_g, false, &statistics);
-                prune_h = prune_ctx.get_evaluator_value_or_infinity(
-                    pruning_heuristic.get());
-                if (prune_h == EvaluationResult::INFTY) {
-                    if (pruning_heuristic->dead_ends_are_reliable()) {
-                        succ_node.mark_as_dead_end();
-                        statistics.inc_dead_ends();
+                for (Evaluator *evaluator : path_dependent_evaluators) {
+                    evaluator->notify_state_transition(state, op_id, succ_state);
+                }
+
+                SearchNode succ_node = search_space.get_node(succ_state);
+                if (succ_node.is_dead_end())
+                    continue;
+
+                if (!reopen_closed_nodes && !succ_node.is_new())
+                    continue;
+
+                int succ_g = node.get_g() + get_adjusted_cost(op);
+                vector<int> succ_h;
+                int prune_h = EvaluationResult::INFTY;
+
+                // Compute the admissible h when it is needed: for the f-prune once
+                // a bound exists, or unconditionally when it also feeds the pruner
+                // queue (so the queue is populated even before the first
+                // incumbent). The single computed value serves both.
+                if (pruning_heuristic &&
+                    (use_pruner_queue || bound != numeric_limits<int>::max())) {
+                    EvaluationContext prune_ctx(
+                        succ_state, succ_g, false, &statistics);
+                    prune_h = prune_ctx.get_evaluator_value_or_infinity(
+                        pruning_heuristic.get());
+                    if (prune_h == EvaluationResult::INFTY) {
+                        if (pruning_heuristic->dead_ends_are_reliable()) {
+                            succ_node.mark_as_dead_end();
+                            statistics.inc_dead_ends();
+                        }
+                        continue;
                     }
+                    if (bound != numeric_limits<int>::max() && succ_g + prune_h >= bound)
+                        continue;
+                }
+
+                if (succ_node.is_new()) {
+                    succ_node.open_new_node(node, op, get_adjusted_cost(op));
+                    if (!evaluate_and_prepare_node(
+                            succ_state, succ_node, succ_g, succ_h, true))
+                        continue;
+                } else if (succ_node.is_closed() && reopen_closed_nodes) {
+                    if (succ_g >= succ_node.get_g())
+                        continue;
+                    statistics.inc_reopened();
+                    succ_node.reopen_closed_node(node, op, get_adjusted_cost(op));
+                    if (!evaluate_and_prepare_node(
+                            succ_state, succ_node, succ_g, succ_h, false))
+                        continue;
+                } else {
+                    if (succ_g < succ_node.get_g())
+                        succ_node.update_open_node_parent(node, op, get_adjusted_cost(op));
+                    if (!evaluate_and_prepare_node(
+                            succ_state, succ_node, succ_node.get_g(), succ_h, false))
+                        continue;
+                }
+
+                if (task_properties::is_goal_state(task_proxy, succ_state)) {
+                    update_incumbent(succ_state);
+                    if (!anytime_search)
+                        return SOLVED;
                     continue;
                 }
-                if (bound != numeric_limits<int>::max() && succ_g + prune_h >= bound)
-                    continue;
-            }
 
-            if (succ_node.is_new()) {
-                succ_node.open_new_node(node, op, get_adjusted_cost(op));
-                if (!evaluate_and_prepare_node(
-                        succ_state, succ_node, succ_g, succ_h, true))
-                    continue;
-            } else if (succ_node.is_closed() && reopen_closed_nodes) {
-                if (succ_g >= succ_node.get_g())
-                    continue;
-                statistics.inc_reopened();
-                succ_node.reopen_closed_node(node, op, get_adjusted_cost(op));
-                if (!evaluate_and_prepare_node(
-                        succ_state, succ_node, succ_g, succ_h, false))
-                    continue;
-            } else {
-                if (succ_g < succ_node.get_g())
-                    succ_node.update_open_node_parent(node, op, get_adjusted_cost(op));
-                if (!evaluate_and_prepare_node(
-                        succ_state, succ_node, succ_node.get_g(), succ_h, false))
-                    continue;
+                // The guidance heuristics filled succ_h (size num_lists); append
+                // the admissible value so the pruner queue is ranked too.
+                if (use_pruner_queue)
+                    succ_h.push_back(prune_h);
+                insert_successor(i + 1, succ_state.get_id(), succ_node.get_g(), succ_h);
             }
-
-            if (task_properties::is_goal_state(task_proxy, succ_state)) {
-                update_incumbent(succ_state);
-                if (!anytime_search)
-                    return SOLVED;
-                continue;
-            }
-
-            // The guidance heuristics filled succ_h (size num_lists); append
-            // the admissible value so the pruner queue is ranked too.
-            if (use_pruner_queue)
-                succ_h.push_back(prune_h);
-            insert_successor(i + 1, succ_state.get_id(), succ_node.get_g(), succ_h);
         }
+        // Equal-evaluation groups are indivisible: advance to the next
+        // heuristic once, regardless of how many tied nodes were expanded.
+        if (expand_equal && expanded_count > 0)
+            ++pop_count;
     }
 
     ++step_count;

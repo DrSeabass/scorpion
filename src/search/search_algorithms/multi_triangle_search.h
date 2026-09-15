@@ -22,7 +22,8 @@ enum class Schedule {
     SWEEP,
     // Per-pop round-robin: the served index advances per expansion, so
     // successive expansions down a dive alternate heuristics. The literal
-    // multi-heuristic-alternation analog at expansion granularity.
+    // multi-heuristic-alternation analog at expansion granularity. In
+    // expand_equal mode, advance once per complete equal-key group instead.
     POP
 };
 
@@ -37,10 +38,11 @@ enum class Schedule {
   admissible `pruning_heuristic` remains the single bound-pruner across all
   lists, unchanged from vanilla triangle.
 
-  Scheduling (this commit): per-sweep round-robin. One heuristic list owns
-  the entire cascade dive in a step; the served index rotates between steps
-  (served = step_count % N), preserving the coherence of a single dive. With
-  N == 1 the algorithm reduces to vanilla triangle.
+  SWEEP selects one heuristic for the entire dive. POP rotates globally
+  after each live expansion in fixed-k mode, or after each equal-(h,g)
+  group in expand_equal mode. Each depth visit expands at most k nodes or
+  its selected queue's complete first live equal-key group. With N == 1,
+  k == 1 and expand_equal == false this reduces to vanilla triangle.
 */
 class MultiTriangleSearch : public SearchAlgorithm {
     struct OpenEntry {
@@ -65,6 +67,8 @@ class MultiTriangleSearch : public SearchAlgorithm {
     const bool reopen_closed_nodes;
     const bool anytime_search;
     const Schedule schedule;
+    const int k;
+    const bool expand_equal;
     // When true (and a pruning_heuristic is set), the admissible heuristic
     // also gets its own ranked list at index num_lists, joining the
     // round-robin. The admissible h is already computed for the f-prune, so
@@ -88,7 +92,9 @@ class MultiTriangleSearch : public SearchAlgorithm {
     int max_active_layer = -1;
     // Per-sweep round-robin counter: the served list index is step_count % N.
     int step_count = 0;
-    // Per-pop round-robin counter: advances per expansion (POP schedule only),
+    int depth_offset = 0;
+    // Per-pop round-robin counter: advances per expansion, or per equal-key
+    // batch with expand_equal (POP schedule only),
     // so the served list index is pop_count % N at each expansion.
     int pop_count = 0;
 
@@ -118,7 +124,8 @@ public:
         const std::shared_ptr<Evaluator> &pruning_heuristic,
         const std::shared_ptr<PruningMethod> &pruning,
         OperatorCost cost_type, int bound, double max_time,
-        const std::string &description, utils::Verbosity verbosity);
+        const std::string &description, utils::Verbosity verbosity,
+        int k = 1, bool expand_equal = false);
     virtual ~MultiTriangleSearch() = default;
 
     virtual void print_statistics() const override;

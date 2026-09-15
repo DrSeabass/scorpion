@@ -21,7 +21,9 @@ public:
             "experimental baseline. schedule=sweep locks one queue for a "
             "complete dive; schedule=depth gives each depth an independent "
             "cursor. Optional preferred queues use the union of all preferred "
-            "evaluators. There is no boosting, adaptive slope, anytime mode, "
+            "evaluators. With global_preferred=true and schedule=sweep, preferred "
+            "successors instead share one global FIFO queue. There is no "
+            "boosting, adaptive slope, anytime mode, "
             "or pruning heuristic.");
 
         add_list_option<shared_ptr<Evaluator>>(
@@ -40,8 +42,23 @@ public:
         add_list_option<shared_ptr<Evaluator>>(
             "preferred_evals",
             "empty or all guidance evaluators; their preferred operators are "
-            "unioned into a preferred-only copy of each guidance queue",
+            "unioned into a preferred-only copy of each guidance queue, or "
+            "one shared FIFO queue when global_preferred=true",
             "[]");
+        add_option<bool>(
+            "global_preferred",
+            "use one FIFO preferred queue across all depths; requires "
+            "schedule=sweep and nonempty preferred_evals. Its sweep gets the "
+            "usual expansion budget, with successors inserted at their actual depth",
+            "false");
+        add_option<int>(
+            "k", "maximum live expansions per depth visit from the selected queue",
+            "1", plugins::Bounds("1", "infinity"));
+        add_option<bool>(
+            "expand_equal",
+            "expand the entire minimum (h,g) group from the selected depth queue; "
+            "requires k=1. Only depth-stratified queues are batched",
+            "false");
         add_search_algorithm_options_to_feature(*this, "round_robin_triangle");
     }
 
@@ -54,7 +71,10 @@ public:
             opts.get<bool>("reopen_closed"),
             opts.get<round_robin_triangle_search::Schedule>("schedule"),
             opts.get_list<shared_ptr<Evaluator>>("preferred_evals"),
-            get_search_algorithm_arguments_from_options(opts));
+            get_search_algorithm_arguments_from_options(opts),
+            opts.get<bool>("global_preferred"),
+            opts.get<int>("k"),
+            opts.get<bool>("expand_equal"));
     }
 };
 

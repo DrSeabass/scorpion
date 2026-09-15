@@ -21,7 +21,10 @@ public:
             "round-robin across the N lists, with granularity set by "
             "'schedule': sweep (one list owns the whole cascade dive each step, "
             "rotating between steps) or pop (the list advances per expansion, "
-            "so successive expansions down a dive alternate heuristics). With a "
+            "so successive expansions down a dive alternate heuristics). "
+            "k controls expansions per depth visit; expand_equal instead drains "
+            "the selected queue's first live (h,g) group. With expand_equal, "
+            "pop rotates once per group. With default batching options and a "
             "single evaluator the search reduces to vanilla triangle under "
             "either schedule. Stops after the first plan is found unless "
             "anytime=true.");
@@ -59,6 +62,13 @@ public:
             "(g + h(pruning_heuristic) >= bound). "
             "If unset, only g-based pruning applies.",
             plugins::ArgumentInfo::NO_DEFAULT);
+        add_option<int>(
+            "k", "maximum live expansions per depth visit; pop rotates queues "
+            "after each expansion", "1", plugins::Bounds("1", "infinity"));
+        add_option<bool>(
+            "expand_equal", "expand the first live (h,g) group in the selected "
+            "depth queue; requires k=1. With pop, rotate once after the group",
+            "false");
         add_search_pruning_options_to_feature(*this);
         add_search_algorithm_options_to_feature(*this, "multi_triangle");
     }
@@ -74,7 +84,9 @@ public:
             opts.get<bool>("guide_by_pruning"),
             opts.get<shared_ptr<Evaluator>>("pruning_heuristic", nullptr),
             get_search_pruning_arguments_from_options(opts),
-            get_search_algorithm_arguments_from_options(opts));
+            get_search_algorithm_arguments_from_options(opts),
+            opts.get<int>("k"),
+            opts.get<bool>("expand_equal"));
     }
 };
 

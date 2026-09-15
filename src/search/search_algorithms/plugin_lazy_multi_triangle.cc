@@ -25,7 +25,9 @@ public:
             "live node is expanded. When preferred_evals is nonempty, every "
             "guidance queue gets a preferred-only copy and all preferred "
             "evaluators contribute to one LAMA-style union of preferred "
-            "operators. There is no boosting, adaptive slope, pruning "
+            "operators. With global_preferred=true and schedule=sweep, preferred "
+            "successors instead share one global FIFO queue. There is no "
+            "boosting, adaptive slope, pruning "
             "heuristic, or anytime mode.");
 
         add_list_option<shared_ptr<Evaluator>>(
@@ -46,9 +48,25 @@ public:
         add_list_option<shared_ptr<Evaluator>>(
             "preferred_evals",
             "evaluators whose preferred operators are unioned; when nonempty, "
-            "each guidance queue receives a preferred-only copy",
+            "each guidance queue receives a preferred-only copy unless "
+            "global_preferred=true selects one shared FIFO queue",
             "[]");
         add_search_pruning_options_to_feature(*this);
+        add_option<bool>(
+            "global_preferred",
+            "use one FIFO preferred queue across all depths; requires "
+            "schedule=sweep and nonempty preferred_evals. Its sweep gets the "
+            "usual expansion budget, with successors inserted at their actual depth",
+            "false");
+        add_option<int>(
+            "k", "maximum live expansions per depth visit from the selected queue",
+            "1", plugins::Bounds("1", "infinity"));
+        add_option<bool>(
+            "expand_equal",
+            "expand the entire minimum (h,g) group from the selected depth queue; "
+            "requires k=1. Lazy search uses parent h and insertion-time successor g. "
+            "Only depth-stratified queues are batched",
+            "false");
         add_search_algorithm_options_to_feature(*this, "lazy_multi_triangle");
     }
 
@@ -75,7 +93,10 @@ public:
             false,
             nullptr,
             get_search_pruning_arguments_from_options(opts),
-            get_search_algorithm_arguments_from_options(opts));
+            get_search_algorithm_arguments_from_options(opts),
+            opts.get<bool>("global_preferred"),
+            opts.get<int>("k"),
+            opts.get<bool>("expand_equal"));
     }
 };
 

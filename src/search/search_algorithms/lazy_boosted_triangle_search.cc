@@ -15,11 +15,57 @@
 #include <algorithm>
 #include <cassert>
 #include <limits>
+#include <map>
 #include <set>
 
 using namespace std;
 
 namespace lazy_boosted_triangle_search {
+
+namespace {
+// Store the lazy ranking key at insertion. Reading a batch boundary must not
+// evaluate successor states or change keys when a predecessor is reopened.
+class EqualEvaluationOpenList : public EdgeOpenList {
+    shared_ptr<Evaluator> evaluator;
+    map<pair<int, int>, deque<EdgeOpenListEntry>> buckets;
+
+    void do_insertion(EvaluationContext &context, const EdgeOpenListEntry &entry) override {
+        buckets[{context.get_evaluator_value(evaluator.get()), context.get_g_value()}]
+            .push_back(entry);
+    }
+
+public:
+    explicit EqualEvaluationOpenList(const shared_ptr<Evaluator> &evaluator)
+        : evaluator(evaluator) {}
+
+    pair<int, int> min_key() const {
+        assert(!empty());
+        return buckets.begin()->first;
+    }
+
+    EdgeOpenListEntry remove_min() override {
+        assert(!empty());
+        auto it = buckets.begin();
+        EdgeOpenListEntry entry = it->second.front();
+        it->second.pop_front();
+        if (it->second.empty())
+            buckets.erase(it);
+        return entry;
+    }
+
+    bool empty() const override { return buckets.empty(); }
+    void clear() override { buckets.clear(); }
+    void get_path_dependent_evaluators(set<Evaluator *> &evals) override {
+        evaluator->get_path_dependent_evaluators(evals);
+    }
+    bool is_dead_end(EvaluationContext &context) const override {
+        return context.is_evaluator_value_infinite(evaluator.get());
+    }
+    bool is_reliable_dead_end(EvaluationContext &context) const override {
+        return evaluator->dead_ends_are_reliable() && is_dead_end(context);
+    }
+};
+}
 
 LazyBoostedTriangleSearch::LazyBoostedTriangleSearch(
     const vector<shared_ptr<Evaluator>> &evals,
@@ -35,7 +81,8 @@ LazyBoostedTriangleSearch::LazyBoostedTriangleSearch(
     const shared_ptr<Evaluator> &pruning_heuristic,
     const shared_ptr<PruningMethod> &pruning,
     OperatorCost cost_type, int bound, double max_time,
-    const string &description, utils::Verbosity verbosity)
+    const string &description, utils::Verbosity verbosity, bool global_preferred,
+    int k, bool expand_equal)
     : SearchAlgorithm(cost_type, bound, max_time, description, verbosity),
       slope(slope),
       reopen_closed_nodes(reopen_closed),
@@ -44,18 +91,38 @@ LazyBoostedTriangleSearch::LazyBoostedTriangleSearch(
       credit_boost(credit_boost),
       union_preferred(union_preferred),
       skip_empty_on_sweep(skip_empty_on_sweep),
+      global_preferred(global_preferred),
+      k(k),
+      expand_equal(expand_equal),
       evals(evals),
       num_lists(static_cast<int>(evals.size())),
       preferred_evals(preferred_evals),
       num_preferred(static_cast<int>(preferred_evals.size())),
       total_lists(
-          static_cast<int>(evals.size()) + static_cast<int>(preferred_evals.size()) +
+          static_cast<int>(evals.size()) +
+          (global_preferred ? 1 : static_cast<int>(preferred_evals.size())) +
           (guide_by_pruning && pruning_heuristic != nullptr ? 1 : 0)),
       pruning_method(pruning),
       guide_by_pruning(guide_by_pruning),
       use_pruner_queue(guide_by_pruning && pruning_heuristic != nullptr),
       pruning_heuristic(pruning_heuristic),
       root_pending(true) {
+    if (k < 1 || (expand_equal && k != 1)) {
+        cerr << "k must be positive; expand_equal=true requires k=1." << endl;
+        utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
+    }
+    if (global_preferred && (schedule != Schedule::SWEEP ||
+                            preferred_evals.empty() || !union_preferred ||
+                            !skip_empty_on_sweep || credit_boost != 0)) {
+        cerr << "global_preferred requires unboosted union-preferred sweep scheduling "
+                "and nonempty preferred_evals." << endl;
+        utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
+    }
+    if ((k != 1 || expand_equal) &&
+        (schedule == Schedule::POP || credit_boost != 0 || !skip_empty_on_sweep)) {
+        cerr << "Batch expansion requires lazy_multi_triangle sweep or depth scheduling." << endl;
+        utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
+    }
     if (slope <= 0) {
         cerr << "LazyBoostedTriangleSearch: slope must be positive." << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
@@ -95,11 +162,15 @@ LazyBoostedTriangleSearch::LazyBoostedTriangleSearch(
             make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(
                 evals[k], false);
     }
-    for (int j = 0; j < num_preferred; ++j) {
+    for (int j = 0; j < num_preferred && !global_preferred; ++j) {
         int source = preferred_source_index[j];
         open_list_factories[preferred_queue_index(j)] =
             make_shared<standard_scalar_open_list::BestFirstOpenListFactory>(
                 evals[source], false);
+    }
+    if (global_preferred) {
+        // An unused placeholder keeps layer queue indices stable.
+        open_list_factories[num_lists] = open_list_factories[0];
     }
     if (use_pruner_queue) {
         open_list_factories[total_lists - 1] =
@@ -109,13 +180,13 @@ LazyBoostedTriangleSearch::LazyBoostedTriangleSearch(
 }
 
 int LazyBoostedTriangleSearch::guidance_queue_index(int evaluator_index) const {
-    if (!union_preferred || num_preferred == 0)
+    if (global_preferred || !union_preferred || num_preferred == 0)
         return evaluator_index;
     return 2 * evaluator_index;
 }
 
 int LazyBoostedTriangleSearch::preferred_queue_index(int preferred_index) const {
-    if (!union_preferred || num_preferred == 0)
+    if (global_preferred || !union_preferred || num_preferred == 0)
         return num_lists + preferred_index;
     return 2 * preferred_source_index[preferred_index] + 1;
 }
@@ -127,9 +198,12 @@ void LazyBoostedTriangleSearch::initialize() {
         << (schedule == Schedule::SWEEP ? "sweep" :
             schedule == Schedule::POP ? "pop" : "depth")
         << ", credit_boost = " << credit_boost
-        << ", " << num_preferred << " preferred-operator (helpful) list(s)"
+        << ", " << (global_preferred ? 1 : num_preferred)
+        << " preferred-operator (helpful) list(s)"
+        << ", global_preferred = " << global_preferred
+        << ", k = " << k << ", expand_equal = " << expand_equal
         << ", guide_by_pruning = " << use_pruner_queue
-        << " (" << total_lists << " list(s)/layer)"
+        << " (" << (global_preferred ? num_lists : total_lists) << " list(s)/layer)"
         << ", (real) bound = " << bound << endl;
 
     assert(!evals.empty());
@@ -191,6 +265,8 @@ bool LazyBoostedTriangleSearch::has_non_empty_lists() const {
 }
 
 bool LazyBoostedTriangleSearch::layer_empty(const Layer &layer) const {
+    if (layer.global_entries > 0)
+        return false;
     for (const unique_ptr<EdgeOpenList> &list : layer.lists) {
         if (!list->empty())
             return false;
@@ -199,10 +275,22 @@ bool LazyBoostedTriangleSearch::layer_empty(const Layer &layer) const {
 }
 
 LazyBoostedTriangleSearch::Layer LazyBoostedTriangleSearch::create_layer() const {
-    vector<unique_ptr<EdgeOpenList>> lists;
-    lists.reserve(total_lists);
-    for (int k = 0; k < total_lists; ++k) {
-        lists.push_back(open_list_factories[k]->create_edge_open_list());
+    vector<unique_ptr<EdgeOpenList>> lists(total_lists);
+    if (expand_equal) {
+        for (int j = 0; j < num_lists; ++j)
+            lists[guidance_queue_index(j)] = make_unique<EqualEvaluationOpenList>(evals[j]);
+        if (!global_preferred) {
+            for (int j = 0; j < num_preferred; ++j)
+                lists[preferred_queue_index(j)] =
+                    make_unique<EqualEvaluationOpenList>(evals[preferred_source_index[j]]);
+        }
+        if (global_preferred)
+            lists[num_lists] = open_list_factories[num_lists]->create_edge_open_list();
+        if (use_pruner_queue)
+            lists[total_lists - 1] = make_unique<EqualEvaluationOpenList>(pruning_heuristic);
+    } else {
+        for (int j = 0; j < total_lists; ++j)
+            lists[j] = open_list_factories[j]->create_edge_open_list();
     }
     return Layer(std::move(lists));
 }
@@ -333,7 +421,7 @@ LazyBoostedTriangleSearch::ExpansionOutcome LazyBoostedTriangleSearch::process_c
     }
     // ICAPS-27 step 6: helpful lists share their h-value with their source
     // guidance list -- no extra evaluation, just a copy at the right index.
-    for (int j = 0; j < num_preferred; ++j)
+    for (int j = 0; j < num_preferred && !global_preferred; ++j)
         h_out[preferred_queue_index(j)] =
             h_out[guidance_queue_index(preferred_source_index[j])];
     if (is_dead_end) {
@@ -459,6 +547,12 @@ LazyBoostedTriangleSearch::ExpansionOutcome LazyBoostedTriangleSearch::process_c
                 is_preferred =
                     find(preferred.begin(), preferred.end(), op_id) != preferred.end();
             }
+            if (is_preferred && global_preferred) {
+                preferred_queue.push_back({make_pair(state.get_id(), op_id),
+                                           depth_offset + source_layer_index + 1});
+                ++layers[source_layer_index + 1].global_entries;
+                break; // Insert once even if several evaluators prefer this edge.
+            }
             if (is_preferred) {
                 layers[source_layer_index + 1].lists[preferred_queue_index(j)]->insert(
                     succ_eval_context, make_pair(state.get_id(), op_id));
@@ -490,6 +584,7 @@ SearchStatus LazyBoostedTriangleSearch::step() {
     // alternate heuristics.
     const int sweep_served = sweep_count % total_lists;
 
+    // Snapshot the budget: a FIFO expansion may append deeper layers.
     const int num_layers = static_cast<int>(layers.size());
     for (int i = 0; i < num_layers - 1; ++i) {
         if (i == 0 && root_pending) {
@@ -505,6 +600,9 @@ SearchStatus LazyBoostedTriangleSearch::step() {
                 return SOLVED;
             continue;
         }
+
+        if (global_preferred && sweep_served == num_lists && preferred_queue.empty())
+            break;
 
         const int round_robin_served =
             schedule == Schedule::SWEEP
@@ -524,14 +622,37 @@ SearchStatus LazyBoostedTriangleSearch::step() {
                              layers[i], round_robin_served))
                 : select_credit_served(layers[i], round_robin_served);
         bool expanded = false;
+        int expanded_count = 0;
+        pair<int, int> batch_key;
         const int max_lists_to_try =
             schedule == Schedule::DEPTH ? total_lists : 1;
         for (int lists_tried = 0;
              lists_tried < max_lists_to_try && !expanded;
              ++lists_tried) {
             EdgeOpenList &list = *layers[i].lists[served];
-            while (!list.empty() && !expanded) {
-                EdgeOpenListEntry next = list.remove_min();
+            const bool serve_global = global_preferred && served == num_lists;
+            while ((serve_global ? !preferred_queue.empty() : !list.empty()) &&
+                   (serve_global ? expanded_count < 1 :
+                    (expand_equal || expanded_count < k))) {
+                pair<int, int> candidate_key;
+                if (expand_equal && !serve_global) {
+                    candidate_key = static_cast<EqualEvaluationOpenList &>(list).min_key();
+                    if (expanded_count > 0 && candidate_key != batch_key)
+                        break;
+                }
+                int expansion_layer = i;
+                EdgeOpenListEntry next{StateID::no_state, OperatorID::no_operator};
+                if (serve_global) {
+                    PreferredEntry entry = preferred_queue.front();
+                    preferred_queue.pop_front();
+                    next = entry.edge;
+                    expansion_layer = entry.depth - depth_offset;
+                    assert(expansion_layer >= 0 &&
+                           expansion_layer < static_cast<int>(layers.size()));
+                    --layers[expansion_layer].global_entries;
+                } else {
+                    next = list.remove_min();
+                }
 
                 StateID predecessor_id = next.first;
                 OperatorID operator_id = next.second;
@@ -553,18 +674,28 @@ SearchStatus LazyBoostedTriangleSearch::step() {
 
                 vector<int> h_out;
                 ExpansionOutcome outcome = process_candidate(
-                    state, predecessor_id, operator_id, g, real_g, i, false,
+                    state, predecessor_id, operator_id, g, real_g, expansion_layer, false,
                     h_out);
                 if (outcome == ExpansionOutcome::SOLVED)
                     return SOLVED;
-                expanded = (outcome == ExpansionOutcome::EXPANDED);
-                if (expanded) {
+                if (outcome == ExpansionOutcome::EXPANDED) {
+                    expanded = true;
+                    if (expanded_count == 0)
+                        batch_key = candidate_key;
+                    ++expanded_count;
+                    if (log.is_at_least_debug()) {
+                        log << "Triangle expansion: sweep=" << sweep_count
+                            << " queue=" << (serve_global ? "preferred" : "guidance")
+                            << " depth=" << expansion_layer + depth_offset
+                            << " list=" << served;
+                        if (expand_equal && !serve_global)
+                            log << " h=" << candidate_key.first << " g=" << candidate_key.second;
+                        log << endl;
+                    }
                     if (credit_boost != 0) {
                         record_expansion_credit(
                             layers[i].progress[served], h_out[served]);
                     }
-                    if (schedule == Schedule::DEPTH)
-                        layers[i].next_served = (served + 1) % total_lists;
                     ++pop_count;
                 }
             }
@@ -577,6 +708,9 @@ SearchStatus LazyBoostedTriangleSearch::step() {
                     layers[i], (served + 1) % total_lists);
             }
         }
+        // One queue owns the whole batch; rotate only after a live batch.
+        if (schedule == Schedule::DEPTH && expanded)
+            layers[i].next_served = (served + 1) % total_lists;
     }
 
     trim_empty_layers();
